@@ -256,7 +256,7 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
               className="text-white font-bold py-3 px-8 rounded-lg text-lg disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: themeColors[theme] }}
             >
-              {loading ? "Searching Articles..." : "Generate Bulletin"}
+              {loading ? "Searching Articles..." : "Fetch Articles"}
             </Button>
           </div>
         </form>
