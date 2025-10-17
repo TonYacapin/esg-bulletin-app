@@ -36,7 +36,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             className="text-4xl font-bold mb-4"
             style={{ color: themeColors[theme] }}
           >
-            Sustainability Bulletin
+            ESG BULLETIN
           </h1>
           <p className="text-gray-600">
             Generated on {new Date().toLocaleDateString()} • {articles.length} articles
