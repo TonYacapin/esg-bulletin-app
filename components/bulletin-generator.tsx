@@ -7,6 +7,7 @@ import { BulletinOutput } from "./bulletin-output"
 import { ArticleSelector } from "./article-selector"
 
 export interface Article {
+  imageUrl: any
   news_id: number
   news_title: string
   original_title: string
@@ -21,13 +22,23 @@ export interface Article {
   jurisdictions: {
     name: string
     code: string
-  }[]  // Fixed: this is an array
+  }[]
+}
+
+interface BulletinConfig {
+  headerText: string
+  headerImage: string
+  issueNumber: string
+  publicationDate: string
+  publisherLogo: string
+  footerImage: string
 }
 
 export interface BulletinData {
   theme: "blue" | "green" | "red"
   articles: Article[]
   articlesByCountry: Record<string, Article[]>
+  bulletinConfig?: BulletinConfig
 }
 
 type Step = "form" | "selector" | "output"
@@ -79,9 +90,9 @@ export default function BulletinGenerator() {
     }
   }
 
-  const handleArticlesSelected = (selectedArticles: Article[]) => {
+  // FIXED: Added bulletinConfig parameter
+  const handleArticlesSelected = (selectedArticles: Article[], bulletinConfig: BulletinConfig) => {
     const articlesByCountry = selectedArticles.reduce((acc: Record<string, Article[]>, article: Article) => {
-      // Fixed: access the first jurisdiction in the array
       const country = article.jurisdictions?.[0]?.name || "International"
       if (!acc[country]) acc[country] = []
       acc[country].push(article)
@@ -92,6 +103,7 @@ export default function BulletinGenerator() {
       theme: selectedTheme,
       articles: selectedArticles,
       articlesByCountry,
+      bulletinConfig // FIXED: Include bulletinConfig in the data
     })
     setStep("output")
   }
