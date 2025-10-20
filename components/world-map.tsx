@@ -75,13 +75,15 @@ export function WorldMap({
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{
-            scale: 147
+            scale: 147,
+            center: [0, 20]
           }}
           width={800}
           height={450}
           className="w-full h-auto"
         >
-          <ZoomableGroup center={[0, 20]} zoom={1}>
+          {/* Always use a simple group without zooming capabilities for non-interactive */}
+          <g>
             <Geographies geography={geoUrl}>
               {({ geographies }) =>
                 geographies.map((geo) => {
@@ -91,7 +93,7 @@ export function WorldMap({
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
-                      onClick={() => handleCountryClick(geo.properties.name)}
+                      onClick={() => interactive && handleCountryClick(geo.properties.name)}
                       style={{
                         default: {
                           fill: isMapped ? primaryColor : "#D6D6DA",
@@ -100,14 +102,16 @@ export function WorldMap({
                           outline: "none",
                         },
                         hover: {
-                          fill: activeCountry && interactive ? (isMapped ? primaryColor : "#F53") : (isMapped ? primaryColor : "#E5E5E5"),
+                          fill: interactive 
+                            ? (activeCountry ? (isMapped ? primaryColor : "#F53") : (isMapped ? primaryColor : "#E5E5E5"))
+                            : (isMapped ? primaryColor : "#D6D6DA"),
                           stroke: "#FFFFFF",
                           strokeWidth: 0.5,
                           outline: "none",
                           cursor: interactive ? "pointer" : "default",
                         },
                         pressed: {
-                          fill: primaryColor,
+                          fill: interactive ? primaryColor : (isMapped ? primaryColor : "#D6D6DA"),
                           stroke: "#FFFFFF",
                           strokeWidth: 0.5,
                           outline: "none",
@@ -180,10 +184,10 @@ export function WorldMap({
                 })
               }
             </Geographies>
-          </ZoomableGroup>
+          </g>
         </ComposableMap>
 
-        {/* Instructions Overlay */}
+        {/* Instructions Overlay - Only show when interactive */}
         {activeCountry && interactive && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md border border-blue-700">
             <p className="text-sm font-medium">Click on the map to locate: {activeCountry}</p>
@@ -195,14 +199,14 @@ export function WorldMap({
       {showLegend && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            {interactive ? `Countries to Map (${Object.keys(mappedCountries).length}/${countries.length})` : ""}
+            {interactive ? `Countries to Map (${Object.keys(mappedCountries).length}/${countries.length})` : "Covered Countries"}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {legendItems.map((item) => (
               <div 
                 key={item.country} 
-                className={`flex items-start space-x-3 p-3 rounded-lg transition-all ${
-                  interactive ? 'cursor-pointer hover:bg-gray-50' : ''
+                className={`flex items-start space-x-3 p-3 rounded-lg ${
+                  interactive ? 'cursor-pointer hover:bg-gray-50 transition-all' : ''
                 } ${
                   activeCountry === item.country && interactive
                     ? 'bg-blue-100 border-2 border-blue-500' 
