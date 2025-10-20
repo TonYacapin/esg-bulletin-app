@@ -1,135 +1,261 @@
 "use client"
 
-import { useRef } from "react"
+import { useState } from "react"
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  ZoomableGroup
+} from "react-simple-maps"
 
 interface WorldMapProps {
-  countries: string[]
+  countries?: string[]
   primaryColor: string
   articlesByCountry: Record<string, any[]>
+  mappedCountries: Record<string, string>
+  onCountryMapping?: (legendCountry: string, geoCountry: string) => void
+  onRemoveMapping?: (country: string) => void
+  activeCountry?: string | null
+  interactive?: boolean
+  showLegend?: boolean
 }
 
-const COUNTRY_COORDINATES: Record<string, { top: string; left: string }> = {
-  // Americas
-  "United States": { top: "38%", left: "25%" },
-  Canada: { top: "25%", left: "25%" },
-  Brazil: { top: "65%", left: "35%" },
-  Mexico: { top: "45%", left: "24%" },
-  // Europe
-  "United Kingdom": { top: "26%", left: "48%" },
-  Germany: { top: "28%", left: "52%" },
-  "European Union": { top: "29%", left: "50%" },
-  France: { top: "30%", left: "50%" },
-  Spain: { top: "33%", left: "47%" },
-  Italy: { top: "32%", left: "53%" },
-  Switzerland: { top: "29%", left: "51.5%" },
-  Denmark: { top: "26%", left: "52%" },
-  // Asia & Oceania
-  Australia: { top: "75%", left: "85%" },
-  Japan: { top: "36%", left: "85%" },
-  China: { top: "40%", left: "75%" },
-  India: { top: "48%", left: "70%" },
-  Singapore: { top: "58%", left: "78%" },
-  "Hong Kong": { top: "46%", left: "80%" },
-  "New Zealand": { top: "83%", left: "95%" },
-  // Africa
-  "South Africa": { top: "75%", left: "55%" },
-  Uganda: { top: "60%", left: "55%" },
-  // Special
-  International: { top: "45%", left: "45%" },
+const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
+
+// Map GeoJSON country names to our standard names
+const COUNTRY_NAME_MAP: Record<string, string> = {
+  "United States of America": "United States",
+  "United Kingdom": "United Kingdom",
+  "Dem. Rep. Congo": "Democratic Republic of the Congo",
 }
 
-export function WorldMap({ countries, primaryColor, articlesByCountry }: WorldMapProps) {
-  const mapRef = useRef<HTMLDivElement>(null)
+export function WorldMap({ 
+  countries = [], 
+  primaryColor, 
+  articlesByCountry, 
+  mappedCountries,
+  onCountryMapping,
+  onRemoveMapping,
+  activeCountry = null,
+  interactive = true,
+  showLegend = true
+}: WorldMapProps) {
+  const handleCountryClick = (geoCountryName: string) => {
+    if (!activeCountry || !interactive || !onCountryMapping) return
 
-  // Generate legend items with letters A, B, C, etc.
+    const standardName = COUNTRY_NAME_MAP[geoCountryName] || geoCountryName
+
+    // Check if this country is already mapped
+    const alreadyMappedTo = Object.entries(mappedCountries).find(([_, geo]) => geo === geoCountryName)?.[0]
+    
+    if (alreadyMappedTo && onRemoveMapping) {
+      onRemoveMapping(alreadyMappedTo)
+    }
+
+    // Map the active legend country to this geographic country
+    onCountryMapping(activeCountry, geoCountryName)
+  }
+
+  // Generate legend items with letters
   const legendItems = countries.map((country, index) => ({
     country,
-    letter: String.fromCharCode(65 + index), // A, B, C, ...
-    articles: articlesByCountry[country] || []
+    letter: String.fromCharCode(65 + index),
+    articles: articlesByCountry[country] || [],
+    isMapped: !!mappedCountries[country],
   }))
+
+  // Get all mapped geographic countries for highlighting
+  const mappedGeoCountries = Object.values(mappedCountries)
 
   return (
     <div className="w-full">
       {/* Map Container */}
-      <div ref={mapRef} className="relative bg-slate-50 rounded-lg overflow-hidden mb-6" style={{ aspectRatio: "16/9" }}>
-        {/* World Map Image */}
-        <img
-          src="https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg"
-          alt="World Map"
-          className="w-full h-full object-cover opacity-30"
-        />
+      <div className="relative bg-slate-50 rounded-lg overflow-hidden mb-6 border border-gray-200">
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{
+            scale: 147
+          }}
+          width={800}
+          height={450}
+          className="w-full h-auto"
+        >
+          <ZoomableGroup center={[0, 20]} zoom={1}>
+            <Geographies geography={geoUrl}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const isMapped = mappedGeoCountries.includes(geo.properties.name)
+                  
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onClick={() => handleCountryClick(geo.properties.name)}
+                      style={{
+                        default: {
+                          fill: isMapped ? primaryColor : "#D6D6DA",
+                          stroke: "#FFFFFF",
+                          strokeWidth: 0.5,
+                          outline: "none",
+                        },
+                        hover: {
+                          fill: activeCountry && interactive ? (isMapped ? primaryColor : "#F53") : (isMapped ? primaryColor : "#E5E5E5"),
+                          stroke: "#FFFFFF",
+                          strokeWidth: 0.5,
+                          outline: "none",
+                          cursor: interactive ? "pointer" : "default",
+                        },
+                        pressed: {
+                          fill: primaryColor,
+                          stroke: "#FFFFFF",
+                          strokeWidth: 0.5,
+                          outline: "none",
+                        },
+                      }}
+                    />
+                  )
+                })
+              }
+            </Geographies>
 
-        {/* Map Markers with Letters */}
-        {countries.map((country, index) => {
-          const coords = COUNTRY_COORDINATES[country]
-          if (!coords) return null
+            {/* Markers with Letters - only show for mapped countries */}
+            <Geographies geography={geoUrl}>
+              {({ geographies }) =>
+                Object.entries(mappedCountries).map(([legendCountry, geoCountry]) => {
+                  const index = countries.indexOf(legendCountry)
+                  if (index === -1) return null
 
-          const letter = String.fromCharCode(65 + index)
+                  const letter = String.fromCharCode(65 + index)
+                  
+                  // Find the geography for this country
+                  const geo = geographies.find(g => g.properties.name === geoCountry)
+                  if (!geo) return null
 
-          return (
-            <div
-              key={country}
-              className="absolute group"
-              style={{
-                top: coords.top,
-                left: coords.left,
-                transform: "translate(-50%, -50%)",
-              }}
-            >
-              {/* Marker Circle with Letter */}
-              <div
-                className="w-8 h-8 rounded-full border-2 border-white shadow-md cursor-pointer transition-transform group-hover:scale-125 flex items-center justify-center"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <span className="text-white text-xs font-bold">{letter}</span>
-              </div>
+                  // Simple centroid calculation - get bounds center
+                  const coordinates = geo.geometry.coordinates
+                  let allCoords: number[][] = []
+                  
+                  // Flatten all coordinates
+                  const flatten = (coords: any): void => {
+                    if (Array.isArray(coords)) {
+                      if (typeof coords[0] === 'number') {
+                        allCoords.push(coords)
+                      } else {
+                        coords.forEach(flatten)
+                      }
+                    }
+                  }
+                  flatten(coordinates)
 
-              {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                {country} ({letter})
-              </div>
-            </div>
-          )
-        })}
+                  if (allCoords.length === 0) return null
+
+                  // Calculate average position
+                  const avgLng = allCoords.reduce((sum, coord) => sum + coord[0], 0) / allCoords.length
+                  const avgLat = allCoords.reduce((sum, coord) => sum + coord[1], 0) / allCoords.length
+
+                  return (
+                    <Marker key={legendCountry} coordinates={[avgLng, avgLat]}>
+                      <circle
+                        r={8}
+                        fill={primaryColor}
+                        stroke="#FFFFFF"
+                        strokeWidth={2}
+                      />
+                      <text
+                        textAnchor="middle"
+                        y={1}
+                        style={{
+                          fontFamily: "system-ui",
+                          fill: "#FFFFFF",
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          pointerEvents: "none"
+                        }}
+                      >
+                        {letter}
+                      </text>
+                    </Marker>
+                  )
+                })
+              }
+            </Geographies>
+          </ZoomableGroup>
+        </ComposableMap>
+
+        {/* Instructions Overlay */}
+        {activeCountry && interactive && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md border border-blue-700">
+            <p className="text-sm font-medium">Click on the map to locate: {activeCountry}</p>
+          </div>
+        )}
       </div>
 
-      {/* Legend Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {legendItems.map((item) => (
-            <div key={item.country} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-              {/* Legend Marker */}
-              <div
-                className="w-6 h-6 rounded-full border-2 border-white shadow-sm flex-shrink-0 flex items-center justify-center mt-0.5"
-                style={{ backgroundColor: primaryColor }}
+      {/* Legend Section - Show based on showLegend prop */}
+      {showLegend && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {interactive ? `Countries to Map (${Object.keys(mappedCountries).length}/${countries.length})` : ""}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {legendItems.map((item) => (
+              <div 
+                key={item.country} 
+                className={`flex items-start space-x-3 p-3 rounded-lg transition-all ${
+                  interactive ? 'cursor-pointer hover:bg-gray-50' : ''
+                } ${
+                  activeCountry === item.country && interactive
+                    ? 'bg-blue-100 border-2 border-blue-500' 
+                    : 'bg-gray-50 border border-gray-200'
+                }`}
+                onClick={() => interactive && onCountryMapping && onCountryMapping(item.country, "")}
               >
-                <span className="text-white text-xs font-bold">{item.letter}</span>
+                {/* Legend Marker */}
+                <div
+                  className="w-6 h-6 rounded-full border-2 border-white shadow-sm flex-shrink-0 flex items-center justify-center mt-0.5"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <span className="text-white text-xs font-bold">{item.letter}</span>
+                </div>
+                
+                {/* Country and Headlines */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-900 text-sm">
+                      {item.letter}. {item.country}
+                    </h4>
+                    {item.isMapped && onRemoveMapping && interactive && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onRemoveMapping(item.country)
+                        }}
+                        className="text-gray-400 hover:text-red-500 text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  
+                  {item.articles.length > 0 ? (
+                    <ul className="space-y-1">
+                      {item.articles.map((article, idx) => (
+                        <li key={article.news_id || idx} className="text-gray-600 text-xs">
+                          • {article.news_title}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-600 text-xs">
+                      Latest developments in {item.country}
+                    </p>
+                  )}
+                </div>
               </div>
-              
-              {/* Country and Headlines */}
-              <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-gray-900 text-sm mb-2">
-                  {item.letter}. {item.country}
-                </h4>
-                {item.articles.length > 0 ? (
-                  <ul className="space-y-1">
-                    {item.articles.map((article, idx) => (
-                      <li key={article.news_id || idx} className="text-gray-600 text-xs">
-                        • {article.news_title}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-600 text-xs">
-                    Latest developments in {item.country}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      
-      </div>
+      )}
     </div>
   )
 }
