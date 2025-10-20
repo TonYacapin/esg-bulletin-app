@@ -448,9 +448,7 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-3 mb-6">
-            <div className={`p-3 rounded-2xl bg-gradient-to-r ${themeConfig[theme].gradient} shadow-lg`}>
-              <Sparkles className="h-6 w-6 text-white" />
-            </div>
+            
           </div>
           <h1 className="text-3xl font-light text-gray-900 mb-3 tracking-tight">
             ESG Bulletin Generator

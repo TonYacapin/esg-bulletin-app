@@ -890,6 +890,9 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
               <Button
                 onClick={closeConfigModal}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
+                 style={{
+              backgroundColor: selectedArticles.length === 0 ? "#ccc" : themeColors[theme],
+            }}
               >
                 Save Configuration
               </Button>

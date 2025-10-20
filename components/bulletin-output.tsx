@@ -26,12 +26,10 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       day: 'numeric'
     })
   }
-
   const formatConfigDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      month: 'long'
     })
   }
 
@@ -40,7 +38,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     if (!text) return "";
 
     const sentences = text.split(/(?<=[.!?])\s+/);
-    
+
     return (
       <div className="text-justify leading-relaxed">
         {sentences.map((sentence, index) => {
@@ -64,7 +62,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               </span>
             );
           }
-          
+
           return (
             <span key={index}>
               {" "}{formattedSentence}
@@ -106,6 +104,30 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const handleDownloadPDF = () => {
     window.print();
   }
+
+  // Extract unique countries from articles for the map
+  const getMapCountries = () => {
+    const countrySet = new Set<string>();
+
+    articles.forEach(article => {
+      article.jurisdictions?.forEach(jurisdiction => {
+        // Map jurisdiction names to WorldMap country names
+        const countryName = jurisdiction.name;
+        if (countryName && countryName !== "International") {
+          countrySet.add(countryName);
+        }
+      });
+    });
+
+    // Add "International" if there are international articles
+    if (getInternationalArticles().length > 0) {
+      countrySet.add("International");
+    }
+
+    return Array.from(countrySet);
+  }
+
+  const mapCountries = getMapCountries();
 
   return (
     <div className="container mx-auto p-8 max-w-6xl bg-white">
@@ -184,9 +206,22 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 {bulletinConfig?.issueNumber || "Issue #10"} |{" "}
                 {bulletinConfig?.publicationDate
                   ? formatConfigDate(bulletinConfig.publicationDate)
-                  : "July 2025"}
+                  : "Current Month"}
               </span>
             </div>
+          </div>
+        </div>
+
+        <div className="mb-12 print:mb-8 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
+          <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">
+            Global Coverage Map
+          </h2>
+          <div className="bg-white rounded-lg border border-gray-200 p-6 print:p-4">
+            <WorldMap
+              countries={mapCountries}
+              primaryColor={themeColors[theme]}
+              articlesByCountry={articlesByCountry} // Pass the articles by country
+            />
           </div>
         </div>
 
@@ -204,7 +239,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 </div>
               ))}
             </div>
-            
+
             <div className="space-y-6 print:space-y-4">
               {getArticlesByType('trend').slice(Math.ceil(getArticlesByType('trend').length / 2)).map((article) => (
                 <div key={article.news_id} className="border-l-4 pl-4 py-2" style={{ borderColor: themeColors[theme] }}>
@@ -470,6 +505,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       {/* Enhanced Print Styles */}
       <style jsx global>{`
         @media print {
+          /* Hide map in print */
+          .print\\:hidden {
+            display: none !important;
+          }
+          
           /* Reset everything for print */
           * {
             -webkit-print-color-adjust: exact !important;
