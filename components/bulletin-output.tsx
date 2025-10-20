@@ -397,7 +397,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 primaryColor={themeColors[theme]}
                 articlesByCountry={articlesByCountry}
                 mappedCountries={countryMappings}
-                interactive={false}
+                interactive={false} // This makes the map non-interactive in final output
                 showLegend={true}
               />
             </div>
@@ -681,7 +681,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         </div>
 
         {/* Enhanced Print Styles */}
-        <style jsx global>{`
+       <style jsx global>{`
           @media print {
             /* Hide map in print */
             .print\\:hidden {
