@@ -131,7 +131,7 @@ function ConfirmationModal({
 }
 
 export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleSelectorProps) {
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(articles.map((a) => a.news_id)))
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [imageModalOpen, setImageModalOpen] = useState(false)
   const [configModalOpen, setConfigModalOpen] = useState(false)
