@@ -28,70 +28,101 @@ function CountryMappingModal({
   articlesByCountry
 }: CountryMappingModalProps) {
   const [mappedCountries, setMappedCountries] = useState<Record<string, string>>({})
-  const [activeCountry, setActiveCountry] = useState<string | null>(null)
+  const [hasAutoMapped, setHasAutoMapped] = useState(false)
 
-  // Prevent body scroll when modal is open
+  const COUNTRY_NAME_MAP: Record<string, string> = {
+    "United States of America": "United States",
+    "United Kingdom": "United Kingdom",
+    "Dem. Rep. Congo": "Democratic Republic of the Congo",
+    "Czechia": "Czech Republic",
+    "Bosnia and Herz.": "Bosnia and Herzegovina",
+    "Dominican Rep.": "Dominican Republic",
+  }
+
+  const SPECIAL_CASES = {
+    "European Union": [
+      "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic", 
+      "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", 
+      "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", 
+      "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", 
+      "Spain", "Sweden"
+    ],
+    "EU": [
+      "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic", 
+      "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", 
+      "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", 
+      "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", 
+      "Spain", "Sweden"
+    ],
+    "International": "ALL",
+    "World": "ALL",
+    "Global": "ALL",
+  }
+
+  const findMatchingCountries = (countryName: string): string[] => {
+    const matches: string[] = []
+    
+    const exactMatch = Object.keys(COUNTRY_NAME_MAP).find(
+      geoName => geoName.toLowerCase() === countryName.toLowerCase()
+    ) || Object.values(COUNTRY_NAME_MAP).find(
+      mappedName => mappedName.toLowerCase() === countryName.toLowerCase()
+    )
+    
+    if (exactMatch) {
+      matches.push(COUNTRY_NAME_MAP[exactMatch] || exactMatch)
+      return matches
+    }
+    
+    Object.keys(COUNTRY_NAME_MAP).forEach(geoName => {
+      if (geoName.toLowerCase().includes(countryName.toLowerCase()) || 
+          countryName.toLowerCase().includes(geoName.toLowerCase())) {
+        matches.push(COUNTRY_NAME_MAP[geoName] || geoName)
+      }
+    })
+    
+    Object.values(COUNTRY_NAME_MAP).forEach(mappedName => {
+      if (mappedName.toLowerCase().includes(countryName.toLowerCase()) || 
+          countryName.toLowerCase().includes(mappedName.toLowerCase())) {
+        matches.push(mappedName)
+      }
+    })
+    
+    return [...new Set(matches)]
+  }
+
   useEffect(() => {
-    if (isOpen) {
-      // Save the current scroll position
-      const scrollY = window.scrollY
+    if (isOpen && !hasAutoMapped) {
+      const autoMappings: Record<string, string> = {}
       
-      // Add styles to prevent scrolling
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${scrollY}px`
-      document.body.style.left = '0'
-      document.body.style.right = '0'
-      document.body.style.overflow = 'hidden'
-      
-      return () => {
-        // Restore scrolling when modal closes
-        document.body.style.position = ''
-        document.body.style.top = ''
-        document.body.style.left = ''
-        document.body.style.right = ''
-        document.body.style.overflow = ''
-        window.scrollTo(0, scrollY)
-      }
-    }
-  }, [isOpen])
-
-  const handleCountryMapping = (legendCountry: string, geoCountry: string) => {
-    if (geoCountry) {
-      // Actual mapping from map click
-      const alreadyMappedTo = Object.entries(mappedCountries).find(([_, geo]) => geo === geoCountry)?.[0]
-
-      if (alreadyMappedTo) {
-        // Unmap the previous country
-        const newMappedCountries = { ...mappedCountries }
-        delete newMappedCountries[alreadyMappedTo]
-        setMappedCountries(newMappedCountries)
-      }
-
-      // Map the active legend country to this geographic country
-      setMappedCountries({
-        ...mappedCountries,
-        [legendCountry]: geoCountry
+      countries.forEach(country => {
+        const normalizedCountry = country.trim()
+        
+        if (SPECIAL_CASES[normalizedCountry as keyof typeof SPECIAL_CASES]) {
+          const specialCase = SPECIAL_CASES[normalizedCountry as keyof typeof SPECIAL_CASES]
+          if (specialCase === "ALL") {
+            autoMappings[normalizedCountry] = "United States"
+          } else {
+            autoMappings[normalizedCountry] = "Germany"
+          }
+        } else {
+          const matchedCountries = findMatchingCountries(normalizedCountry)
+          if (matchedCountries.length > 0) {
+            autoMappings[normalizedCountry] = matchedCountries[0]
+          } else {
+            autoMappings[normalizedCountry] = normalizedCountry
+          }
+        }
       })
-      setActiveCountry(null)
-    } else {
-      // Just setting active country from legend click
-      setActiveCountry(legendCountry === activeCountry ? null : legendCountry)
-    }
-  }
 
-  const handleRemoveMapping = (country: string) => {
-    const newMappedCountries = { ...mappedCountries }
-    delete newMappedCountries[country]
-    setMappedCountries(newMappedCountries)
-    if (activeCountry === country) {
-      setActiveCountry(null)
+      setMappedCountries(autoMappings)
+      setHasAutoMapped(true)
+      
+      setTimeout(() => {
+        onConfirm(autoMappings)
+        onClose()
+      }, 500)
     }
-  }
-
-  const handleConfirm = () => {
-    onConfirm(mappedCountries)
-    onClose()
-  }
+  }, [isOpen, countries, hasAutoMapped, onConfirm, onClose])
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -106,48 +137,29 @@ function CountryMappingModal({
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto">
         <div className="p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-900">Map Countries to Locations</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Auto-Mapping Countries</h2>
           <p className="text-gray-600 mt-2">
-            Click on a country in the legend, then click on the map to assign its location.
-            All countries must be mapped before continuing.
+            Automatically mapping {countries.length} countries to their geographic locations...
           </p>
+          <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm text-green-800">
+              <strong>Auto-mapping in progress:</strong> All countries are being automatically mapped. 
+              Special cases like "European Union", "International", and "World" are handled automatically.
+            </p>
+          </div>
         </div>
 
         <div className="p-6">
-          <WorldMap
-            countries={countries}
-            primaryColor={primaryColor}
-            articlesByCountry={articlesByCountry}
-            mappedCountries={mappedCountries}
-            onCountryMapping={handleCountryMapping}
-            onRemoveMapping={handleRemoveMapping}
-            activeCountry={activeCountry}
-            interactive={true}
-          />
-        </div>
-
-        <div className="p-6 border-t flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            {Object.keys(mappedCountries).length} of {countries.length} countries mapped
-          </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={onClose}
-              variant="outline"
-              className="bg-gray-600 hover:bg-gray-700 text-white"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirm}
-              disabled={Object.keys(mappedCountries).length !== countries.length}
-              className="text-white font-bold py-2 px-6 rounded-lg"
-              style={{ backgroundColor: primaryColor }}
-            >
-              Generate Bulletin
-            </Button>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Mapping countries...</p>
+              <p className="text-sm text-gray-500 mt-2">
+                {Object.keys(mappedCountries).length} of {countries.length} countries mapped
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -175,6 +187,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       day: 'numeric'
     })
   }
+  
   const formatConfigDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -182,7 +195,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     })
   }
 
-  // Function to format text with **bold** markers and justify text
   const formatBoldText = (text: string) => {
     if (!text) return "";
 
@@ -222,7 +234,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     );
   }
 
-  // Get articles by jurisdiction/country
   const getArticlesByJurisdiction = (jurisdiction: string) => {
     return articles.filter(article =>
       article.jurisdictions?.some(j =>
@@ -232,7 +243,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     );
   }
 
-  // Get articles by type/category
   const getArticlesByType = (type: string) => {
     return articles.filter(article =>
       article.type_value?.toLowerCase().includes(type.toLowerCase()) ||
@@ -240,7 +250,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     );
   }
 
-  // Get international articles (not specific to a country)
   const getInternationalArticles = () => {
     return articles.filter(article =>
       !article.jurisdictions?.some(j =>
@@ -254,13 +263,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     window.print();
   }
 
-  // Extract unique countries from articles for the map
   const getMapCountries = () => {
     const countrySet = new Set<string>();
 
     articles.forEach(article => {
       article.jurisdictions?.forEach(jurisdiction => {
-        // Map jurisdiction names to WorldMap country names
         const countryName = jurisdiction.name;
         if (countryName && countryName !== "International") {
           countrySet.add(countryName);
@@ -268,7 +275,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       });
     });
 
-    // Add "International" if there are international articles
     if (getInternationalArticles().length > 0) {
       countrySet.add("International");
     }
@@ -283,10 +289,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     setShowMappingModal(false)
   }
 
-  const handleEditMapping = () => {
-    setShowMappingModal(true)
-  }
-
   return (
     <>
       <CountryMappingModal
@@ -299,20 +301,12 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       />
 
       <div className={`container mx-auto p-8 max-w-6xl bg-white ${showMappingModal ? 'overflow-hidden' : ''}`}>
-        {/* Action Buttons */}
         <div className="flex justify-center gap-4 mb-8 print:hidden">
           <Button
             onClick={onStartOver}
             className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg"
           >
             Create New Bulletin
-          </Button>
-          <Button
-            onClick={handleEditMapping}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg"
-             style={{ backgroundColor: themeColors[theme] }}
-          >
-            Edit Country Mapping
           </Button>
           <Button
             onClick={handleDownloadPDF}
@@ -323,11 +317,8 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           </Button>
         </div>
 
-        {/* Printable Content */}
         <div className="print:block print:bg-white print:p-0 print:max-w-none">
-          {/* Header Section - First Page */}
           <div className="relative mb-12 border-b pb-8 overflow-hidden print:mb-8 print:pb-6 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-            {/* Header Image Background */}
             {bulletinConfig?.headerImage && (
               <div className="absolute inset-0 z-0 print:relative print:inset-auto print:h-64">
                 <img
@@ -343,7 +334,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               </div>
             )}
 
-            {/* Header Content */}
             <div className="relative z-10 text-center flex flex-col items-center print:relative print:z-auto">
               <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-5xl mx-auto px-6 print:px-0 print:max-w-full">
                 <h1
@@ -397,13 +387,12 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 primaryColor={themeColors[theme]}
                 articlesByCountry={articlesByCountry}
                 mappedCountries={countryMappings}
-                interactive={false} // This makes the map non-interactive in final output
+                interactive={false}
                 showLegend={true}
               />
             </div>
           </div>
 
-          {/* Key Trends Section */}
           <div className="mb-12 print:mb-8 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">Key Trends</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 print:gap-6">
@@ -431,29 +420,28 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           </div>
 
-          {/* Executive Summary */}
           <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             <h2 className="text-2xl font-bold mb-4 text-gray-900 print:text-xl">Executive Summary</h2>
             <div className="text-gray-700 text-lg print:text-base">
               <p className="mb-4 text-justify indent-8 leading-relaxed">
-                July 2025 marked a turning point in ESG disclosure—less about expansion, more about evolution. The EU led the charge with a sweeping simplification drive: trimming back the ESRS, lightening the Taxonomy load, and rolling out SME-friendly frameworks that prioritize usability over bureaucracy. Meanwhile, regulators like ESMA sharpened their focus on greenwashing, signaling tougher scrutiny ahead.
+                This month's developments highlight significant evolution in ESG disclosure frameworks globally.
+                Regulators are focusing on simplification and usability while maintaining rigorous standards.
               </p>
               <p className="mb-4 text-justify indent-8 leading-relaxed">
-                Across the Atlantic, U.S. ESG rulemaking hit turbulence. Legal roadblocks stalled federal momentum, but California filled the void with detailed climate disclosure guidance, proving that subnational leadership is alive and well.
+                Key jurisdictions are advancing their regulatory frameworks, with some facing legal challenges
+                while others make substantial progress in implementation and guidance.
               </p>
               <p className="mb-4 text-justify indent-8 leading-relaxed">
-                Globally, a wave of pragmatic policymaking took hold. Japan and Nepal moved closer to mandatory sustainability reporting. Australia pushed to toughen its Modern Slavery Act, and Singapore equipped markets with transition-financing tools.
-              </p>
-              <p className="text-justify indent-8 leading-relaxed">
-                At the same time, global standard-setters like GRI and SBTI refined their focus—on labor rights, fashion value chains, and credible net-zero accountability.
+                Global coordination continues to improve, with standard-setters refining their approaches
+                to ensure consistency and credibility across markets.
               </p>
               <p className="font-semibold mt-4 text-justify indent-8 leading-relaxed">
-                The signal is clear: ESG disclosure is no longer about ticking every box. It's about making the right boxes count.
+                The overall trend shows ESG disclosure maturing from expansion to optimization, focusing
+                on materiality and practical implementation.
               </p>
             </div>
           </div>
 
-          {/* European Union Section */}
           <section className="print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             <h2 className="text-4xl font-bold mb-8 text-gray-900 border-b pb-3 print:text-3xl print:mb-6">EUROPEAN UNION</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:gap-6">
@@ -493,12 +481,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           </section>
 
-          {/* United States Section */}
           <section className="print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             <h2 className="text-4xl font-bold mb-8 text-gray-900 border-b pb-3 print:text-3xl print:mb-6">UNITED STATES</h2>
 
             <div className="bg-gray-50 p-6 rounded-lg mb-8 print:p-4 print:mb-6">
-              <h3 className="text-2xl font-semibold mb-4 text-gray-800 print:text-xl print:mb-3">U.S. ESG Disclosure: Progress, Pushback, and the Path Ahead</h3>
+              <h3 className="text-2xl font-semibold mb-4 text-gray-800 print:text-xl print:mb-3">U.S. ESG Disclosure Overview</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 print:mb-3">
                 {getArticlesByType('climate').slice(0, 3).map((article) => (
                   <div key={article.news_id} className="text-center">
@@ -510,7 +497,8 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 ))}
               </div>
               <div className="text-gray-700 text-justify indent-8 leading-relaxed print:text-sm">
-                Climate reporting in the U.S. is moving on two tracks—one driven forward by states like California, the other stalled in federal courts and agencies. July saw the EPA sidestep a legal challenge over delayed emissions data, while the SEC faced sharp internal criticism for retreating from its own climate rule litigation.
+                U.S. regulatory developments show continued evolution in climate and ESG reporting requirements,
+                with both federal and state-level initiatives progressing amid ongoing policy discussions.
               </div>
             </div>
 
@@ -551,12 +539,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           </section>
 
-          {/* Global Sections */}
           <section className="print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             <h2 className="text-4xl font-bold mb-8 text-gray-900 border-b pb-3 print:text-3xl print:mb-6">ACROSS THE GLOBE</h2>
 
             <div className="bg-gray-50 p-6 rounded-lg mb-8 print:p-4 print:mb-6">
-              <h3 className="text-2xl font-semibold mb-4 text-gray-800 print:text-xl print:mb-3">Global ESG Update: Targeted, Practical, and Gaining Speed</h3>
+              <h3 className="text-2xl font-semibold mb-4 text-gray-800 print:text-xl print:mb-3">Global ESG Update</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 print:mb-3">
                 {getArticlesByType('global').slice(0, 3).map((article) => (
                   <div key={article.news_id} className="text-center">
@@ -568,7 +555,8 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 ))}
               </div>
               <div className="text-gray-700 text-justify indent-8 leading-relaxed print:text-sm">
-                As sustainability pressures mount, global regulators and standard-setters are accelerating efforts to modernize ESG disclosure—while keeping flexibility and materiality in focus. July saw a wave of practical guidance and public consultations across Asia, Oceania, Europe, and beyond.
+                Global regulators and standard-setters continue to advance ESG disclosure frameworks,
+                with coordinated efforts to enhance consistency and practical implementation across jurisdictions.
               </div>
             </div>
 
@@ -618,33 +606,33 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           </section>
 
-          {/* Conclusion Section */}
           <div className="mt-16 bg-gradient-to-r from-gray-50 to-blue-50 p-8 rounded-lg border print:mt-12 print:p-6 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             <h2 className="text-2xl font-bold mb-6 text-gray-900 print:text-xl print:mb-4">Conclusion & Key Takeaways</h2>
             <div className="text-gray-700 text-lg space-y-4 print:text-base print:space-y-3">
               <p className="text-justify indent-8 leading-relaxed">
-                This month's developments confirm what savvy ESG teams already know: agility and focus are no longer optional—they're essential.
+                Current ESG disclosure developments emphasize the importance of adaptable and focused reporting strategies.
               </p>
               <p className="text-justify indent-8 leading-relaxed">
-                Regulators from Brussels to Tokyo are trimming complexity, dialing in on materiality, and embracing phased, proportional rollouts. Companies should seize this window to recalibrate their ESG strategies around what really matters: credible data, risk prioritization, and real-world impact.
+                Organizations should prioritize credible data collection, risk assessment, and alignment with
+                evolving regulatory expectations across different jurisdictions.
               </p>
               <div className="mt-6 print:mt-4">
-                <h3 className="text-xl font-semibold mb-4 text-gray-800 print:text-lg print:mb-3">Now is the time to:</h3>
+                <h3 className="text-xl font-semibold mb-4 text-gray-800 print:text-lg print:mb-3">Key Recommendations:</h3>
                 <ul className="list-disc list-inside space-y-2 ml-4 text-justify print:text-sm">
-                  <li>Streamline internal reporting systems in anticipation of simplified EU ESRS requirements.</li>
-                  <li>Map readiness for jurisdiction-specific rules—especially if operating in California, Japan, or Australia.</li>
-                  <li>Reassess supplier and sector exposure in light of rising scrutiny on labor practices and transition plans.</li>
-                  <li>Align net-zero targets with updated SBTI expectations and review cycles.</li>
-                  <li>Bolster disclosure claims with evidence to avoid greenwashing risks under growing regulatory glare.</li>
+                  <li>Streamline internal reporting systems to accommodate simplified regulatory requirements</li>
+                  <li>Assess readiness for jurisdiction-specific compliance obligations</li>
+                  <li>Enhance supply chain due diligence and risk management</li>
+                  <li>Align sustainability targets with updated standards and review cycles</li>
+                  <li>Strengthen disclosure substantiation to mitigate greenwashing risks</li>
                 </ul>
               </div>
               <p className="font-semibold text-gray-800 mt-6 text-justify indent-8 leading-relaxed print:mt-4">
-                Whether you're a global reporter or a regional player, ESG disclosure is entering a sharper, leaner, more accountable phase. Stay proactive, stay credible—and stay ahead.
+                Proactive engagement with evolving ESG disclosure frameworks remains essential for maintaining
+                credibility and competitive advantage in today's regulatory landscape.
               </p>
             </div>
           </div>
 
-          {/* Footer Image */}
           {bulletinConfig?.footerImage && (
             <div className="relative mt-12 pt-8 border-t overflow-hidden h-48 print:mt-8 print:h-40 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
               <div className="absolute inset-0 z-0 print:relative print:inset-auto">
@@ -663,7 +651,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               <div className="relative z-10 h-full flex flex-col justify-center items-center text-center print:relative print:z-auto">
                 <div className="text-white print:text-black">
                   <div className="flex justify-center space-x-8 mb-4 text-lg print:text-base print:space-x-6">
-                    <span>info@Scoralytics.com</span>
+                    <span>info@example.com</span>
                     <span>Subscribe</span>
                     <span>About</span>
                   </div>
@@ -680,15 +668,12 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           )}
         </div>
 
-        {/* Enhanced Print Styles */}
-       <style jsx global>{`
+        <style jsx global>{`
           @media print {
-            /* Hide map in print */
             .print\\:hidden {
               display: none !important;
             }
             
-            /* Reset everything for print */
             * {
               -webkit-print-color-adjust: exact !important;
               color-adjust: exact !important;
@@ -703,12 +688,10 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               line-height: 1.4;
             }
             
-            /* Hide non-printable elements */
             button, .print\\:hidden {
               display: none !important;
             }
             
-            /* Container adjustments */
             .container {
               max-width: none !important;
               margin: 0 !important;
@@ -716,14 +699,12 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               width: 100% !important;
             }
             
-            /* Page setup */
             @page {
               size: A4;
               margin: 1cm;
               marks: crop cross;
             }
             
-            /* Force page breaks */
             .print\\:break-after-page {
               page-break-after: always !important;
               break-after: page !important;
@@ -734,12 +715,10 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               break-before: page !important;
             }
             
-            /* Ensure minimum height for pages */
             .print\\:min-h-\\[calc\\(29\\.7cm-2cm\\)\\] {
               min-height: calc(29.7cm - 2cm) !important;
             }
             
-            /* Color adjustments for print */
             .text-white {
               color: black !important;
             }
@@ -756,7 +735,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               color: #111827 !important;
             }
             
-            /* Background colors */
             .bg-white {
               background: white !important;
             }
@@ -765,18 +743,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               background: #f8f9fa !important;
             }
             
-            /* Remove decorative elements that don't print well */
             .shadow-lg, .shadow-md, .rounded-lg, .rounded {
               box-shadow: none !important;
               border-radius: 0 !important;
             }
             
-            /* Fix positioning */
             .relative .absolute {
               position: relative !important;
             }
             
-            /* Font sizing for print */
             h1 { font-size: 24pt !important; line-height: 1.2 !important; }
             h2 { font-size: 18pt !important; line-height: 1.3 !important; }
             h3 { font-size: 14pt !important; line-height: 1.3 !important; }
@@ -786,13 +761,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             .text-xs { font-size: 9pt !important; }
             .text-2xs { font-size: 8pt !important; }
             
-            /* Ensure proper image sizing */
             img {
               max-width: 100% !important;
               height: auto !important;
             }
             
-            /* Improve text readability */
             .text-justify {
               text-align: justify !important;
             }
@@ -801,7 +774,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               line-height: 1.6 !important;
             }
             
-            /* Ensure proper spacing */
             .print\\:mb-8 { margin-bottom: 2rem !important; }
             .print\\:mb-6 { margin-bottom: 1.5rem !important; }
             .print\\:mb-4 { margin-bottom: 1rem !important; }
@@ -824,7 +796,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             .print\\:p-4 { padding: 1rem !important; }
           }
           
-          /* Screen styles */
           @media screen {
             .print\\:min-h-\\[calc\\(29\\.7cm-2cm\\)\\] {
               min-height: auto !important;
