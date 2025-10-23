@@ -478,8 +478,8 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
           </div>
 
-          {/* Table of Contents */}
-          {bulletinConfig?.tableOfContents && (
+         
+          {/* {bulletinConfig?.tableOfContents && (
             <div className="mb-12 print:mb-8 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
               <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">
                 Table of Contents
@@ -507,7 +507,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* Interactive World Map */}
           {bulletinConfig?.interactiveMap && (
