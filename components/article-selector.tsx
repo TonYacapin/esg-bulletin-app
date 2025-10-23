@@ -32,14 +32,55 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   const [customSummaries, setCustomSummaries] = useState<Map<number, string>>(new Map())
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<number | null>(null)
   
-  const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
-    headerText: "ESG BULLETIN",
-    headerImage: "",
-    issueNumber: "",
-    publicationDate: new Date().toISOString().split('T')[0],
-    publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
-    footerImage: ""
-  })
+const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
+  headerText: "ESG Bulletin",
+  headerImage: "",
+  issueNumber: "",
+  publicationDate: new Date().toISOString().split('T')[0],
+  publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
+  footerImage: "",
+  tableOfContents: true,
+  greetingMessage: "",
+  keyTrends: true,
+  executiveSummary: true,
+  keyTakeaways: true,
+  interactiveMap: true,
+  calendarSection: true,
+  euSection: {
+    enabled: true,
+    title: "",
+    keyTrends: true,
+    introduction: "",
+    trends: ""
+  },
+  usSection: {
+    enabled: true,
+    title: "",
+    keyTrends: true,
+    introduction: "",
+    trends: "" 
+  },
+  globalSection: {
+    enabled: true,
+    title: "",
+    keyTrends: true,
+    introduction: "",
+    trends: ""
+  },
+  calendarMinutes: true,
+  keepAnEyeOn: true,
+  comingEvents: true,
+  previousGreeting: "",
+  customInstructions: "",
+  generatedContent: {
+    keyTrends: "",
+    executiveSummary: "",
+    keyTakeaways: "",
+    euTrends: "",
+    usTrends: "",
+    globalTrends: ""
+  }
+})
 
   const freeImageApis = [
     "https://picsum.photos/800/400",
@@ -65,14 +106,36 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
       return true
     }
     
-    const defaultConfig: BulletinConfig = {
-      headerText: "ESG BULLETIN",
-      headerImage: "",
-      issueNumber: "",
-      publicationDate: new Date().toISOString().split('T')[0],
-      publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
-      footerImage: ""
-    }
+    const defaultConfig = {
+  headerText: "ESG BULLETIN",
+  headerImage: "",
+  issueNumber: "",
+  publicationDate: new Date().toISOString().split('T')[0],
+  publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
+  footerImage: "",
+  tableOfContents: true,
+  greetingMessage: "",
+  keyTrends: true,
+  executiveSummary: true,
+  euSection: {
+    enabled: true,
+    title: "",
+    keyTrends: true,
+    introduction: ""
+  },
+  usSection: {
+    enabled: true,
+    title: "",
+    keyTrends: true,
+    introduction: ""
+  },
+  globalSection: {
+    enabled: true,
+    title: "",
+    keyTrends: true,
+    introduction: ""
+  }
+} as BulletinConfig
     
     return bulletinConfig.headerText !== defaultConfig.headerText ||
            bulletinConfig.headerImage !== defaultConfig.headerImage ||
@@ -489,6 +552,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         onRandomImage={setRandomConfigImage}
         selectedArticlesCount={selectedArticles.length}
         theme={theme}
+        articles={selectedArticles}
       />
 
       <ConfirmationModal

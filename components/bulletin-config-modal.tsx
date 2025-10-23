@@ -1,25 +1,80 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { useState } from "react"
+import { toast } from 'sonner'
+import { Article } from "./bulletin-generator"
 
 export interface BulletinConfig {
+  // Header Section
   headerText: string
   headerImage: string
   issueNumber: string
   publicationDate: string
   publisherLogo: string
   footerImage: string
+
+  // Bulletin Structure
+  tableOfContents: boolean
+  greetingMessage: string
+  keyTrends: boolean
+  executiveSummary: boolean
+  keyTakeaways: boolean
+  interactiveMap: boolean
+  calendarSection: boolean
+
+  // Regional Sections
+  euSection: {
+    enabled: boolean
+    title: string
+    keyTrends: boolean
+    introduction: string
+    trends: string
+  }
+  usSection: {
+    enabled: boolean
+    title: string
+    keyTrends: boolean
+    introduction: string
+    trends: string
+  }
+  globalSection: {
+    enabled: boolean
+    title: string
+    keyTrends: boolean
+    introduction: string
+    trends: string
+  }
+
+  // Additional Sections
+  calendarMinutes: boolean
+  keepAnEyeOn: boolean
+  comingEvents: boolean
+
+  // AI Generation Context
+  previousGreeting: string
+  customInstructions: string
+
+  // AI Generated Content Storage
+  generatedContent: {
+    keyTrends: string
+    executiveSummary: string
+    keyTakeaways: string
+  }
 }
 
 interface BulletinConfigModalProps {
   isOpen: boolean
   onClose: () => void
   config: BulletinConfig
-  onConfigChange: (field: keyof BulletinConfig, value: string) => void
+  onConfigChange: (field: keyof BulletinConfig, value: any) => void
   onRandomImage: (field: 'headerImage' | 'footerImage' | 'publisherLogo') => void
   selectedArticlesCount: number
   theme: "blue" | "green" | "red"
+  articles: Article[]
 }
+
+type ConfigStep = 'header' | 'greeting' | 'content' | 'regional'
 
 export function BulletinConfigModal({
   isOpen,
@@ -28,21 +83,542 @@ export function BulletinConfigModal({
   onConfigChange,
   onRandomImage,
   selectedArticlesCount,
-  theme
+  theme,
+  articles
 }: BulletinConfigModalProps) {
-  const themeColors = {
-    blue: "#1976D2",
-    green: "#388E3C",
-    red: "#D32F2F",
+  const [isGenerating, setIsGenerating] = useState<string | null>(null)
+  const [activePreview, setActivePreview] = useState<string | null>(null)
+  const [currentStep, setCurrentStep] = useState<ConfigStep>('header')
+
+  const steps: { id: ConfigStep; label: string; description: string }[] = [
+    { id: 'header', label: 'Header & Banner', description: 'Configure bulletin header' },
+    { id: 'greeting', label: 'Greeting Message', description: 'Set up greeting message' },
+    { id: 'content', label: 'AI Content', description: 'Generate main content' },
+    { id: 'regional', label: 'Regional Sections', description: 'Configure regions' },
+  ]
+
+  const handleRegionalChange = (region: 'euSection' | 'usSection' | 'globalSection', field: string, value: any) => {
+    onConfigChange(region, {
+      ...config[region],
+      [field]: value
+    })
+  }
+
+  const handleGeneratedContentChange = (field: keyof BulletinConfig['generatedContent'], value: string) => {
+    onConfigChange('generatedContent', {
+      ...config.generatedContent,
+      [field]: value
+    })
+  }
+
+  const generateAIContent = async (type: string, field: string, region?: string) => {
+    setIsGenerating(type)
+
+    try {
+      const regionalArticles = region ?
+        articles.filter(article => {
+          const jurisdiction = article.jurisdictions?.[0]?.name?.toLowerCase() || ''
+
+          switch (region) {
+            case 'euSection':
+              return jurisdiction.includes('eu') ||
+                jurisdiction.includes('europe') ||
+                jurisdiction.includes('european') ||
+                article.jurisdictions?.some(j =>
+                  j.name.toLowerCase().includes('eu') ||
+                  j.name.toLowerCase().includes('europe')
+                )
+            case 'usSection':
+              return jurisdiction.includes('us') ||
+                jurisdiction.includes('united states') ||
+                jurisdiction.includes('america') ||
+                article.jurisdictions?.some(j =>
+                  j.name.toLowerCase().includes('us') ||
+                  j.name.toLowerCase().includes('united states')
+                )
+            case 'globalSection':
+              return !jurisdiction.includes('eu') &&
+                !jurisdiction.includes('europe') &&
+                !jurisdiction.includes('us') &&
+                !jurisdiction.includes('united states') &&
+                !article.jurisdictions?.some(j =>
+                  j.name.toLowerCase().includes('eu') ||
+                  j.name.toLowerCase().includes('europe') ||
+                  j.name.toLowerCase().includes('us') ||
+                  j.name.toLowerCase().includes('united states')
+                )
+            default:
+              return true
+          }
+        }) : articles
+
+      // Log for debugging
+      console.log(`Generating ${type} for ${region} with ${regionalArticles.length} articles`)
+
+      const requestBody: any = {
+        type,
+        articles: regionalArticles,
+        region: region?.replace('Section', '').toUpperCase(),
+        currentDate: config.publicationDate
+      }
+
+      // Add context-specific data based on the type
+      switch (type) {
+        case 'greeting':
+          requestBody.previousGreeting = config.previousGreeting
+          requestBody.customInstructions = config.customInstructions
+          break
+        case 'key_trends':
+        case 'executive_summary':
+        case 'key_takeaways':
+        case 'section_trends':
+          requestBody.customInstructions = config.customInstructions
+          break
+      }
+
+      const response = await fetch('/api/generate-bulletin-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate content')
+      }
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      // Update the appropriate field
+      switch (type) {
+        case 'greeting':
+          onConfigChange('greetingMessage', data.content)
+          break
+        case 'key_trends':
+          handleGeneratedContentChange('keyTrends', data.content)
+          setActivePreview('keyTrends')
+          break
+        case 'executive_summary':
+          handleGeneratedContentChange('executiveSummary', data.content)
+          setActivePreview('executiveSummary')
+          break
+        case 'key_takeaways':
+          handleGeneratedContentChange('keyTakeaways', data.content)
+          setActivePreview('keyTakeaways')
+          break
+        case 'section_title':
+          if (region) {
+            handleRegionalChange(region as any, 'title', data.content)
+          }
+          break
+        case 'section_intro':
+          if (region) {
+            handleRegionalChange(region as any, 'introduction', data.content)
+          }
+          break
+        case 'section_trends':
+          if (region) {
+            handleRegionalChange(region as any, 'trends', data.content)
+            setActivePreview(`${region}_trends`)
+          }
+          break
+        default:
+          break
+      }
+
+      toast.success('SCORE content generated successfully!')
+    } catch (error) {
+      console.error('Error generating content:', error)
+      toast.error('Failed to generate AI content')
+    } finally {
+      setIsGenerating(null)
+    }
+  }
+
+  const togglePreview = (previewId: string) => {
+    setActivePreview(activePreview === previewId ? null : previewId)
+  }
+
+  const nextStep = () => {
+    const currentIndex = steps.findIndex(step => step.id === currentStep)
+    if (currentIndex < steps.length - 1) {
+      setCurrentStep(steps[currentIndex + 1].id)
+    }
+  }
+
+  const prevStep = () => {
+    const currentIndex = steps.findIndex(step => step.id === currentStep)
+    if (currentIndex > 0) {
+      setCurrentStep(steps[currentIndex - 1].id)
+    }
   }
 
   if (!isOpen) return null
 
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 'header':
+        return (
+          <div className="space-y-6">
+            <h4 className="text-lg font-semibold border-b pb-2">Header & Banner</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="header-text" className="block text-sm font-medium mb-2">
+                  Bulletin Title
+                </label>
+                <input
+                  type="text"
+                  id="header-text"
+                  value={config.headerText}
+                  onChange={(e) => onConfigChange('headerText', e.target.value)}
+                  placeholder="ESG Bulletin"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="issue-number" className="block text-sm font-medium mb-2">
+                  Issue Number
+                </label>
+                <input
+                  type="text"
+                  id="issue-number"
+                  value={config.issueNumber}
+                  onChange={(e) => onConfigChange('issueNumber', e.target.value)}
+                  placeholder="e.g., Issue #1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="publication-date" className="block text-sm font-medium mb-2">
+                Publication Date (Month Covered)
+              </label>
+              <input
+                type="month"
+                id="publication-date"
+                value={config.publicationDate}
+                onChange={(e) => onConfigChange('publicationDate', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="header-image" className="block text-sm font-medium">
+                  Banner Image URL
+                </label>
+                <Button
+                  type="button"
+                  onClick={() => onRandomImage('headerImage')}
+                  className="bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium py-1 px-3 rounded"
+                >
+                  Random Image
+                </Button>
+              </div>
+              <input
+                type="url"
+                id="header-image"
+                value={config.headerImage}
+                onChange={(e) => onConfigChange('headerImage', e.target.value)}
+                placeholder="https://example.com/banner-image.jpg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Background picture that illustrates the theme or topic
+              </p>
+            </div>
+          </div>
+        )
+
+      case 'greeting':
+        return (
+          <div className="space-y-6">
+            <h4 className="text-lg font-semibold border-b pb-2">Bulletin Structure</h4>
+            <div>
+              <label htmlFor="previous-greeting" className="block text-sm font-medium mb-2">
+                Previous Month's Greeting Message *
+              </label>
+              <textarea
+                id="previous-greeting"
+                value={config.previousGreeting}
+                onChange={(e) => onConfigChange('previousGreeting', e.target.value)}
+                placeholder="Paste the greeting message from last month's bulletin for context..."
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Used as reference for maintaining consistent tone in new greeting messages
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="greeting-message" className="block text-sm font-medium">
+                  Greeting Message (Editor's Note)
+                </label>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (!config.previousGreeting.trim()) {
+                      alert('Please fill in the Previous Month\'s Greeting Message first');
+                      return;
+                    }
+                    generateAIContent('greeting', 'greetingMessage');
+                  }}
+                  disabled={isGenerating === 'greeting' || !config.previousGreeting.trim()}
+                  className={`text-xs font-medium py-1 px-3 rounded ${!config.previousGreeting.trim()
+                      ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                      : 'bg-gray-700 hover:bg-gray-800 text-white'
+                    }`}
+                >
+                  {isGenerating === 'greeting' ? 'Generating...' : 'AI Generate Greeting'}
+                </Button>
+              </div>
+              <textarea
+                id="greeting-message"
+                value={config.greetingMessage}
+                onChange={(e) => onConfigChange('greetingMessage', e.target.value)}
+                placeholder="Light, playful tone reflecting current month and season..."
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+              />
+              <p className="text-xs text-gray-500 mt-2 italic">
+                This message will be displayed in italics as an introductory editor's note
+              </p>
+            </div>
+          </div>
+        )
+      case 'content':
+        return (
+          <div className="space-y-6">
+            <h4 className="text-lg font-semibold border-b pb-2">AI Generated Content</h4>
+
+            <div className="border border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-gray-50">
+                <h4 className="font-medium">5 Key Trends</h4>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => generateAIContent('key_trends', 'keyTrends')}
+                    disabled={isGenerating === 'key_trends'}
+                    className="bg-gray-700 hover:bg-gray-800 text-white text-xs font-medium py-1 px-3 rounded"
+                  >
+                    {isGenerating === 'key_trends' ? 'Generating...' : 'Generate Trends'}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => togglePreview('keyTrends')}
+                    variant="outline"
+                    className="text-xs border-gray-300"
+                  >
+                    {activePreview === 'keyTrends' ? 'Hide Preview' : 'Show Preview'}
+                  </Button>
+                </div>
+              </div>
+              {activePreview === 'keyTrends' && (
+                <div className="p-4 border-t">
+                  <textarea
+                    value={config.generatedContent.keyTrends}
+                    onChange={(e) => handleGeneratedContentChange('keyTrends', e.target.value)}
+                    placeholder="5 key trends will appear here after generation. Each trend should be about 70 characters with spaces."
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Edit the generated key trends as needed. Each trend should be about 70 characters with spaces.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="border border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-gray-50">
+                <h4 className="font-medium">Executive Summary</h4>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => generateAIContent('executive_summary', 'executiveSummary')}
+                    disabled={isGenerating === 'executive_summary'}
+                    className="bg-gray-700 hover:bg-gray-800 text-white text-xs font-medium py-1 px-3 rounded"
+                  >
+                    {isGenerating === 'executive_summary' ? 'Generating...' : 'Generate Summary'}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => togglePreview('executiveSummary')}
+                    variant="outline"
+                    className="text-xs border-gray-300"
+                  >
+                    {activePreview === 'executiveSummary' ? 'Hide Preview' : 'Show Preview'}
+                  </Button>
+                </div>
+              </div>
+              {activePreview === 'executiveSummary' && (
+                <div className="p-4 border-t">
+                  <textarea
+                    value={config.generatedContent.executiveSummary}
+                    onChange={(e) => handleGeneratedContentChange('executiveSummary', e.target.value)}
+                    placeholder="Executive summary will appear here after generation. Maximum 200 words."
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Edit the generated executive summary as needed. Maximum 200 words.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="border border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-gray-50">
+                <h4 className="font-medium">Key Takeaways</h4>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => generateAIContent('key_takeaways', 'keyTakeaways')}
+                    disabled={isGenerating === 'key_takeaways'}
+                    className="bg-gray-700 hover:bg-gray-800 text-white text-xs font-medium py-1 px-3 rounded"
+                  >
+                    {isGenerating === 'key_takeaways' ? 'Generating...' : 'Generate Takeaways'}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => togglePreview('keyTakeaways')}
+                    variant="outline"
+                    className="text-xs border-gray-300"
+                  >
+                    {activePreview === 'keyTakeaways' ? 'Hide Preview' : 'Show Preview'}
+                  </Button>
+                </div>
+              </div>
+              {activePreview === 'keyTakeaways' && (
+                <div className="p-4 border-t">
+                  <textarea
+                    value={config.generatedContent.keyTakeaways}
+                    onChange={(e) => handleGeneratedContentChange('keyTakeaways', e.target.value)}
+                    placeholder="Key takeaways will appear here after generation. Maximum 200 words."
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Edit the generated key takeaways as needed. Maximum 200 words.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
+      case 'regional':
+        return (
+          <div className="space-y-6">
+            <h4 className="text-lg font-semibold border-b pb-2">Regional Sections</h4>
+            {[
+              { key: 'euSection' as const, label: 'EU Section' },
+              { key: 'usSection' as const, label: 'US Section' },
+              { key: 'globalSection' as const, label: 'Global Section' }
+            ].map(({ key, label }) => (
+              <div key={key} className="border border-gray-200 rounded-lg p-4">
+                {/* Add section header with the label */}
+                <div className="flex items-center justify-between mb-4 pb-2 border-b">
+                  <h5 className="font-semibold text-lg">{label}</h5>
+              
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">Section Title</label>
+                      <Button
+                        type="button"
+                        onClick={() => generateAIContent('section_title', 'title', key)}
+                        disabled={isGenerating === `section_title_${key}`}
+                        className="bg-gray-700 hover:bg-gray-800 text-white text-xs font-medium py-1 px-3 rounded"
+                      >
+                        {isGenerating === `section_title_${key}` ? 'Generating...' : 'AI Generate Title'}
+                      </Button>
+                    </div>
+                    <input
+                      type="text"
+                      value={config[key].title}
+                      onChange={(e) => handleRegionalChange(key, 'title', e.target.value)}
+                      placeholder={`Catchy, creative, playful title for ${label}...`}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">Section Introduction</label>
+                      <Button
+                        type="button"
+                        onClick={() => generateAIContent('section_intro', 'introduction', key)}
+                        disabled={isGenerating === `section_intro_${key}`}
+                        className="bg-gray-700 hover:bg-gray-800 text-white text-xs font-medium py-1 px-3 rounded"
+                      >
+                        {isGenerating === `section_intro_${key}` ? 'Generating...' : 'AI Generate Intro'}
+                      </Button>
+                    </div>
+                    <textarea
+                      value={config[key].introduction}
+                      onChange={(e) => handleRegionalChange(key, 'introduction', e.target.value)}
+                      placeholder={`Practical and engaging introduction for ${label} (max 150 words)...`}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">3 Key Trends for {label}</label>
+                      <Button
+                        type="button"
+                        onClick={() => generateAIContent('section_trends', 'trends', key)}
+                        disabled={isGenerating === `section_trends_${key}`}
+                        className="bg-gray-700 hover:bg-gray-800 text-white text-xs font-medium py-1 px-3 rounded"
+                      >
+                        {isGenerating === `section_trends_${key}` ? 'Generating...' : 'AI Generate Trends'}
+                      </Button>
+                    </div>
+                    <textarea
+                      value={config[key].trends || ''}
+                      onChange={(e) => handleRegionalChange(key, 'trends', e.target.value)}
+                      placeholder={`3 key trends for ${label} will appear here after generation...`}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Edit the generated regional trends as needed. Each trend should be concise.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center p-6 border-b shrink-0">
-          <h3 className="text-xl font-bold text-gray-800">Configure Bulletin</h3>
+          <div>
+            <h3 className="text-xl font-bold">Configure SCORE Bulletin</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Customize your ESG Regulatory Bulletin ({selectedArticlesCount} articles selected)
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
@@ -51,202 +627,95 @@ export function BulletinConfigModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="header-text" className="block text-sm font-medium text-gray-700 mb-2">
-                Bulletin Header Text
-              </label>
-              <input
-                type="text"
-                id="header-text"
-                value={config.headerText}
-                onChange={(e) => onConfigChange('headerText', e.target.value)}
-                placeholder="ESG BULLETIN"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label htmlFor="header-image" className="block text-sm font-medium text-gray-700">
-                  Header Image URL
-                </label>
-              </div>
-              <input
-                type="url"
-                id="header-image"
-                value={config.headerImage}
-                onChange={(e) => onConfigChange('headerImage', e.target.value)}
-                placeholder="https://example.com/header-image.jpg"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                <p className="text-xs text-yellow-800 mb-2 font-medium">
-                  🚨 TESTING FEATURE - Will be removed in production
-                </p>
-                <Button
-                  type="button"
-                  onClick={() => onRandomImage('headerImage')}
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium py-2 rounded"
+        {/* Stepper Navigation */}
+        <div className="border-b">
+          <div className="flex justify-between p-4">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex items-center">
+                <button
+                  onClick={() => setCurrentStep(step.id)}
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep === step.id
+                      ? 'bg-gray-800 text-white'
+                      : steps.findIndex(s => s.id === currentStep) > index
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}
                 >
-                  Use Random Test Header Image
-                </Button>
-              </div>
-
-              {config.headerImage && (
-                <div className="mt-2">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Header Image Preview:</p>
-                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <img
-                      src={config.headerImage}
-                      alt="Header preview"
-                      className="max-w-full h-auto max-h-32 mx-auto rounded"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
+                  {steps.findIndex(s => s.id === currentStep) > index ? '✓' : index + 1}
+                </button>
+                <div className="ml-2">
+                  <div className={`text-xs font-medium ${currentStep === step.id ? 'text-gray-800' : 'text-gray-500'
+                    }`}>
+                    {step.label}
                   </div>
+                  <div className="text-xs text-gray-400">{step.description}</div>
                 </div>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="issue-number" className="block text-sm font-medium text-gray-700 mb-2">
-                Issue Number
-              </label>
-              <input
-                type="text"
-                id="issue-number"
-                value={config.issueNumber}
-                onChange={(e) => onConfigChange('issueNumber', e.target.value)}
-                placeholder="e.g., Issue #1, Vol. 2"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="publication-date" className="block text-sm font-medium text-gray-700 mb-2">
-                Publication Date
-              </label>
-              <input
-                type="date"
-                id="publication-date"
-                value={config.publicationDate}
-                onChange={(e) => onConfigChange('publicationDate', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label htmlFor="publisher-logo" className="block text-sm font-medium text-gray-700">
-                  Publisher Logo URL
-                </label>
+                {index < steps.length - 1 && (
+                  <div className={`ml-4 w-8 h-0.5 ${steps.findIndex(s => s.id === currentStep) > index ? 'bg-gray-600' : 'bg-gray-200'
+                    }`} />
+                )}
               </div>
-              <input
-                type="url"
-                id="publisher-logo"
-                value={config.publisherLogo}
-                onChange={(e) => onConfigChange('publisherLogo', e.target.value)}
-                placeholder="https://example.com/logo.png"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                <p className="text-xs text-yellow-800 mb-2 font-medium">
-                  🚨 TESTING FEATURE - Will be removed in production
-                </p>
-                <Button
-                  type="button"
-                  onClick={() => onRandomImage('publisherLogo')}
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium py-2 rounded"
-                >
-                  Use Random Test Logo
-                </Button>
-              </div>
-
-              {config.publisherLogo && (
-                <div className="mt-2">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Logo Preview:</p>
-                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <img
-                      src={config.publisherLogo}
-                      alt="Logo preview"
-                      className="max-w-full h-auto max-h-24 mx-auto rounded"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label htmlFor="footer-image" className="block text-sm font-medium text-gray-700">
-                  Footer Image URL
-                </label>
-              </div>
-              <input
-                type="url"
-                id="footer-image"
-                value={config.footerImage}
-                onChange={(e) => onConfigChange('footerImage', e.target.value)}
-                placeholder="https://example.com/footer-image.jpg"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                <p className="text-xs text-yellow-800 mb-2 font-medium">
-                  🚨 TESTING FEATURE - Will be removed in production
-                </p>
-                <Button
-                  type="button"
-                  onClick={() => onRandomImage('footerImage')}
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium py-2 rounded"
-                >
-                  Use Random Test Footer Image
-                </Button>
-              </div>
-
-              {config.footerImage && (
-                <div className="mt-2">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Footer Image Preview:</p>
-                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <img
-                      src={config.footerImage}
-                      alt="Footer preview"
-                      className="max-w-full h-auto max-h-32 mx-auto rounded"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 p-6 border-t bg-gray-50 shrink-0">
-          <Button
-            onClick={onClose}
-            className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={onClose}
-            className="text-white font-bold py-2 px-4 rounded-lg"
-            style={{
-              backgroundColor: selectedArticlesCount === 0 ? "#ccc" : themeColors[theme],
-            }}
-          >
-            Save Configuration
-          </Button>
+        {/* Step Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {renderStepContent()}
+
+          {/* AI Generation Status */}
+          {isGenerating && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm font-medium text-gray-800">
+                    Generating {isGenerating.replace('_', ' ')}...
+                  </span>
+                </div>
+                <span className="text-xs text-gray-600">
+                  This may take a few seconds
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between p-6 border-t bg-gray-50 shrink-0">
+          <div>
+            {currentStep !== 'header' && (
+              <Button
+                onClick={prevStep}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Previous
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button
+              onClick={onClose}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Cancel
+            </Button>
+            {currentStep !== 'regional' ? (
+              <Button
+                onClick={nextStep}
+                className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded"
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                onClick={onClose}
+                className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded"
+              >
+                Save Configuration
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

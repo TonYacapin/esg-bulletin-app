@@ -25,20 +25,70 @@ export interface Article {
   }[]
 }
 
-interface BulletinConfig {
+// UPDATED: Complete BulletinConfig interface with all fields
+export interface BulletinConfig {
+  // Header Section
   headerText: string
   headerImage: string
   issueNumber: string
   publicationDate: string
   publisherLogo: string
   footerImage: string
+  
+  // Bulletin Structure
+  tableOfContents: boolean
+  greetingMessage: string
+  keyTrends: boolean
+  executiveSummary: boolean
+  keyTakeaways: boolean
+  interactiveMap: boolean
+  calendarSection: boolean
+  
+  // Regional Sections
+  euSection: {
+    enabled: boolean
+    title: string
+    keyTrends: boolean
+    introduction: string
+  }
+  usSection: {
+    enabled: boolean
+    title: string
+    keyTrends: boolean
+    introduction: string
+  }
+  globalSection: {
+    enabled: boolean
+    title: string
+    keyTrends: boolean
+    introduction: string
+  }
+  
+  // Additional Sections
+  calendarMinutes: boolean
+  keepAnEyeOn: boolean
+  comingEvents: boolean
+
+  // AI Generation Context
+  previousGreeting: string
+  customInstructions: string
+
+  // AI Generated Content Storage
+  generatedContent: {
+    keyTrends: string
+    executiveSummary: string
+    keyTakeaways: string
+    euTrends: string
+    usTrends: string
+    globalTrends: string
+  }
 }
 
 export interface BulletinData {
   theme: "blue" | "green" | "red"
   articles: Article[]
   articlesByCountry: Record<string, Article[]>
-  bulletinConfig?: BulletinConfig
+  bulletinConfig?: BulletinConfig // UPDATED: Now uses the complete interface
 }
 
 type Step = "form" | "selector" | "output"
@@ -90,7 +140,7 @@ export default function BulletinGenerator() {
     }
   }
 
-  // FIXED: Added bulletinConfig parameter
+  // FIXED: Now properly typed with the complete BulletinConfig
   const handleArticlesSelected = (selectedArticles: Article[], bulletinConfig: BulletinConfig) => {
     const articlesByCountry = selectedArticles.reduce((acc: Record<string, Article[]>, article: Article) => {
       const country = article.jurisdictions?.[0]?.name || "International"
@@ -103,7 +153,7 @@ export default function BulletinGenerator() {
       theme: selectedTheme,
       articles: selectedArticles,
       articlesByCountry,
-      bulletinConfig // FIXED: Include bulletinConfig in the data
+      bulletinConfig // FIXED: Include the complete bulletinConfig in the data
     })
     setStep("output")
   }

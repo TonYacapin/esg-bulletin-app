@@ -82,22 +82,9 @@ export function ArticleDetailModal({
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              ChatGPT Summary Generator
+           Summary Generator
             </h4>
-            
-            <div className="mb-4">
-              <label htmlFor="chatgpt-prompt" className="block text-sm font-medium text-blue-700 mb-2">
-                Custom Prompt (Optional)
-              </label>
-              <textarea
-                id="chatgpt-prompt"
-                value={customPrompts.get(article.news_id) || ""}
-                onChange={(e) => onPromptChange(article.news_id, e.target.value)}
-                placeholder="Enter a custom prompt for ChatGPT (e.g., 'Summarize this article focusing on ESG impacts and key stakeholders...')"
-                className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                rows={3}
-              />
-            </div>
+         
 
             <div className="mb-4">
               <label htmlFor="summary-output" className="block text-sm font-medium text-blue-700 mb-2">
