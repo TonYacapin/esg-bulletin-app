@@ -7,6 +7,7 @@ import { BulletinOutput } from "./bulletin-output"
 import { ArticleSelector } from "./article-selector"
 
 export interface Article {
+  news_content: string
   imageUrl: any
   news_id: number
   news_title: string

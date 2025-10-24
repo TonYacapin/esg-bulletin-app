@@ -83,6 +83,11 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   })
 
   const [isAutoGenerating, setIsAutoGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState<{
+    currentStep: string
+    progress: number
+    totalSteps: number
+  } | null>(null)
 
   const freeImageApis = [
     "https://picsum.photos/800/400",
@@ -91,13 +96,6 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     "https://picsum.photos/700/500",
     "https://picsum.photos/900/600",
   ]
-
-  // Auto-select all articles on initial load
-  useEffect(() => {
-    if (articles.length > 0 && selectedIds.size === 0) {
-      setSelectedIds(new Set(articles.map((a) => a.news_id)))
-    }
-  }, [articles])
 
   // Auto-generate bulletin content when articles are selected
   useEffect(() => {
@@ -564,6 +562,179 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     })
   }
 
+  const generateBulletinWithAI = async () => {
+    setIsGenerating(true)
+    setGenerationProgress({
+      currentStep: "Preparing bulletin content...",
+      progress: 0,
+      totalSteps: 6
+    })
+
+    try {
+      const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id))
+      
+      // Step 1: Generate key trends
+      setGenerationProgress({
+        currentStep: "Generating key trends...",
+        progress: 1,
+        totalSteps: 6
+      })
+      
+      if (bulletinConfig.keyTrends) {
+        const keyTrendsResponse = await fetch('/api/generate-bulletin-content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'key_trends',
+            articles: selectedArticles,
+            currentDate: bulletinConfig.publicationDate
+          }),
+        })
+
+        if (keyTrendsResponse.ok) {
+          const keyTrendsData = await keyTrendsResponse.json()
+          setBulletinConfig(prev => ({
+            ...prev,
+            generatedContent: {
+              ...prev.generatedContent,
+              keyTrends: keyTrendsData.content
+            }
+          }))
+        }
+      }
+
+      // Step 2: Generate executive summary
+      setGenerationProgress({
+        currentStep: "Generating executive summary...",
+        progress: 2,
+        totalSteps: 6
+      })
+
+      if (bulletinConfig.executiveSummary) {
+        const execSummaryResponse = await fetch('/api/generate-bulletin-content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'executive_summary',
+            articles: selectedArticles,
+            currentDate: bulletinConfig.publicationDate
+          }),
+        })
+
+        if (execSummaryResponse.ok) {
+          const execSummaryData = await execSummaryResponse.json()
+          setBulletinConfig(prev => ({
+            ...prev,
+            generatedContent: {
+              ...prev.generatedContent,
+              executiveSummary: execSummaryData.content
+            }
+          }))
+        }
+      }
+
+      // Step 3: Generate key takeaways
+      setGenerationProgress({
+        currentStep: "Generating key takeaways...",
+        progress: 3,
+        totalSteps: 6
+      })
+
+      if (bulletinConfig.keyTakeaways) {
+        const keyTakeawaysResponse = await fetch('/api/generate-bulletin-content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'key_takeaways',
+            articles: selectedArticles,
+            currentDate: bulletinConfig.publicationDate
+          }),
+        })
+
+        if (keyTakeawaysResponse.ok) {
+          const keyTakeawaysData = await keyTakeawaysResponse.json()
+          setBulletinConfig(prev => ({
+            ...prev,
+            generatedContent: {
+              ...prev.generatedContent,
+              keyTakeaways: keyTakeawaysData.content
+            }
+          }))
+        }
+      }
+
+      // Step 4: Generate regional content
+      setGenerationProgress({
+        currentStep: "Generating regional content...",
+        progress: 4,
+        totalSteps: 6
+      })
+
+      const regions = ['euSection', 'usSection', 'globalSection'] as const
+      for (const region of regions) {
+        if (bulletinConfig[region].enabled) {
+          const regionalArticles = getRegionalArticles(selectedArticles, region)
+          
+          if (regionalArticles.length > 0 && bulletinConfig[region].keyTrends) {
+            const trendsResponse = await fetch('/api/generate-bulletin-content', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'section_trends',
+                articles: regionalArticles,
+                region: region.replace('Section', '').toUpperCase(),
+                currentDate: bulletinConfig.publicationDate
+              }),
+            })
+
+            if (trendsResponse.ok) {
+              const trendsData = await trendsResponse.json()
+              setBulletinConfig(prev => ({
+                ...prev,
+                generatedContent: {
+                  ...prev.generatedContent,
+                  [`${region.replace('Section', '').toLowerCase()}Trends`]: trendsData.content
+                }
+              }))
+            }
+          }
+        }
+      }
+
+      // Step 5: Finalize configuration
+      setGenerationProgress({
+        currentStep: "Finalizing bulletin...",
+        progress: 5,
+        totalSteps: 6
+      })
+
+      // Step 6: Complete
+      setGenerationProgress({
+        currentStep: "Bulletin ready!",
+        progress: 6,
+        totalSteps: 6
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Call the onConfirm callback with the generated content
+      const finalSelectedArticles = selectedArticles.map(article => ({
+        ...article,
+        imageUrl: articlesWithImages.get(article.news_id),
+        news_summary: customSummaries.get(article.news_id) || article.news_summary
+      }))
+
+      onConfirm(finalSelectedArticles, bulletinConfig)
+      
+    } catch (error) {
+      console.error('Error generating bulletin with AI:', error)
+      toast.error('Failed to generate AI content. Please try again.')
+    } finally {
+      setIsGenerating(false)
+      setGenerationProgress(null)
+    }
+  }
+
   const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id)).map(article => ({
     ...article,
     imageUrl: articlesWithImages.get(article.news_id),
@@ -571,13 +742,8 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   }))
 
   const handleGenerateConfirm = async () => {
-    setIsGenerating(true)
     closeGenerateConfirmationModal()
-    
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    onConfirm(selectedArticles, bulletinConfig)
-    setIsGenerating(false)
+    await generateBulletinWithAI()
   }
 
   const handleBackConfirm = () => {
@@ -609,7 +775,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
             <p className="text-gray-600">
               {isAutoGenerating ? (
                 <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                   Auto-generating bulletin content...
                 </span>
               ) : (
@@ -636,7 +802,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
               {selectedIds.size} article{selectedIds.size !== 1 ? "s" : ""} selected
             </span>
           </div>
-          <Button
+          {/* <Button
             onClick={openConfigModal}
             className="text-white font-bold py-2 px-4 rounded-lg"
             style={{
@@ -644,7 +810,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
             }}
           >
             Configure Bulletin
-          </Button>
+          </Button> */}
         </div>
 
         <div className="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4">
@@ -812,11 +978,34 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         onClose={closeGenerateConfirmationModal}
         onConfirm={handleGenerateConfirm}
         title="Generate Bulletin"
-        message={`You are about to generate a bulletin with ${selectedArticles.length} article${selectedArticles.length !== 1 ? 's' : ''}. This will create a professional PDF document. Do you want to proceed?`}
-        confirmText="Generate Bulletin"
+        message={
+          generationProgress ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <span className="font-medium text-gray-700">{generationProgress.currentStep}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${(generationProgress.progress / generationProgress.totalSteps) * 100}%` 
+                  }}
+                />
+              </div>
+              <p className="text-sm text-gray-600 text-center">
+                Step {generationProgress.progress} of {generationProgress.totalSteps}
+              </p>
+            </div>
+          ) : (
+            `You are about to generate a bulletin with ${selectedArticles.length} article${selectedArticles.length !== 1 ? 's' : ''}. This will create a professional PDF document. Do you want to proceed?`
+          )
+        }
+        confirmText={generationProgress ? "Generating..." : "Generate Bulletin"}
         cancelText="Cancel"
         theme={theme}
         isLoading={isGenerating}
+        hideButtons={!!generationProgress}
       />
 
       <ConfirmationModal
