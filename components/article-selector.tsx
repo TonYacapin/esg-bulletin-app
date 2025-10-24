@@ -32,55 +32,57 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   const [customSummaries, setCustomSummaries] = useState<Map<number, string>>(new Map())
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<number | null>(null)
   
-const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
-  headerText: "ESG Bulletin",
-  headerImage: "",
-  issueNumber: "",
-  publicationDate: new Date().toISOString().split('T')[0],
-  publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
-  footerImage: "",
-  tableOfContents: true,
-  greetingMessage: "",
-  keyTrends: true,
-  executiveSummary: true,
-  keyTakeaways: true,
-  interactiveMap: true,
-  calendarSection: true,
-  euSection: {
-    enabled: true,
-    title: "",
+  const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
+    headerText: "ESG Bulletin",
+    headerImage: "",
+    issueNumber: "",
+    publicationDate: new Date().toISOString().split('T')[0],
+    publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
+    footerImage: "",
+    tableOfContents: true,
+    greetingMessage: "",
     keyTrends: true,
-    introduction: "",
-    trends: ""
-  },
-  usSection: {
-    enabled: true,
-    title: "",
-    keyTrends: true,
-    introduction: "",
-    trends: "" 
-  },
-  globalSection: {
-    enabled: true,
-    title: "",
-    keyTrends: true,
-    introduction: "",
-    trends: ""
-  },
-  calendarMinutes: true,
-  keepAnEyeOn: true,
-  comingEvents: true,
-  previousGreeting: "",
-  customInstructions: "",
-  generatedContent: {
-    keyTrends: "",
-    executiveSummary: "",
-    keyTakeaways: "",
-    euTrends: "",
-    usTrends: "",
-    globalTrends: ""
-  }
-})
+    executiveSummary: true,
+    keyTakeaways: true,
+    interactiveMap: true,
+    calendarSection: true,
+    euSection: {
+      enabled: true,
+      title: "",
+      keyTrends: true,
+      introduction: "",
+      trends: ""
+    },
+    usSection: {
+      enabled: true,
+      title: "",
+      keyTrends: true,
+      introduction: "",
+      trends: "" 
+    },
+    globalSection: {
+      enabled: true,
+      title: "",
+      keyTrends: true,
+      introduction: "",
+      trends: ""
+    },
+    calendarMinutes: true,
+    keepAnEyeOn: true,
+    comingEvents: true,
+    previousGreeting: "",
+    customInstructions: "",
+    generatedContent: {
+      keyTrends: "",
+      executiveSummary: "",
+      keyTakeaways: "",
+      euTrends: "",
+      usTrends: "",
+      globalTrends: ""
+    }
+  })
+
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false)
 
   const freeImageApis = [
     "https://picsum.photos/800/400",
@@ -89,6 +91,21 @@ const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
     "https://picsum.photos/700/500",
     "https://picsum.photos/900/600",
   ]
+
+  // Auto-select all articles on initial load
+  useEffect(() => {
+    if (articles.length > 0 && selectedIds.size === 0) {
+      setSelectedIds(new Set(articles.map((a) => a.news_id)))
+    }
+  }, [articles])
+
+  // Auto-generate bulletin content when articles are selected
+  useEffect(() => {
+    const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id))
+    if (selectedArticles.length > 0 && !isAutoGenerating) {
+      autoGenerateBulletinContent(selectedArticles)
+    }
+  }, [selectedIds, articles])
 
   const hasUnsavedChanges = () => {
     const initialSelectedIds = new Set(articles.map((a) => a.news_id))
@@ -107,35 +124,35 @@ const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
     }
     
     const defaultConfig = {
-  headerText: "ESG BULLETIN",
-  headerImage: "",
-  issueNumber: "",
-  publicationDate: new Date().toISOString().split('T')[0],
-  publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
-  footerImage: "",
-  tableOfContents: true,
-  greetingMessage: "",
-  keyTrends: true,
-  executiveSummary: true,
-  euSection: {
-    enabled: true,
-    title: "",
-    keyTrends: true,
-    introduction: ""
-  },
-  usSection: {
-    enabled: true,
-    title: "",
-    keyTrends: true,
-    introduction: ""
-  },
-  globalSection: {
-    enabled: true,
-    title: "",
-    keyTrends: true,
-    introduction: ""
-  }
-} as BulletinConfig
+      headerText: "ESG BULLETIN",
+      headerImage: "",
+      issueNumber: "",
+      publicationDate: new Date().toISOString().split('T')[0],
+      publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
+      footerImage: "",
+      tableOfContents: true,
+      greetingMessage: "",
+      keyTrends: true,
+      executiveSummary: true,
+      euSection: {
+        enabled: true,
+        title: "",
+        keyTrends: true,
+        introduction: ""
+      },
+      usSection: {
+        enabled: true,
+        title: "",
+        keyTrends: true,
+        introduction: ""
+      },
+      globalSection: {
+        enabled: true,
+        title: "",
+        keyTrends: true,
+        introduction: ""
+      }
+    } as BulletinConfig
     
     return bulletinConfig.headerText !== defaultConfig.headerText ||
            bulletinConfig.headerImage !== defaultConfig.headerImage ||
@@ -283,45 +300,44 @@ const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
   }
 
   const generateSummary = async (articleId: number) => {
-  if (!selectedArticle) return
-  
-  setIsGeneratingSummary(articleId)
-  
-  const prompt = customPrompts.get(articleId) || 
-    `Please provide a concise summary of the following article for an ESG bulletin. Focus on key ESG-related aspects and main points.`
-  
-  try {
-    const response = await fetch('/api/generate-summary', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt,
-        articleContent: selectedArticle.news_summary
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to generate summary')
-    }
-
-    const data = await response.json()
+    if (!selectedArticle) return
     
-    if (data.error) {
-      throw new Error(data.error)
+    setIsGeneratingSummary(articleId)
+    
+    const prompt = customPrompts.get(articleId) || 
+      `Please provide a concise summary of the following article for an ESG bulletin. Focus on key ESG-related aspects and main points.`
+    
+    try {
+      const response = await fetch('/api/generate-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          articleContent: selectedArticle.news_summary
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate summary')
+      }
+
+      const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      handleSummaryChange(articleId, data.summary)
+    } catch (error) {
+      console.error('Error generating summary:', error)
+      handleSummaryChange(articleId, selectedArticle.news_summary)
+      toast.error('Failed to generate AI summary. Using original summary.')
+    } finally {
+      setIsGeneratingSummary(null)
     }
-
-    handleSummaryChange(articleId, data.summary)
-  } catch (error) {
-  console.error('Error generating summary:', error)
-  handleSummaryChange(articleId, selectedArticle.news_summary)
-  toast.error('Failed to generate AI summary. Using original summary.')
-} finally {
-    setIsGeneratingSummary(null)
   }
-}
-
 
   const resetSummary = (articleId: number) => {
     handleSummaryChange(articleId, "")
@@ -331,6 +347,221 @@ const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
     if (selectedArticle) {
       handleSummaryChange(articleId, selectedArticle.news_summary)
     }
+  }
+
+  const autoGenerateBulletinContent = async (selectedArticles: Article[]) => {
+    if (selectedArticles.length === 0) return
+    
+    setIsAutoGenerating(true)
+    
+    try {
+      // Generate issue number based on current date
+      const currentDate = new Date()
+      const month = currentDate.toLocaleString('en-US', { month: 'long' })
+      const year = currentDate.getFullYear()
+      const issueNumber = `Issue #${Math.floor(Math.random() * 100) + 1} - ${month} ${year}`
+      
+      // Update basic configuration
+      setBulletinConfig(prev => ({
+        ...prev,
+        headerText: "ESG DISCLOSURE & REPORTING BULLETIN",
+        issueNumber,
+        publicationDate: currentDate.toISOString().split('T')[0],
+        headerImage: getRandomImageUrl(),
+        footerImage: getRandomImageUrl()
+      }))
+
+      // Generate AI content for the bulletin
+      await generateAIContentForBulletin(selectedArticles)
+      
+      toast.success('Bulletin content auto-generated successfully!')
+    } catch (error) {
+      console.error('Error auto-generating bulletin content:', error)
+      toast.error('Failed to auto-generate some content. You can generate it manually in the configuration.')
+    } finally {
+      setIsAutoGenerating(false)
+    }
+  }
+
+  const generateAIContentForBulletin = async (selectedArticles: Article[]) => {
+    try {
+      // Generate key trends
+      const keyTrendsResponse = await fetch('/api/generate-bulletin-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'key_trends',
+          articles: selectedArticles,
+          currentDate: bulletinConfig.publicationDate
+        }),
+      })
+
+      if (keyTrendsResponse.ok) {
+        const keyTrendsData = await keyTrendsResponse.json()
+        setBulletinConfig(prev => ({
+          ...prev,
+          generatedContent: {
+            ...prev.generatedContent,
+            keyTrends: keyTrendsData.content
+          }
+        }))
+      }
+
+      // Generate executive summary
+      const execSummaryResponse = await fetch('/api/generate-bulletin-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'executive_summary',
+          articles: selectedArticles,
+          currentDate: bulletinConfig.publicationDate
+        }),
+      })
+
+      if (execSummaryResponse.ok) {
+        const execSummaryData = await execSummaryResponse.json()
+        setBulletinConfig(prev => ({
+          ...prev,
+          generatedContent: {
+            ...prev.generatedContent,
+            executiveSummary: execSummaryData.content
+          }
+        }))
+      }
+
+      // Generate key takeaways
+      const keyTakeawaysResponse = await fetch('/api/generate-bulletin-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'key_takeaways',
+          articles: selectedArticles,
+          currentDate: bulletinConfig.publicationDate
+        }),
+      })
+
+      if (keyTakeawaysResponse.ok) {
+        const keyTakeawaysData = await keyTakeawaysResponse.json()
+        setBulletinConfig(prev => ({
+          ...prev,
+          generatedContent: {
+            ...prev.generatedContent,
+            keyTakeaways: keyTakeawaysData.content
+          }
+        }))
+      }
+
+      // Generate regional content for enabled sections
+      const regions = ['euSection', 'usSection', 'globalSection'] as const
+      
+      for (const region of regions) {
+        if (bulletinConfig[region].enabled) {
+          const regionalArticles = getRegionalArticles(selectedArticles, region)
+          
+          if (regionalArticles.length > 0) {
+            // Generate regional title
+            const titleResponse = await fetch('/api/generate-bulletin-content', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                type: 'section_title',
+                articles: regionalArticles,
+                region: region.replace('Section', '').toUpperCase(),
+                currentDate: bulletinConfig.publicationDate
+              }),
+            })
+
+            if (titleResponse.ok) {
+              const titleData = await titleResponse.json()
+              setBulletinConfig(prev => ({
+                ...prev,
+                [region]: {
+                  ...prev[region],
+                  title: titleData.content
+                }
+              }))
+            }
+
+            // Generate regional trends if enabled
+            if (bulletinConfig[region].keyTrends) {
+              const trendsResponse = await fetch('/api/generate-bulletin-content', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  type: 'section_trends',
+                  articles: regionalArticles,
+                  region: region.replace('Section', '').toUpperCase(),
+                  currentDate: bulletinConfig.publicationDate
+                }),
+              })
+
+              if (trendsResponse.ok) {
+                const trendsData = await trendsResponse.json()
+                setBulletinConfig(prev => ({
+                  ...prev,
+                  [region]: {
+                    ...prev[region],
+                    trends: trendsData.content
+                  }
+                }))
+              }
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error generating AI content:', error)
+      throw error
+    }
+  }
+
+  const getRegionalArticles = (articles: Article[], region: 'euSection' | 'usSection' | 'globalSection') => {
+    return articles.filter(article => {
+      const jurisdiction = article.jurisdictions?.[0]?.name?.toLowerCase() || ''
+
+      switch (region) {
+        case 'euSection':
+          return jurisdiction.includes('eu') ||
+            jurisdiction.includes('europe') ||
+            jurisdiction.includes('european') ||
+            article.jurisdictions?.some(j =>
+              j.name.toLowerCase().includes('eu') ||
+              j.name.toLowerCase().includes('europe')
+            )
+        case 'usSection':
+          return jurisdiction.includes('us') ||
+            jurisdiction.includes('united states') ||
+            jurisdiction.includes('america') ||
+            article.jurisdictions?.some(j =>
+              j.name.toLowerCase().includes('us') ||
+              j.name.toLowerCase().includes('united states')
+            )
+        case 'globalSection':
+          return !jurisdiction.includes('eu') &&
+            !jurisdiction.includes('europe') &&
+            !jurisdiction.includes('us') &&
+            !jurisdiction.includes('united states') &&
+            !article.jurisdictions?.some(j =>
+              j.name.toLowerCase().includes('eu') ||
+              j.name.toLowerCase().includes('europe') ||
+              j.name.toLowerCase().includes('us') ||
+              j.name.toLowerCase().includes('united states')
+            )
+        default:
+          return true
+      }
+    })
   }
 
   const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id)).map(article => ({
@@ -370,12 +601,28 @@ const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
   return (
     <div className="container mx-auto p-8 max-w-6xl">
       <div className="bg-white rounded-lg shadow-md p-8">
-        <h2 className="text-2xl font-bold mb-2" style={{ color: themeColors[theme] }}>
-          Select Articles for Your Bulletin
-        </h2>
-        <p className="text-gray-600 mb-6">
-          Choose which articles to include in your bulletin ({selectedArticles.length} of {articles.length} selected)
-        </p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: themeColors[theme] }}>
+              Select Articles for Your Bulletin
+            </h2>
+            <p className="text-gray-600">
+              {isAutoGenerating ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  Auto-generating bulletin content...
+                </span>
+              ) : (
+                `Choose which articles to include in your bulletin (${selectedArticles.length} of ${articles.length} selected)`
+              )}
+            </p>
+          </div>
+          {isAutoGenerating && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+              <p className="text-blue-700 text-sm font-medium">Auto-generating content...</p>
+            </div>
+          )}
+        </div>
 
         <div className="mb-6 flex justify-between items-center">
           <div className="flex gap-4">
@@ -501,7 +748,7 @@ const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
           </Button>
           <Button
             onClick={openGenerateConfirmationModal}
-            disabled={selectedArticles.length === 0 || isGenerating}
+            disabled={selectedArticles.length === 0 || isGenerating || isAutoGenerating}
             className="text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               backgroundColor: selectedArticles.length === 0 ? "#ccc" : themeColors[theme],
@@ -511,6 +758,11 @@ const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 Generating...
+              </div>
+            ) : isAutoGenerating ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Preparing...
               </div>
             ) : (
               `Generate Bulletin (${selectedArticles.length} articles)`
