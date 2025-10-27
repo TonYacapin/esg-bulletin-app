@@ -188,6 +188,14 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
   const validateForm = (): ValidationError[] => {
     const errors: ValidationError[] = []
 
+    // Theme validation - ensure a theme is selected
+    if (!theme) {
+      errors.push({
+        field: "theme",
+        message: "Please select a theme for your bulletin"
+      })
+    }
+
     // Required field validation
     if (!query.trim()) {
       errors.push({
@@ -318,6 +326,12 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
 
   const clearFieldError = (fieldName: string) => {
     setValidationErrors(prev => prev.filter(error => error.field !== fieldName))
+  }
+
+  const handleThemeChange = (value: "blue" | "green" | "red") => {
+    setTheme(value)
+    // Clear theme validation error when user selects a theme
+    clearFieldError("theme")
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -530,18 +544,36 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
               <div className="space-y-4">
                 <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <Eye className="h-4 w-4" />
-                  Bulletin Theme
+                  Bulletin Theme *
                 </Label>
-                <RadioGroup value={theme} onValueChange={(value: "blue" | "green" | "red") => setTheme(value)} className="flex gap-3">
+                
+                {/* Theme Validation Error */}
+                {getFieldError("theme") && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-sm">
+                    {getFieldError("theme")}
+                  </div>
+                )}
+                
+                <RadioGroup 
+                  value={theme} 
+                  onValueChange={handleThemeChange} 
+                  className="flex gap-3"
+                >
                   {(["blue", "green", "red"] as const).map((color) => (
                     <div key={color} className="flex-1">
-                      <RadioGroupItem value={color} id={color} className="sr-only" />
+                      <RadioGroupItem 
+                        value={color} 
+                        id={color} 
+                        className="sr-only" 
+                      />
                       <Label
                         htmlFor={color}
                         className={`flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
                           theme === color 
                             ? `border-${color === 'blue' ? 'blue' : color === 'green' ? 'emerald' : 'rose'}-500 shadow-sm bg-white` 
                             : "border-gray-200 hover:border-gray-300 bg-white/50"
+                        } ${
+                          getFieldError("theme") ? "border-red-300" : ""
                         }`}
                       >
                         <div
@@ -558,6 +590,9 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
                     </div>
                   ))}
                 </RadioGroup>
+                <p className="text-xs text-gray-500">
+                  Select a theme to define the visual style and focus of your bulletin
+                </p>
               </div>
 
               {/* Search Section */}
@@ -833,4 +868,4 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
       </div>
     </div>
   )
-}
+};
