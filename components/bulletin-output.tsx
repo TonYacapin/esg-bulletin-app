@@ -709,18 +709,7 @@ function ArticleEditModal({
             )}
             
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Source Name
-                </label>
-                <input
-                  type="text"
-                  value={editedArticle.source_alias}
-                  onChange={(e) => setEditedArticle(prev => ({ ...prev, source_alias: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Press release, Reuters, etc."
-                />
-              </div>
+              
               <div>
                 <label className="block text-xs text-gray-600 mb-1">
                   Source URL
