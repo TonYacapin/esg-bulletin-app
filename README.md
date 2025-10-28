@@ -1,5 +1,4 @@
 # ESG Bulletin Generator
-[![Ask DeepWiki](https://devin.ai/assets/askdeepwiki.png)](https://deepwiki.com/TonYacapin/esg-bulletin-app)
 
 The ESG Bulletin Generator is a web application built with Next.js that empowers users to create customized, professional Environmental, Social, and Governance (ESG) bulletins. It streamlines the process of curating relevant news, generating insightful summaries with AI, and producing a polished, print-ready PDF document.
 
