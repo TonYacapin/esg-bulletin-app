@@ -169,18 +169,24 @@ function CountryMappingModal({
 
 interface DragDropImageUploadProps {
   onImageUpload: (file: File) => void
+  onRemoveImage?: () => void
   currentImage?: string
   placeholder?: string
   className?: string
   disabled?: boolean
+  showUploadInterface?: boolean
+  showRemoveButton?: boolean
 }
 
 function DragDropImageUpload({ 
   onImageUpload, 
+  onRemoveImage,
   currentImage, 
   placeholder = "Drag & drop an image here or click to browse",
   className = "",
-  disabled = false
+  disabled = false,
+  showUploadInterface = true,
+  showRemoveButton = true
 }: DragDropImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(currentImage || "")
@@ -227,26 +233,75 @@ function DragDropImageUpload({
 
   const handleFile = (file: File) => {
     onImageUpload(file)
-    
-    // Create preview URL
     const url = URL.createObjectURL(file)
     setPreviewUrl(url)
   }
 
   const handleClick = () => {
-    if (disabled) return
+    if (disabled || !showUploadInterface) return
     fileInputRef.current?.click()
+  }
+
+  const handleRemove = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onRemoveImage) {
+      onRemoveImage()
+    }
+    setPreviewUrl("")
+  }
+
+  // If image exists and we shouldn't show upload interface, just display the image with remove button
+  if (previewUrl && !showUploadInterface) {
+    return (
+      <div className={`relative ${className}`}>
+        <div className="w-full aspect-square max-w-xs mx-auto">
+          <img
+            src={previewUrl}
+            alt="Article"
+            className="w-full h-full object-cover rounded-lg border shadow-sm"
+          />
+        </div>
+        {showRemoveButton && onRemoveImage && (
+          <button
+            type="button"
+            onClick={handleRemove}
+            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-colors print:hidden"
+            title="Remove image"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+    )
   }
 
   if (disabled) {
     return (
       <div className={`border-2 border-dashed border-gray-300 rounded-lg p-4 ${className}`}>
         {previewUrl ? (
-          <img
-            src={previewUrl}
-            alt="Preview"
-            className="w-full h-32 object-cover rounded border"
-          />
+          <div className="relative">
+            <div className="w-full aspect-square max-w-xs mx-auto">
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="w-full h-full object-cover rounded-lg border shadow-sm"
+              />
+            </div>
+            {showRemoveButton && onRemoveImage && (
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-colors"
+                title="Remove image"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         ) : (
           <div className="py-8 text-center text-gray-500">
             <p>No image</p>
@@ -277,13 +332,26 @@ function DragDropImageUpload({
       />
       
       {previewUrl ? (
-        <div className="space-y-2">
-          <img
-            src={previewUrl}
-            alt="Preview"
-            className="w-full h-32 object-cover rounded border"
-          />
-          <p className="text-sm text-gray-600">Click or drag to change image</p>
+        <div className="space-y-2 relative">
+          <div className="w-full aspect-square max-w-xs mx-auto">
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="w-full h-full object-cover rounded-lg border shadow-sm"
+            />
+          </div>
+          <div className="flex justify-center gap-2">
+            <p className="text-sm text-gray-600">Click or drag to change image</p>
+            {showRemoveButton && onRemoveImage && (
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="text-sm text-red-600 hover:text-red-800 underline"
+              >
+                Remove
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="py-8">
@@ -298,6 +366,90 @@ function DragDropImageUpload({
       )}
     </div>
   )
+}
+
+interface ArticleImageDisplayProps {
+  imageUrl?: string
+  alt: string
+  onImageUpload?: (file: File) => void
+  onRemoveImage?: () => void
+  editable?: boolean
+  className?: string
+}
+interface ArticleImageDisplayProps {
+  imageUrl?: string
+  alt: string
+  onImageUpload?: (file: File) => void
+  onRemoveImage?: () => void
+  editable?: boolean
+  className?: string
+}
+
+function ArticleImageDisplay({ 
+  imageUrl, 
+  alt, 
+  onImageUpload, 
+  onRemoveImage,
+  editable = true,
+  className = ""
+}: ArticleImageDisplayProps) {
+  const [imageError, setImageError] = useState(false)
+
+  const handleRemove = () => {
+    if (onRemoveImage) {
+      onRemoveImage()
+    }
+    setImageError(false)
+  }
+
+  // If image exists and loaded successfully, show it in 4:3 format with remove button
+  if (imageUrl && !imageError) {
+    return (
+      <div className={`mb-6 print:mb-4 relative ${className}`}>
+        <div className="w-full aspect-[4/3]"> {/* 4:3 aspect ratio */}
+          <img
+            src={imageUrl}
+            alt={alt}
+            className="w-full h-full object-cover rounded-lg border shadow-lg"
+            onError={() => setImageError(true)}
+          />
+          {/* Remove button - only show when editable and onRemoveImage is provided */}
+          {editable && onRemoveImage && (
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-colors print:hidden"
+              title="Remove image"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // If no image or image failed to load, and editing is allowed, show upload interface
+  if (editable && onImageUpload) {
+    return (
+      <div className={`mb-6 print:mb-4 print:hidden ${className}`}>
+        <DragDropImageUpload
+          onImageUpload={onImageUpload}
+          onRemoveImage={onRemoveImage}
+          currentImage={imageUrl}
+          placeholder="Drag & drop article image or click to browse"
+          className="h-48"
+          showUploadInterface={!imageUrl || imageError}
+          showRemoveButton={!!imageUrl && !imageError}
+        />
+      </div>
+    )
+  }
+
+  // If no image and not editable, show nothing
+  return null
 }
 
 interface HeaderEditModalProps {
@@ -545,15 +697,19 @@ function ArticleEditModal({
     reader.readAsDataURL(file)
   }
 
+  const handleRemoveImage = () => {
+    setEditedArticle(prev => ({ ...prev, imageUrl: '' }))
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
     // Prepare the updated source array
     const updatedSource = [{
-      id: article.source?.[0]?.id, // Keep existing ID if any
+      id: article.source?.[0]?.id,
       source_alias: editedArticle.source_alias,
       source_url: editedArticle.source_url,
-      source_file_key: article.source?.[0]?.source_file_key // Keep existing file key if any
+      source_file_key: article.source?.[0]?.source_file_key
     }]
 
     onSave(article.news_id, {
@@ -591,7 +747,6 @@ function ArticleEditModal({
 
     const newText = text.substring(0, start) + formattedText + text.substring(end)
     
-    // Set cursor position after the formatted text
     setTimeout(() => {
       textarea.selectionStart = start + formattedText.length
       textarea.selectionEnd = start + formattedText.length
@@ -709,7 +864,18 @@ function ArticleEditModal({
             )}
             
             <div className="grid grid-cols-2 gap-4">
-              
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">
+                  Source Name
+                </label>
+                <input
+                  type="text"
+                  value={editedArticle.source_alias}
+                  onChange={(e) => setEditedArticle(prev => ({ ...prev, source_alias: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Source name"
+                />
+              </div>
               <div>
                 <label className="block text-xs text-gray-600 mb-1">
                   Source URL
@@ -735,12 +901,23 @@ function ArticleEditModal({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Article Image
+              {editedArticle.imageUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="ml-2 text-xs text-red-600 hover:text-red-800 underline"
+                >
+                  Remove Image
+                </button>
+              )}
             </label>
             <DragDropImageUpload
               onImageUpload={handleImageUpload}
+              onRemoveImage={editedArticle.imageUrl ? handleRemoveImage : undefined}
               currentImage={editedArticle.imageUrl}
               placeholder="Drag & drop article image or click to browse"
-              className="h-48"
+              className="h-100"
+              showRemoveButton={!!editedArticle.imageUrl}
             />
           </div>
 
@@ -864,7 +1041,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               const data = await response.json();
               
               if (data.data?.source?.[0]) {
-                // Update the article with the fetched source data
                 handleArticleUpdate(article.news_id, {
                   source: [{
                     id: article.source?.[0]?.id,
@@ -884,11 +1060,10 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       }
     };
 
-    // Only fetch if we have articles that need source data
     if (articles.length > 0) {
       fetchMissingSources();
     }
-  }, [articles.length]); // Run when articles array length changes
+  }, [articles.length]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -985,7 +1160,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
     const newText = text.substring(0, start) + formattedText + text.substring(end)
     
-    // Set cursor position after the formatted text
     setTimeout(() => {
       textarea.selectionStart = start + formattedText.length
       textarea.selectionEnd = start + formattedText.length
@@ -1416,9 +1590,13 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   };
 
   const renderArticle = (article: any) => {
-    // Find the current article from the state to get updated source data
     const currentArticle = articles.find(a => a.news_id === article.news_id) || article;
     
+    // Handler for removing article image
+    const handleRemoveArticleImage = (articleId: string) => {
+      handleArticleUpdate(articleId, { imageUrl: "" })
+    }
+
     return (
       <div key={currentArticle.news_id} className="border-l-4 pl-6 py-2 group relative" style={{ borderColor: themeColors[theme] }}>
         {/* Edit/Regenerate buttons - shown on hover */}
@@ -1451,15 +1629,14 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         </div>
         <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{currentArticle.news_title}</h3>
 
-        {/* Article Image with Drag & Drop */}
-        <div className="mb-4 print:mb-3">
-          <DragDropImageUpload
-            onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
-            currentImage={currentArticle.imageUrl}
-            placeholder="Drag & drop article image or click to browse"
-            className="h-48"
-          />
-        </div>
+        {/* Article Image - Using the new component with remove functionality */}
+        <ArticleImageDisplay
+          imageUrl={currentArticle.imageUrl}
+          alt={currentArticle.news_title}
+          onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+      
+          editable={true}
+        />
 
         <div className="text-gray-700 mb-4 print:text-sm">
           {formatBoldText(currentArticle.news_summary)}
