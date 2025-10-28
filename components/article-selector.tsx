@@ -347,6 +347,43 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     }
   }
 
+  // Generate greeting message function
+  const generateGreetingMessage = async (selectedArticles: Article[]): Promise<string> => {
+    try {
+      const response = await fetch('/api/generate-bulletin-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'greeting_message',
+          articles: selectedArticles,
+          currentDate: bulletinConfig.publicationDate
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        return data.content
+      } else {
+        throw new Error('Failed to generate greeting message')
+      }
+    } catch (error) {
+      console.error('Error generating greeting message:', error)
+      
+      // Enhanced fallback greeting
+      const currentDate = new Date(bulletinConfig.publicationDate)
+      const month = currentDate.toLocaleString('en-US', { month: 'long' })
+      const year = currentDate.getFullYear()
+      
+      return `Welcome to our ${month} ${year} ESG Regulatory Bulletin. We are pleased to present this comprehensive overview of the latest developments in environmental, social, and governance reporting requirements. This edition features ${selectedArticles.length} significant regulatory updates from across global jurisdictions, providing you with essential insights to navigate the evolving compliance landscape.
+
+As regulatory frameworks continue to mature and expand, staying informed about disclosure requirements and reporting standards has never been more critical for organizations worldwide. This bulletin offers timely analysis and practical guidance to support your compliance efforts and strategic planning.
+
+We remain committed to delivering high-quality, actionable intelligence to help you stay ahead of regulatory changes and implement effective ESG practices within your organization.`
+    }
+  }
+
   const autoGenerateBulletinContent = async (selectedArticles: Article[]) => {
     if (selectedArticles.length === 0) return
     
@@ -359,6 +396,9 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
       const year = currentDate.getFullYear()
       const issueNumber = `Issue #${Math.floor(Math.random() * 100) + 1} - ${month} ${year}`
       
+      // Generate greeting message
+      const greetingMessage = await generateGreetingMessage(selectedArticles)
+      
       // Update basic configuration
       setBulletinConfig(prev => ({
         ...prev,
@@ -366,7 +406,8 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         issueNumber,
         publicationDate: currentDate.toISOString().split('T')[0],
         headerImage: getRandomImageUrl(),
-        footerImage: getRandomImageUrl()
+        footerImage: getRandomImageUrl(),
+        greetingMessage // Add the generated greeting
       }))
 
       // Generate AI content for the bulletin
@@ -567,17 +608,30 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     setGenerationProgress({
       currentStep: "Preparing bulletin content...",
       progress: 0,
-      totalSteps: 6
+      totalSteps: 7
     })
 
     try {
       const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id))
       
-      // Step 1: Generate key trends
+      // Step 1: Generate greeting message
+      setGenerationProgress({
+        currentStep: "Generating greeting message...",
+        progress: 1,
+        totalSteps: 7
+      })
+
+      const greetingMessage = await generateGreetingMessage(selectedArticles)
+      setBulletinConfig(prev => ({
+        ...prev,
+        greetingMessage
+      }))
+      
+      // Step 2: Generate key trends
       setGenerationProgress({
         currentStep: "Generating key trends...",
-        progress: 1,
-        totalSteps: 6
+        progress: 2,
+        totalSteps: 7
       })
       
       if (bulletinConfig.keyTrends) {
@@ -603,11 +657,11 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         }
       }
 
-      // Step 2: Generate executive summary
+      // Step 3: Generate executive summary
       setGenerationProgress({
         currentStep: "Generating executive summary...",
-        progress: 2,
-        totalSteps: 6
+        progress: 3,
+        totalSteps: 7
       })
 
       if (bulletinConfig.executiveSummary) {
@@ -633,11 +687,11 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         }
       }
 
-      // Step 3: Generate key takeaways
+      // Step 4: Generate key takeaways
       setGenerationProgress({
         currentStep: "Generating key takeaways...",
-        progress: 3,
-        totalSteps: 6
+        progress: 4,
+        totalSteps: 7
       })
 
       if (bulletinConfig.keyTakeaways) {
@@ -663,11 +717,11 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         }
       }
 
-      // Step 4: Generate regional content
+      // Step 5: Generate regional content
       setGenerationProgress({
         currentStep: "Generating regional content...",
-        progress: 4,
-        totalSteps: 6
+        progress: 5,
+        totalSteps: 7
       })
 
       const regions = ['euSection', 'usSection', 'globalSection'] as const
@@ -701,18 +755,18 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         }
       }
 
-      // Step 5: Finalize configuration
+      // Step 6: Finalize configuration
       setGenerationProgress({
         currentStep: "Finalizing bulletin...",
-        progress: 5,
-        totalSteps: 6
+        progress: 6,
+        totalSteps: 7
       })
 
-      // Step 6: Complete
+      // Step 7: Complete
       setGenerationProgress({
         currentStep: "Bulletin ready!",
-        progress: 6,
-        totalSteps: 6
+        progress: 7,
+        totalSteps: 7
       })
 
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -802,7 +856,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
               {selectedIds.size} article{selectedIds.size !== 1 ? "s" : ""} selected
             </span>
           </div>
-          {/* <Button
+          <Button
             onClick={openConfigModal}
             className="text-white font-bold py-2 px-4 rounded-lg"
             style={{
@@ -810,7 +864,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
             }}
           >
             Configure Bulletin
-          </Button> */}
+          </Button>
         </div>
 
         <div className="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4">
