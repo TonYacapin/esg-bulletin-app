@@ -490,14 +490,48 @@ export function WorldMap({
     )
   }, [countries, articlesByCountry])
 
+  // Separate "World" from other countries to ensure it always gets the lightest color
+  const { worldCountries, otherCountries } = useMemo(() => {
+    const worldCountries = countriesWithArticles.filter(country => 
+      SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] === "ALL"
+    )
+    const otherCountries = countriesWithArticles.filter(country => 
+      SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] !== "ALL"
+    )
+    return { worldCountries, otherCountries }
+  }, [countriesWithArticles])
+
   // Generate theme-based color shades with enhanced variety
   const themeColors = useMemo(() => {
-    return getEnhancedThemeColorShades(primaryColor, Math.max(countriesWithArticles.length, 1), theme)
-  }, [primaryColor, countriesWithArticles.length, theme])
+    const otherColors = getEnhancedThemeColorShades(primaryColor, Math.max(otherCountries.length, 1), theme)
+    
+    // For world countries, always use the lightest available color from the palette
+    const worldColors = worldCountries.map(() => {
+      // Get the lightest color from the theme palette
+      const lightestColor = THEME_PALETTES[theme]?.[0] || 
+        (theme === "green" ? "#E8F5E8" : 
+         theme === "red" ? "#FFEBEE" : "#E3F2FD")
+      return lightestColor
+    })
+
+    // Combine colors: world colors first (lightest), then other colors
+    return [...worldColors, ...otherColors]
+  }, [primaryColor, worldCountries.length, otherCountries.length, theme])
 
   // Function to get a color for a country based on its index
-  const getCountryColor = (index: number): string => {
-    return themeColors[index % themeColors.length]
+  const getCountryColor = (country: string, index: number): string => {
+    // Check if this is a world country
+    const isWorldCountry = worldCountries.includes(country)
+    
+    if (isWorldCountry) {
+      // World countries get the first colors in the array (lightest)
+      const worldIndex = worldCountries.indexOf(country)
+      return themeColors[worldIndex]
+    } else {
+      // Other countries get colors after the world countries
+      const otherIndex = otherCountries.indexOf(country)
+      return themeColors[worldCountries.length + otherIndex]
+    }
   }
 
   // Auto-select countries on mount - ONLY countries with articles
@@ -542,15 +576,18 @@ export function WorldMap({
 
   // Generate legend items with letters - ONLY for countries with articles
   const legendItems = useMemo(() => {
-    return countriesWithArticles.map((country, index) => ({
+    // Sort countries to ensure world countries come first
+    const sortedCountries = [...worldCountries, ...otherCountries]
+    
+    return sortedCountries.map((country, index) => ({
       country,
       letter: String.fromCharCode(65 + index),
       articles: articlesByCountry[country] || [],
       isMapped: true,
       isSpecialCase: !!SPECIAL_CASES[country as keyof typeof SPECIAL_CASES],
-      color: getCountryColor(index),
+      color: getCountryColor(country, index),
     }))
-  }, [countriesWithArticles, articlesByCountry, getCountryColor])
+  }, [worldCountries, otherCountries, articlesByCountry, getCountryColor])
 
   // Get all mapped geographic countries for highlighting - use normalized names
   const mappedGeoCountries = useMemo(() => {
@@ -609,12 +646,12 @@ export function WorldMap({
       return legendItem?.color || primaryColor
     }
 
-    // If we have global coverage and no specific mapping, use the first global country's color
+    // If we have global coverage and no specific mapping, use the world country's color
     if (hasGlobalCoverage) {
-      const globalCountry = legendItems.find(item =>
+      const worldCountry = legendItems.find(item =>
         autoMappedCountries[item.country]?.[0] === "ALL"
       )
-      return globalCountry?.color || primaryColor
+      return worldCountry?.color || primaryColor
     }
 
     // Default color for unmapped countries

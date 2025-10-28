@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get("limit") || "5"
     const query = searchParams.get("query") || ""
 
-    const backendUrl = process.env.BACKEND_API_URL || "https://api.example.com"
+    const backendUrl = process.env.BACKEND_API_URL 
     const apiToken = process.env.BACKEND_API_TOKEN
     const apiKey = process.env.BACKEND_API_KEY
 
