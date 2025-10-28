@@ -499,102 +499,86 @@
           )
 
         case 'greeting':
-          return (
-      <div className="space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="text-lg font-semibold text-blue-800 mb-2">Greeting Message Setup</h4>
-          <p className="text-sm text-blue-700">
-            The AI will generate a new greeting message based on last month's greeting to maintain consistent tone.
-          </p>
-        </div>
+  return (
+    <div className="space-y-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 className="text-lg font-semibold text-blue-800 mb-2">Greeting Message Setup</h4>
+        <p className="text-sm text-blue-700">
+          The AI will generate a greeting message. If you provide a previous greeting, it will maintain consistent tone.
+        </p>
+      </div>
 
-        <div>
-          <label htmlFor="previous-greeting" className="block text-sm font-medium mb-2">
-            Previous Month's Greeting Message *
-            {!config.previousGreeting.trim() && (
-              <span className="text-red-500 ml-1">(Required for AI generation)</span>
-            )}
+      <div>
+        <label htmlFor="previous-greeting" className="block text-sm font-medium mb-2">
+          Previous Month's Greeting Message (Optional)
+        </label>
+        <textarea
+          id="previous-greeting"
+          value={config.previousGreeting}
+          onChange={(e) => onConfigChange('previousGreeting', e.target.value)}
+          placeholder="Paste the greeting message from last month's bulletin for context (optional)..."
+          rows={4}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+        />
+        <p className="text-xs text-gray-500 mt-2">
+          Optional: Used as reference for maintaining consistent tone in new greeting messages
+        </p>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label htmlFor="greeting-message" className="block text-sm font-medium">
+            Greeting Message (Editor's Note)
           </label>
-          <textarea
-            id="previous-greeting"
-            value={config.previousGreeting}
-            onChange={(e) => onConfigChange('previousGreeting', e.target.value)}
-            placeholder="Paste the greeting message from last month's bulletin for context..."
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
-            required
-          />
-          <p className="text-xs text-gray-500 mt-2">
-            Used as reference for maintaining consistent tone in new greeting messages
-          </p>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="greeting-message" className="block text-sm font-medium">
-              Greeting Message (Editor's Note)
-            </label>
-            <div className="flex items-center gap-2">
-              {config.greetingMessage && (
-                <Button
-                  type="button"
-                  onClick={() => onConfigChange('greetingMessage', '')}
-                  variant="outline"
-                  className="text-xs border-red-300 text-red-600 hover:bg-red-50"
-                >
-                  Clear
-                </Button>
-              )}
+          <div className="flex items-center gap-2">
+            {config.greetingMessage && (
               <Button
                 type="button"
-                onClick={() => {
-                  if (!config.previousGreeting.trim()) {
-                    toast.error('Please fill in the Previous Month\'s Greeting Message first');
-                    // Auto-focus on the previous greeting field
-                    document.getElementById('previous-greeting')?.focus();
-                    return;
-                  }
-                  generateAIContent('greeting', 'greetingMessage');
-                }}
-                disabled={isGenerating === 'greeting' || !config.previousGreeting.trim()}
-                className={`text-xs font-medium py-1 px-3 rounded ${
-                  !config.previousGreeting.trim()
-                    ? 'bg-gray-400 cursor-not-allowed text-gray-200'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
+                onClick={() => onConfigChange('greetingMessage', '')}
+                variant="outline"
+                className="text-xs border-red-300 text-red-600 hover:bg-red-50"
               >
-                {isGenerating === 'greeting' ? 'Generating...' : 'AI Generate Greeting'}
+                Clear
               </Button>
-            </div>
+            )}
+            <Button
+              type="button"
+              onClick={() => generateAIContent('greeting', 'greetingMessage')}
+              disabled={isGenerating === 'greeting'}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1 px-3 rounded"
+            >
+              {isGenerating === 'greeting' ? 'Generating...' : 'AI Generate Greeting'}
+            </Button>
           </div>
-          <textarea
-            id="greeting-message"
-            value={config.greetingMessage}
-            onChange={(e) => onConfigChange('greetingMessage', e.target.value)}
-            placeholder="Light, playful tone reflecting current month and season..."
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
-          />
-          <p className="text-xs text-gray-500 mt-2 italic">
-            This message will be displayed in italics as an introductory editor's note
-          </p>
         </div>
-
-        <div>
-          <label htmlFor="custom-instructions" className="block text-sm font-medium mb-2">
-            Custom Instructions for AI Generation
-          </label>
-          <textarea
-            id="custom-instructions"
-            value={config.customInstructions}
-            onChange={(e) => onConfigChange('customInstructions', e.target.value)}
-            placeholder="Any specific tone, style, or content requirements for AI-generated content..."
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
-          />
-        </div>
+        <textarea
+          id="greeting-message"
+          value={config.greetingMessage}
+          onChange={(e) => onConfigChange('greetingMessage', e.target.value)}
+          placeholder="Light, playful tone reflecting current month and season..."
+          rows={4}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+        />
+        <p className="text-xs text-gray-500 mt-2 italic">
+          This message will be displayed in italics as an introductory editor's note
+        </p>
       </div>
-    )
+
+      <div>
+        <label htmlFor="custom-instructions" className="block text-sm font-medium mb-2">
+          Custom Instructions for AI Generation
+        </label>
+        <textarea
+          id="custom-instructions"
+          value={config.customInstructions}
+          onChange={(e) => onConfigChange('customInstructions', e.target.value)}
+          placeholder="Any specific tone, style, or content requirements for AI-generated content..."
+          rows={3}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-transparent resize-none"
+        />
+      </div>
+    </div>
+  )
         case 'content':
           return (
             <div className="space-y-6">
