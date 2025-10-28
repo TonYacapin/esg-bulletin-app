@@ -856,7 +856,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
               {selectedIds.size} article{selectedIds.size !== 1 ? "s" : ""} selected
             </span>
           </div>
-          <Button
+          {/* <Button
             onClick={openConfigModal}
             className="text-white font-bold py-2 px-4 rounded-lg"
             style={{
@@ -864,7 +864,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
             }}
           >
             Configure Bulletin
-          </Button>
+          </Button> */}
         </div>
 
         <div className="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4">
