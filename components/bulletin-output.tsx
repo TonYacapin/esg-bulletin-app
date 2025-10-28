@@ -300,7 +300,6 @@ function DragDropImageUpload({
   )
 }
 
-
 interface HeaderEditModalProps {
   isOpen: boolean
   onClose: () => void
@@ -477,18 +476,65 @@ function ArticleEditModal({
   const [editedArticle, setEditedArticle] = useState({
     news_title: article?.news_title || '',
     news_summary: article?.news_summary || '',
-    imageUrl: article?.imageUrl || ''
+    imageUrl: article?.imageUrl || '',
+    source_alias: article?.source?.[0]?.source_alias || '',
+    source_url: article?.source?.[0]?.source_url || ''
   })
+
+  const [loadingSource, setLoadingSource] = useState(false)
+  const [sourceError, setSourceError] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen && article) {
       setEditedArticle({
         news_title: article.news_title || '',
         news_summary: article.news_summary || '',
-        imageUrl: article.imageUrl || ''
+        imageUrl: article.imageUrl || '',
+        source_alias: article.source?.[0]?.source_alias || '',
+        source_url: article.source?.[0]?.source_url || ''
       })
+
+      // Reset error state
+      setSourceError(null)
+
+      // If article doesn't have source data but has news_id, fetch it
+      if (article.news_id && (!article.source || article.source.length === 0 || !article.source[0]?.source_alias)) {
+        fetchSourceData(article.news_id)
+      }
     }
   }, [isOpen, article])
+
+  const fetchSourceData = async (newsId: string) => {
+    try {
+      setLoadingSource(true)
+      setSourceError(null)
+      
+      const response = await fetch(`/api/internal/news/${newsId}/details`)
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      // Update the source fields with the fetched data
+      if (data.data?.source?.[0]) {
+        setEditedArticle(prev => ({
+          ...prev,
+          source_alias: data.data.source[0].source_alias || '',
+          source_url: data.data.source[0].source_url || ''
+        }))
+      } else {
+        setSourceError('No source data found for this article')
+      }
+    } catch (error) {
+      console.error('Error fetching source data:', error)
+      setSourceError(error instanceof Error ? error.message : 'Failed to fetch source data')
+    } finally {
+      setLoadingSource(false)
+    }
+  }
 
   const handleImageUpload = (file: File) => {
     const reader = new FileReader()
@@ -501,7 +547,21 @@ function ArticleEditModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSave(article.news_id, editedArticle)
+    
+    // Prepare the updated source array
+    const updatedSource = [{
+      id: article.source?.[0]?.id, // Keep existing ID if any
+      source_alias: editedArticle.source_alias,
+      source_url: editedArticle.source_url,
+      source_file_key: article.source?.[0]?.source_file_key // Keep existing file key if any
+    }]
+
+    onSave(article.news_id, {
+      news_title: editedArticle.news_title,
+      news_summary: editedArticle.news_summary,
+      imageUrl: editedArticle.imageUrl,
+      source: updatedSource
+    })
     onClose()
   }
 
@@ -588,7 +648,7 @@ function ArticleEditModal({
         <div className="p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Edit News Article</h2>
           <p className="text-gray-600 mt-2">
-            Update the article title, summary, and image
+            Update the article title, summary, image, and source
           </p>
         </div>
 
@@ -612,7 +672,6 @@ function ArticleEditModal({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Article Summary
             </label>
-    
             <textarea
               value={editedArticle.news_summary}
               onChange={(e) => setEditedArticle(prev => ({ ...prev, news_summary: e.target.value }))}
@@ -621,8 +680,66 @@ function ArticleEditModal({
               placeholder="Enter article summary"
             />
             <p className="text-xs text-gray-500 mt-2">
-              Use <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+B</kbd> for bold, <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+I</kbd> for italic, or use the toolbar above
+              Use <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+B</kbd> for bold, <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+I</kbd> for italic
             </p>
+          </div>
+
+          {/* Source Information */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Source Information
+              {loadingSource && (
+                <span className="ml-2 text-xs text-blue-600">Loading source data...</span>
+              )}
+            </label>
+            
+            {sourceError && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-800">
+                  <strong>Error loading source:</strong> {sourceError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fetchSourceData(article.news_id)}
+                  className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">
+                  Source Name
+                </label>
+                <input
+                  type="text"
+                  value={editedArticle.source_alias}
+                  onChange={(e) => setEditedArticle(prev => ({ ...prev, source_alias: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Press release, Reuters, etc."
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">
+                  Source URL
+                </label>
+                <input
+                  type="url"
+                  value={editedArticle.source_url}
+                  onChange={(e) => setEditedArticle(prev => ({ ...prev, source_url: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://example.com/article"
+                />
+              </div>
+            </div>
+            
+            {!editedArticle.source_alias && !editedArticle.source_url && !loadingSource && (
+              <p className="mt-2 text-xs text-gray-500">
+                Source information will be automatically loaded if available.
+              </p>
+            )}
           </div>
 
           {/* Article Image */}
@@ -660,6 +777,7 @@ function ArticleEditModal({
     </div>
   )
 }
+
 export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const { theme, articles: initialArticles, articlesByCountry, bulletinConfig } = data
   
@@ -693,6 +811,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const [editingArticle, setEditingArticle] = useState<any>(null)
   const [regeneratingArticle, setRegeneratingArticle] = useState<string | null>(null)
   const [articles, setArticles] = useState(initialArticles)
+  const [loadingSources, setLoadingSources] = useState(false)
   const [editableContent, setEditableContent] = useState({
     // Header content
     headerText: safeBulletinConfig.headerText || "",
@@ -735,6 +854,52 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     green: "#388E3C",
     red: "#D32F2F",
   }
+
+  // Automatically fetch source data for all articles on initial load
+  useEffect(() => {
+    const fetchMissingSources = async () => {
+      const articlesNeedingSource = articles.filter(article => 
+        article.news_id && (!article.source || article.source.length === 0 || !article.source[0]?.source_alias)
+      );
+
+      if (articlesNeedingSource.length === 0) return;
+
+      setLoadingSources(true);
+      
+      try {
+        for (const article of articlesNeedingSource) {
+          try {
+            const response = await fetch(`/api/internal/news/${article.news_id}/details`);
+            
+            if (response.ok) {
+              const data = await response.json();
+              
+              if (data.data?.source?.[0]) {
+                // Update the article with the fetched source data
+                handleArticleUpdate(article.news_id, {
+                  source: [{
+                    id: article.source?.[0]?.id,
+                    source_alias: data.data.source[0].source_alias || '',
+                    source_url: data.data.source[0].source_url || '',
+                    source_file_key: article.source?.[0]?.source_file_key
+                  }]
+                });
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching source for article ${article.news_id}:`, error);
+          }
+        }
+      } finally {
+        setLoadingSources(false);
+      }
+    };
+
+    // Only fetch if we have articles that need source data
+    if (articles.length > 0) {
+      fetchMissingSources();
+    }
+  }, [articles.length]); // Run when articles array length changes
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -1140,7 +1305,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     if (isEditing === sectionId) {
       return (
         <div className="space-y-3">
-       
           <textarea
             value={content}
             onChange={(e) => {
@@ -1262,59 +1426,83 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     );
   };
 
-  const renderArticle = (article: any) => (
-    <div key={article.news_id} className="border-l-4 pl-6 py-2 group relative" style={{ borderColor: themeColors[theme] }}>
-      {/* Edit/Regenerate buttons - shown on hover */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 print:hidden">
-        <Button
-          onClick={() => {
-            setEditingArticle(article)
-            setShowArticleEditModal(true)
-          }}
-          variant="outline"
-          size="sm"
-          className="bg-white/90 hover:bg-white"
-        >
-          Edit
-        </Button>
-        <Button
-          onClick={() => handleRegenerateArticle(article.news_id)}
-          disabled={regeneratingArticle === article.news_id}
-          size="sm"
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          {regeneratingArticle === article.news_id ? 'Regenerating...' : 'Regenerate'}
-        </Button>
-      </div>
+  const renderArticle = (article: any) => {
+    // Find the current article from the state to get updated source data
+    const currentArticle = articles.find(a => a.news_id === article.news_id) || article;
+    
+    return (
+      <div key={currentArticle.news_id} className="border-l-4 pl-6 py-2 group relative" style={{ borderColor: themeColors[theme] }}>
+        {/* Edit/Regenerate buttons - shown on hover */}
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 print:hidden">
+          <Button
+            onClick={() => {
+              setEditingArticle(currentArticle)
+              setShowArticleEditModal(true)
+            }}
+            variant="outline"
+            size="sm"
+            className="bg-white/90 hover:bg-white"
+          >
+            Edit
+          </Button>
+          <Button
+            onClick={() => handleRegenerateArticle(currentArticle.news_id)}
+            disabled={regeneratingArticle === currentArticle.news_id}
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {regeneratingArticle === currentArticle.news_id ? 'Regenerating...' : 'Regenerate'}
+          </Button>
+        </div>
 
-      <div className="flex items-start gap-3 mb-2 print:mb-1">
-        <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
-          {article.jurisdictions?.[0]?.code || 'GLOBAL'}
-        </span>
-        {/* <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
-          {article.type_value}
-        </span> */}
-      </div>
-      <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{article.news_title}</h3>
+        <div className="flex items-start gap-3 mb-2 print:mb-1">
+          <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
+            {currentArticle.jurisdictions?.[0]?.code || 'GLOBAL'}
+          </span>
+        </div>
+        <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{currentArticle.news_title}</h3>
 
-      {/* Article Image with Drag & Drop */}
-      <div className="mb-4 print:mb-3">
-        <DragDropImageUpload
-          onImageUpload={(file) => handleArticleImageUpload(article.news_id, file)}
-          currentImage={article.imageUrl}
-          placeholder="Drag & drop article image or click to browse"
-          className="h-48"
-        />
-      </div>
+        {/* Article Image with Drag & Drop */}
+        <div className="mb-4 print:mb-3">
+          <DragDropImageUpload
+            onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+            currentImage={currentArticle.imageUrl}
+            placeholder="Drag & drop article image or click to browse"
+            className="h-48"
+          />
+        </div>
 
-      <div className="text-gray-700 mb-4 print:text-sm">
-        {formatBoldText(article.news_summary)}
+        <div className="text-gray-700 mb-4 print:text-sm">
+          {formatBoldText(currentArticle.news_summary)}
+        </div>
+
+        {/* Source Information - Use currentArticle instead of article */}
+        {currentArticle.source && currentArticle.source.length > 0 && (
+          <div className="mb-3 print:mb-2">
+            <div className="text-sm text-gray-600 print:text-xs">
+              <strong>Source:</strong>{' '}
+              {currentArticle.source[0].source_url ? (
+                <a 
+                  href={currentArticle.source[0].source_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
+                >
+                  {currentArticle.source[0].source_url || 'Original Source'}
+                </a>
+              ) : (
+                <span>{currentArticle.source[0].source_alias || 'Original Source'}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="text-sm text-gray-500 print:text-xs">
+          Published: {formatDate(currentArticle.published_at)}
+        </div>
       </div>
-      <div className="text-sm text-gray-500 print:text-xs">
-        Published: {formatDate(article.published_at)}
-      </div>
-    </div>
-  )
+    )
+  }
 
   const renderRegionalSection = (region: 'euSection' | 'usSection' | 'globalSection') => {
     const sectionConfig = safeBulletinConfig[region];
@@ -1444,9 +1632,16 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           </Button>
         </div>
 
+        {/* Loading indicator for sources */}
+        {loadingSources && (
+          <div className="text-center py-4 mb-8 bg-blue-50 rounded-lg">
+            <p className="text-blue-600">Loading article sources...</p>
+          </div>
+        )}
+
         <div className="print:block print:bg-white print:p-0 print:max-w-none">
 
-          {/* HEADER SECTION - UNCHANGED */}
+          {/* HEADER SECTION */}
           <div className="relative mb-12 border-b pb-8 overflow-hidden print:mb-8 print:pb-6 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             
             {/* Header Image Container */}
@@ -1525,7 +1720,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           </div>
 
-          {/* GREETING MESSAGE - FIXED: Show if content exists */}
+          {/* GREETING MESSAGE */}
           {editableContent.greetingMessage && (
             <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
               <div className="text-gray-700 text-lg text-justify leading-relaxed print:text-base">
@@ -1539,7 +1734,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           )}
 
-          {/* INTERACTIVE MAP - FIXED: Show if enabled */}
+          {/* INTERACTIVE MAP */}
           {safeBulletinConfig.interactiveMap && (
             <div className="mb-12 print:mb-8 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
               <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">
@@ -1558,7 +1753,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           )}
 
-          {/* KEY TRENDS - FIXED: Show if content exists */}
+          {/* KEY TRENDS */}
           {editableContent.keyTrends && (
             <div className="mb-12 print:mb-8 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
               <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">5 Key Trends</h2>
@@ -1573,7 +1768,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           )}
 
-          {/* EXECUTIVE SUMMARY - FIXED: Show if content exists */}
+          {/* EXECUTIVE SUMMARY */}
           {editableContent.executiveSummary && (
             <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
               <h2 className="text-2xl font-bold mb-4 text-gray-900 print:text-xl">Executive Summary</h2>
@@ -1593,7 +1788,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           {renderRegionalSection('usSection')}
           {renderRegionalSection('globalSection')}
 
-          {/* KEY TAKEAWAYS - FIXED: Show if content exists */}
+          {/* KEY TAKEAWAYS */}
           {editableContent.keyTakeaways && (
             <div className="mt-16 bg-gradient-to-r from-gray-50 to-blue-50 p-8 rounded-lg border print:mt-12 print:p-6 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
               <h2 className="text-2xl font-bold mb-6 text-gray-900 print:text-xl print:mb-4">Conclusion & Key Takeaways</h2>
@@ -1608,7 +1803,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           )}
 
-          {/* FOOTER - UNCHANGED */}
+          {/* FOOTER */}
           <div className="relative mt-12 pt-8 border-t overflow-hidden h-48 print:mt-8 print:h-40 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             <div className="absolute inset-0 z-0 print:relative print:inset-auto">
               {editableContent.footerImage ? (
