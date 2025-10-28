@@ -117,6 +117,15 @@ Maintain a similar playful and professional tone while creating a new message th
         } else {
           userPrompt = `Create an engaging greeting message for our ESG Regulatory Bulletin for ${currentMonth} ${currentYear}. 
 
+Previous month's greeting for reference:
+          Welcome to our ESG Regulatory SCORE Bulletin! 
+August has arrived—long, lazy, and just a little bit restless. The cicadas are buzzing, deadlines are looming, and ESG 
+regulators? Still as wideawake as ever. 
+This month, we’re serving up a mix as hot as the sidewalks: fresh climate crackdowns, plastic treaty stumbles, and 
+policy twists from Berlin toBrasília. Think of it as your ESG beach read—minus the sand in your laptop. So pour 
+something iced, find a shady spot, and dive into the updatesbefore September starts knocking with its back-to-
+business energy.
+
 This is a new bulletin, so establish a warm, professional yet playful tone. Reflect the current season (${currentMonth}) and create an inviting opening that welcomes readers to explore the latest ESG regulatory developments. Keep it around 100-150 words.`
         }
         
