@@ -1291,9 +1291,9 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
           {article.jurisdictions?.[0]?.code || 'GLOBAL'}
         </span>
-        <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
+        {/* <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
           {article.type_value}
-        </span>
+        </span> */}
       </div>
       <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{article.news_title}</h3>
 
