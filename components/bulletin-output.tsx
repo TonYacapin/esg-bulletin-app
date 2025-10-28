@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { WorldMap } from "./world-map"
 import type { BulletinData } from "./bulletin-generator"
@@ -167,6 +167,140 @@ function CountryMappingModal({
   )
 }
 
+interface DragDropImageUploadProps {
+  onImageUpload: (file: File) => void
+  currentImage?: string
+  placeholder?: string
+  className?: string
+  disabled?: boolean
+}
+
+function DragDropImageUpload({ 
+  onImageUpload, 
+  currentImage, 
+  placeholder = "Drag & drop an image here or click to browse",
+  className = "",
+  disabled = false
+}: DragDropImageUploadProps) {
+  const [isDragging, setIsDragging] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState(currentImage || "")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setPreviewUrl(currentImage || "")
+  }, [currentImage])
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (disabled) return
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (disabled) return
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    if (disabled) return
+    e.preventDefault()
+    setIsDragging(false)
+    
+    const files = e.dataTransfer.files
+    if (files.length > 0) {
+      const file = files[0]
+      if (file.type.startsWith('image/')) {
+        handleFile(file)
+      }
+    }
+  }
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return
+    const files = e.target.files
+    if (files && files.length > 0) {
+      const file = files[0]
+      handleFile(file)
+    }
+  }
+
+  const handleFile = (file: File) => {
+    onImageUpload(file)
+    
+    // Create preview URL
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+  }
+
+  const handleClick = () => {
+    if (disabled) return
+    fileInputRef.current?.click()
+  }
+
+  if (disabled) {
+    return (
+      <div className={`border-2 border-dashed border-gray-300 rounded-lg p-4 ${className}`}>
+        {previewUrl ? (
+          <img
+            src={previewUrl}
+            alt="Preview"
+            className="w-full h-32 object-cover rounded border"
+          />
+        ) : (
+          <div className="py-8 text-center text-gray-500">
+            <p>No image</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`
+        border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
+        ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+        ${className}
+      `}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onClick={handleClick}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileInput}
+        className="hidden"
+      />
+      
+      {previewUrl ? (
+        <div className="space-y-2">
+          <img
+            src={previewUrl}
+            alt="Preview"
+            className="w-full h-32 object-cover rounded border"
+          />
+          <p className="text-sm text-gray-600">Click or drag to change image</p>
+        </div>
+      ) : (
+        <div className="py-8">
+          <div className="text-gray-400 mb-2">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <p className="text-gray-600">{placeholder}</p>
+          <p className="text-sm text-gray-500 mt-1">Supports JPG, PNG, GIF</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 interface HeaderEditModalProps {
   isOpen: boolean
   onClose: () => void
@@ -199,6 +333,15 @@ function HeaderEditModal({
       setFormData(currentData)
     }
   }, [isOpen, currentData])
+
+  const handleImageUpload = (field: 'headerImage' | 'publisherLogo', file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setFormData(prev => ({ ...prev, [field]: result }))
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -272,55 +415,27 @@ function HeaderEditModal({
           {/* Header Background Image */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Header Background Image URL
+              Header Background Image
             </label>
-            <input
-              type="url"
-              value={formData.headerImage}
-              onChange={(e) => setFormData(prev => ({ ...prev, headerImage: e.target.value }))}
-              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="https://example.com/header-image.jpg"
+            <DragDropImageUpload
+              onImageUpload={(file) => handleImageUpload('headerImage', file)}
+              currentImage={formData.headerImage}
+              placeholder="Drag & drop header background image or click to browse"
+              className="h-32"
             />
-            {formData.headerImage && (
-              <div className="mt-2">
-                <p className="text-sm text-gray-600 mb-2">Preview:</p>
-                <img
-                  src={formData.headerImage}
-                  alt="Header background preview"
-                  className="w-full h-32 object-cover border border-gray-300 rounded"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                  }}
-                />
-              </div>
-            )}
           </div>
 
           {/* Publisher Logo */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Publisher Logo URL
+              Publisher Logo
             </label>
-            <input
-              type="url"
-              value={formData.publisherLogo}
-              onChange={(e) => setFormData(prev => ({ ...prev, publisherLogo: e.target.value }))}
-              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="https://example.com/logo.png"
+            <DragDropImageUpload
+              onImageUpload={(file) => handleImageUpload('publisherLogo', file)}
+              currentImage={formData.publisherLogo}
+              placeholder="Drag & drop publisher logo or click to browse"
+              className="h-32"
             />
-            {formData.publisherLogo && (
-              <div className="mt-2">
-                <p className="text-sm text-gray-600 mb-2">Preview:</p>
-                <img
-                  src={formData.publisherLogo}
-                  alt="Logo preview"
-                  className="h-20 w-auto object-contain border border-gray-300 rounded"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                  }}
-                />
-              </div>
-            )}
           </div>
 
           {/* Action Buttons */}
@@ -375,6 +490,15 @@ function ArticleEditModal({
     }
   }, [isOpen, article])
 
+  const handleImageUpload = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setEditedArticle(prev => ({ ...prev, imageUrl: result }))
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSave(article.news_id, editedArticle)
@@ -386,6 +510,72 @@ function ArticleEditModal({
       onClose()
     }
   }
+
+  // Formatting helper functions for article modal
+  const applyFormatting = (text: string, formatType: 'bold' | 'italic'): string => {
+    const textarea = document.activeElement as HTMLTextAreaElement
+    if (!textarea || textarea.tagName !== 'TEXTAREA') return text
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = text.substring(start, end)
+    
+    if (!selectedText) return text
+
+    let formattedText = ''
+    if (formatType === 'bold') {
+      formattedText = `**${selectedText}**`
+    } else if (formatType === 'italic') {
+      formattedText = `*${selectedText}*`
+    }
+
+    const newText = text.substring(0, start) + formattedText + text.substring(end)
+    
+    // Set cursor position after the formatted text
+    setTimeout(() => {
+      textarea.selectionStart = start + formattedText.length
+      textarea.selectionEnd = start + formattedText.length
+      textarea.focus()
+    }, 0)
+
+    return newText
+  }
+
+  const handleBold = () => {
+    const newSummary = applyFormatting(editedArticle.news_summary, 'bold')
+    setEditedArticle(prev => ({ ...prev, news_summary: newSummary }))
+  }
+
+  const handleItalic = () => {
+    const newSummary = applyFormatting(editedArticle.news_summary, 'italic')
+    setEditedArticle(prev => ({ ...prev, news_summary: newSummary }))
+  }
+
+  // Keyboard shortcut handler for article modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && isOpen) {
+        const activeElement = document.activeElement
+        if (activeElement && activeElement.tagName === 'TEXTAREA') {
+          switch (e.key.toLowerCase()) {
+            case 'b':
+              e.preventDefault()
+              handleBold()
+              break
+            case 'i':
+              e.preventDefault()
+              handleItalic()
+              break
+          }
+        }
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown)
+      return () => document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, editedArticle.news_summary])
 
   if (!isOpen || !article) return null
 
@@ -422,6 +612,7 @@ function ArticleEditModal({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Article Summary
             </label>
+    
             <textarea
               value={editedArticle.news_summary}
               onChange={(e) => setEditedArticle(prev => ({ ...prev, news_summary: e.target.value }))}
@@ -430,35 +621,21 @@ function ArticleEditModal({
               placeholder="Enter article summary"
             />
             <p className="text-xs text-gray-500 mt-2">
-              Use **bold** for bold text, *italic* for italic text
+              Use <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+B</kbd> for bold, <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+I</kbd> for italic, or use the toolbar above
             </p>
           </div>
 
           {/* Article Image */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Article Image URL
+              Article Image
             </label>
-            <input
-              type="url"
-              value={editedArticle.imageUrl}
-              onChange={(e) => setEditedArticle(prev => ({ ...prev, imageUrl: e.target.value }))}
-              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="https://example.com/article-image.jpg"
+            <DragDropImageUpload
+              onImageUpload={handleImageUpload}
+              currentImage={editedArticle.imageUrl}
+              placeholder="Drag & drop article image or click to browse"
+              className="h-48"
             />
-            {editedArticle.imageUrl && (
-              <div className="mt-2">
-                <p className="text-sm text-gray-600 mb-2">Preview:</p>
-                <img
-                  src={editedArticle.imageUrl}
-                  alt="Article preview"
-                  className="w-full h-48 object-cover border border-gray-300 rounded"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                  }}
-                />
-              </div>
-            )}
           </div>
 
           {/* Action Buttons */}
@@ -483,7 +660,6 @@ function ArticleEditModal({
     </div>
   )
 }
-
 export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const { theme, articles: initialArticles, articlesByCountry, bulletinConfig } = data
   
@@ -634,6 +810,85 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     setIsEditing(null)
     console.log(`Saved content for ${sectionId}:`, editableContent)
   }
+
+  // Formatting helper functions
+  const applyFormatting = (text: string, formatType: 'bold' | 'italic'): string => {
+    const textarea = document.activeElement as HTMLTextAreaElement
+    if (!textarea || textarea.tagName !== 'TEXTAREA') return text
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = text.substring(start, end)
+    
+    if (!selectedText) return text
+
+    let formattedText = ''
+    if (formatType === 'bold') {
+      formattedText = `**${selectedText}**`
+    } else if (formatType === 'italic') {
+      formattedText = `*${selectedText}*`
+    }
+
+    const newText = text.substring(0, start) + formattedText + text.substring(end)
+    
+    // Set cursor position after the formatted text
+    setTimeout(() => {
+      textarea.selectionStart = start + formattedText.length
+      textarea.selectionEnd = start + formattedText.length
+      textarea.focus()
+    }, 0)
+
+    return newText
+  }
+
+  const handleBold = () => {
+    if (!isEditing) return
+
+    const [section, field] = isEditing.split('-')
+    const currentContent = field 
+      ? editableContent[section as keyof typeof editableContent]?.[field as keyof typeof editableContent[keyof typeof editableContent]]
+      : editableContent[section as keyof typeof editableContent]
+
+    if (typeof currentContent === 'string') {
+      const newContent = applyFormatting(currentContent, 'bold')
+      handleContentChange(section, field, newContent)
+    }
+  }
+
+  const handleItalic = () => {
+    if (!isEditing) return
+
+    const [section, field] = isEditing.split('-')
+    const currentContent = field 
+      ? editableContent[section as keyof typeof editableContent]?.[field as keyof typeof editableContent[keyof typeof editableContent]]
+      : editableContent[section as keyof typeof editableContent]
+
+    if (typeof currentContent === 'string') {
+      const newContent = applyFormatting(currentContent, 'italic')
+      handleContentChange(section, field, newContent)
+    }
+  }
+
+  // Keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && isEditing) {
+        switch (e.key.toLowerCase()) {
+          case 'b':
+            e.preventDefault()
+            handleBold()
+            break
+          case 'i':
+            e.preventDefault()
+            handleItalic()
+            break
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isEditing])
 
   const handleRegenerate = async (sectionId: string) => {
     setIsRegenerating(sectionId);
@@ -871,10 +1126,21 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     setShowMappingModal(false)
   }
 
+  // Direct image upload handler for article images only
+  const handleArticleImageUpload = (articleId: string, file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      handleArticleUpdate(articleId, { imageUrl: result })
+    }
+    reader.readAsDataURL(file)
+  }
+
   const renderEditableText = (content: string, sectionId: string, placeholder: string, rows: number = 4) => {
     if (isEditing === sectionId) {
       return (
         <div className="space-y-3">
+       
           <textarea
             value={content}
             onChange={(e) => {
@@ -902,7 +1168,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </Button>
           </div>
           <p className="text-xs text-gray-500">
-            Use **bold** for bold text, *italic* for italic text
+            Use <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+B</kbd> for bold, <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+I</kbd> for italic.
           </p>
         </div>
       );
@@ -1031,18 +1297,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       </div>
       <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{article.news_title}</h3>
 
-      {article.imageUrl && (
-        <div className="mb-4 print:mb-3">
-          <img
-            src={article.imageUrl}
-            alt={`Illustration for ${article.news_title}`}
-            className="w-full h-auto rounded-lg shadow-md border border-gray-200 print:max-h-32"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-            }}
-          />
-        </div>
-      )}
+      {/* Article Image with Drag & Drop */}
+      <div className="mb-4 print:mb-3">
+        <DragDropImageUpload
+          onImageUpload={(file) => handleArticleImageUpload(article.news_id, file)}
+          currentImage={article.imageUrl}
+          placeholder="Drag & drop article image or click to browse"
+          className="h-48"
+        />
+      </div>
 
       <div className="text-gray-700 mb-4 print:text-sm">
         {formatBoldText(article.news_summary)}
@@ -1183,7 +1446,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
         <div className="print:block print:bg-white print:p-0 print:max-w-none">
 
-          {/* HEADER SECTION */}
+          {/* HEADER SECTION - UNCHANGED */}
           <div className="relative mb-12 border-b pb-8 overflow-hidden print:mb-8 print:pb-6 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             
             {/* Header Image Container */}
@@ -1265,7 +1528,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           {/* GREETING MESSAGE - FIXED: Show if content exists */}
           {editableContent.greetingMessage && (
             <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <div className="italic text-gray-700 text-lg text-justify leading-relaxed print:text-base">
+              <div className="text-gray-700 text-lg text-justify leading-relaxed print:text-base">
                 {renderEditableText(
                   editableContent.greetingMessage,
                   "greetingMessage",
@@ -1345,7 +1608,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           )}
 
-          {/* FOOTER */}
+          {/* FOOTER - UNCHANGED */}
           <div className="relative mt-12 pt-8 border-t overflow-hidden h-48 print:mt-8 print:h-40 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
             <div className="absolute inset-0 z-0 print:relative print:inset-auto">
               {editableContent.footerImage ? (
@@ -1520,4 +1783,4 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       </div>
     </>
   )
-};
+}

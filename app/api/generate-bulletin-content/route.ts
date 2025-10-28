@@ -34,16 +34,6 @@ function truncateArticles(articles: any[], maxCharacters: number = 6000) {
   return truncatedArticles
 }
 
-// Helper function to create concise article summaries
-function createConciseArticleList(articles: any[], maxArticles: number = 8) {
-  // Take only the most recent articles or limit the number
-  const limitedArticles = articles.slice(0, maxArticles)
-  
-  return limitedArticles.map((article, index) => 
-    `${index + 1}. ${article.news_title}`
-  ).join('\n')
-}
-
 // Helper function to get detailed article context
 function getDetailedArticleContext(articles: any[], maxArticles: number = 5) {
   const limitedArticles = articles.slice(0, maxArticles)
@@ -92,8 +82,31 @@ export async function POST(request: NextRequest) {
     console.log(`Processing ${type} with ${processedArticles.length} articles (from ${articles.length} total)`)
 
     switch (type) {
+      case 'greeting_message':
+        systemPrompt = "You are a professional ESG editor creating engaging greeting messages for regulatory bulletins. Create welcoming, professional opening messages that set the tone for the bulletin without referencing previous content."
+        
+        userPrompt = `Create a fresh, engaging greeting message for our ESG Regulatory Bulletin for ${currentMonth} ${currentYear}.
+
+This bulletin contains ${articles.length} articles covering the latest ESG regulatory developments, disclosures, and reporting requirements from around the world.
+
+Requirements:
+- Create a welcoming and professional tone
+- Mention the importance of staying current with ESG regulations
+- Reference the comprehensive coverage of global developments
+- Be concise (2-3 paragraphs maximum, around 150-200 words total)
+- Do NOT reference previous bulletins or use phrases like "welcome back" or "as always"
+- Focus on the current regulatory landscape and its significance
+- Make it feel fresh and timely for ${currentMonth} ${currentYear}
+- Emphasize the practical value for compliance professionals
+
+Current date: ${actualDate}
+Number of articles in this bulletin: ${articles.length}
+
+Generate an appropriate, professional greeting message that stands on its own:`
+        break
+
       case 'greeting':
-        systemPrompt = "You are a witty, playful editor creating greeting messages for SCORE ESG Regulatory Bulletins. Create engaging, professional yet friendly opening messages."
+        systemPrompt = "You are a witty, playful editor creating greeting messages for SCORE ESG Regulatory Bulletins. Create engaging, professional yet friendly opening messages. Please dont use Emojis."
         
         if (previousGreeting && previousGreeting.trim()) {
           userPrompt = `Create a fresh greeting message for our ESG Regulatory Bulletin for ${currentMonth} ${currentYear}. 
@@ -103,6 +116,15 @@ Previous month's greeting for reference: "${previousGreeting}"
 Maintain a similar playful and professional tone while creating a new message that reflects the current season (${currentMonth}). Keep it warm, inviting, and around 100-150 words.`
         } else {
           userPrompt = `Create an engaging greeting message for our ESG Regulatory Bulletin for ${currentMonth} ${currentYear}. 
+
+Previous month's greeting for reference:
+          Welcome to our ESG Regulatory SCORE Bulletin! 
+August has arrived—long, lazy, and just a little bit restless. The cicadas are buzzing, deadlines are looming, and ESG 
+regulators? Still as wideawake as ever. 
+This month, we’re serving up a mix as hot as the sidewalks: fresh climate crackdowns, plastic treaty stumbles, and 
+policy twists from Berlin toBrasília. Think of it as your ESG beach read—minus the sand in your laptop. So pour 
+something iced, find a shady spot, and dive into the updatesbefore September starts knocking with its back-to-
+business energy.
 
 This is a new bulletin, so establish a warm, professional yet playful tone. Reflect the current season (${currentMonth}) and create an inviting opening that welcomes readers to explore the latest ESG regulatory developments. Keep it around 100-150 words.`
         }
@@ -183,7 +205,7 @@ This is a new bulletin, so establish a warm, professional yet playful tone. Refl
     }
 
     // Add custom instructions if provided
-    if (customInstructions && type !== 'greeting') {
+    if (customInstructions && type !== 'greeting' && type !== 'greeting_message') {
       userPrompt += `\n\nAdditional instructions: ${customInstructions}`
     }
 
@@ -202,8 +224,9 @@ This is a new bulletin, so establish a warm, professional yet playful tone. Refl
         ],
         max_tokens: type === 'key_trends' || type === 'section_trends' ? 300 : 
                    type === 'news_summary' || type === 'calendar_summary' ? 250 : 
-                   type === 'section_title' ? 100 : 500,
-        temperature: type === 'greeting' || type === 'section_title' ? 0.8 : 0.7,
+                   type === 'section_title' ? 100 : 
+                   type === 'greeting_message' ? 400 : 500,
+        temperature: type === 'greeting' || type === 'greeting_message' || type === 'section_title' ? 0.8 : 0.7,
       }, {
         signal: controller.signal
       })
@@ -237,6 +260,13 @@ This is a new bulletin, so establish a warm, professional yet playful tone. Refl
     const currentYear = new Date().getFullYear()
 
     switch (type) {
+      case 'greeting_message':
+        fallbackContent = `Welcome to our ${currentMonth} ${currentYear} ESG Regulatory Bulletin. We are pleased to present this comprehensive overview of the latest developments in environmental, social, and governance reporting requirements. This edition features ${articles.length} significant regulatory updates from across global jurisdictions, providing you with essential insights to navigate the evolving compliance landscape.
+
+As regulatory frameworks continue to mature and expand, staying informed about disclosure requirements and reporting standards has never been more critical for organizations worldwide. This bulletin offers timely analysis and practical guidance to support your compliance efforts and strategic planning.
+
+We remain committed to delivering high-quality, actionable intelligence to help you stay ahead of regulatory changes and implement effective ESG practices within your organization.`
+        break
       case 'greeting':
         fallbackContent = `Welcome to our ${currentMonth} ${currentYear} ESG Regulatory Bulletin! We're excited to bring you the latest developments in sustainability reporting and compliance. This edition covers key trends and actionable insights to help you navigate the evolving ESG landscape. As regulations continue to evolve, staying informed is more important than ever for effective compliance and strategic planning.`
         break

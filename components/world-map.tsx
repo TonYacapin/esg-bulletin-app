@@ -19,6 +19,7 @@ interface WorldMapProps {
   activeCountry?: string | null
   interactive?: boolean
   showLegend?: boolean
+  theme?: "blue" | "green" | "red"
 }
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
@@ -42,7 +43,7 @@ const COUNTRY_NAME_MAP: Record<string, string> = {
   "USA": "United States",
   "UK": "United Kingdom",
   "US": "United States",
-  
+
   // Additional common mappings
   "W. Sahara": "Western Sahara",
   "Eq. Guinea": "Equatorial Guinea",
@@ -53,10 +54,10 @@ const COUNTRY_NAME_MAP: Record<string, string> = {
   "Solomon Is.": "Solomon Islands",
   "Fr. S. Antarctic Lands": "French Southern and Antarctic Lands",
   "Falkland Is.": "Falkland Islands",
-  
+
   // EU countries as they appear in the dataset
   "Austria": "Austria",
-  "Belgium": "Belgium", 
+  "Belgium": "Belgium",
   "Bulgaria": "Bulgaria",
   "Croatia": "Croatia",
   "Cyprus": "Cyprus",
@@ -87,17 +88,17 @@ const COUNTRY_NAME_MAP: Record<string, string> = {
 // Special cases that should cover multiple countries or the entire world
 const SPECIAL_CASES = {
   "European Union": [
-    "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic", 
-    "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", 
-    "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", 
-    "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", 
+    "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic",
+    "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary",
+    "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta",
+    "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia",
     "Spain", "Sweden"
   ],
   "EU": [
-    "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic", 
-    "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", 
-    "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", 
-    "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", 
+    "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic",
+    "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary",
+    "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta",
+    "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia",
     "Spain", "Sweden"
   ],
   "International": "ALL",
@@ -146,34 +147,149 @@ const SPECIAL_MARKER_POSITIONS: Record<string, [number, number]> = {
   "EU": [10, 50],
 }
 
-// Different colors for different countries
-const COUNTRY_COLORS = [
-  "#2563eb", // Electric Blue
-  "#dc2626", // Crimson Red
-  "#16a34a", // Emerald Green
-  "#7c3aed", // Violet
-  "#ea580c", // Orange
-  "#0891b2", // Cyan
-  "#9333ea", // Purple
-  "#ca8a04", // Gold
-  "#059669", // Forest Green
-  "#be123c", // Ruby Red
-  "#0369a1", // Ocean Blue
-  "#7c2d12", // Brown
-  "#4338ca", // Indigo
-  "#0f766e", // Teal
-  "#b91c1c", // Scarlet
-  "#15803d", // Hunter Green
-  "#1d4ed8", // Royal Blue
-  "#c2410c", // Rust,
-]
+// Enhanced function to generate more diverse color shades
+const getThemeColorShades = (primaryColor: string, count: number): string[] => {
+  if (count === 0) return [primaryColor]
 
-// Function to get a color for a country based on its index
-const getCountryColor = (index: number): string => {
-  return COUNTRY_COLORS[index % COUNTRY_COLORS.length]
+  // Convert hex to RGB
+  const hex = primaryColor.replace('#', '')
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
+
+  const shades: string[] = []
+
+  // Generate base shades with different strategies
+  for (let i = 0; i < count; i++) {
+    const progress = i / Math.max(count - 1, 1)
+
+    // Use multiple strategies to create diverse shades
+    let newR, newG, newB
+
+    if (count <= 8) {
+      // For smaller counts, use brightness-based variations
+      const brightness = 0.3 + (progress * 0.6) // 30% to 90% brightness
+      newR = Math.min(255, Math.floor(r * brightness))
+      newG = Math.min(255, Math.floor(g * brightness))
+      newB = Math.min(255, Math.floor(b * brightness))
+    } else {
+      // For larger counts, use more complex variations
+      const angle = (i * 137.5) % 360 // Golden angle for distribution
+      const saturationShift = Math.sin(angle * Math.PI / 180) * 0.2
+
+      // Vary brightness non-linearly for better distribution
+      const brightness = 0.25 + (progress * 0.7) // 25% to 95% brightness
+
+      // Apply slight hue shifts for more variety
+      const hueShift = Math.sin(progress * Math.PI * 2) * 0.1
+
+      // Convert to HSL for better color manipulation
+      const max = Math.max(r, g, b)
+      const min = Math.min(r, g, b)
+      let h = 0, s, l = (max + min) / 2
+
+      if (max !== min) {
+        const d = max - min
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break
+          case g: h = (b - r) / d + 2; break
+          case b: h = (r - g) / d + 4; break
+        }
+        h /= 6
+      } else {
+        s = 0
+        h = 0
+      }
+
+      // Apply shifts
+      h = (h + hueShift) % 1
+      s = Math.max(0, Math.min(1, s + saturationShift))
+      l = brightness
+
+      // Convert back to RGB
+      const hue2rgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1
+        if (t > 1) t -= 1
+        if (t < 1 / 6) return p + (q - p) * 6 * t
+        if (t < 1 / 2) return q
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+        return p
+      }
+
+      if (s === 0) {
+        newR = newG = newB = Math.floor(l * 255)
+      } else {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+        const p = 2 * l - q
+        newR = Math.floor(hue2rgb(p, q, h + 1 / 3) * 255)
+        newG = Math.floor(hue2rgb(p, q, h) * 255)
+        newB = Math.floor(hue2rgb(p, q, h - 1 / 3) * 255)
+      }
+    }
+
+    // Ensure values are within bounds
+    newR = Math.max(0, Math.min(255, newR))
+    newG = Math.max(0, Math.min(255, newG))
+    newB = Math.max(0, Math.min(255, newB))
+
+    shades.push(`rgb(${newR}, ${newG}, ${newB})`)
+  }
+
+  // Sort shades by brightness for better visual progression
+  shades.sort((a, b) => {
+    const getBrightness = (color: string) => {
+      const match = color.match(/rgb\((\d+), (\d+), (\d+)\)/)
+      if (!match) return 0
+      const r = parseInt(match[1]), g = parseInt(match[2]), b = parseInt(match[3])
+      return (r * 299 + g * 587 + b * 114) / 1000
+    }
+    return getBrightness(a) - getBrightness(b)
+  })
+
+  return shades
 }
 
-// Comprehensive fallback coordinates for all major countries
+// Alternative: Predefined extensive shade palettes for each theme as fallback
+const THEME_PALETTES = {
+  blue: [
+    "#E3F2FD", "#BBDEFB", "#90CAF9", "#64B5F6", "#42A5F5", "#2196F3", "#1E88E5",
+    "#1976D2", "#1565C0", "#0D47A1", "#082E5C", "#051A30", "#003366", "#00264D",
+    "#001A33", "#000D1A", "#82B1FF", "#448AFF", "#2979FF", "#2962FF", "#304FFE",
+    "#3D5AFE", "#536DFE", "#5C6BC0", "#3949AB", "#283593", "#1A237E", "#8C9EFF"
+  ],
+  green: [
+    "#E8F5E8", "#C8E6C9", "#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#43A047",
+    "#388E3C", "#2E7D32", "#1B5E20", "#0A3D0A", "#052905", "#004D00", "#003300",
+    "#002200", "#001100", "#A5D6A7", "#81C784", "#4CAF50", "#43A047", "#2E7D32",
+    "#1B5E20", "#8BC34A", "#7CB342", "#689F38", "#558B2F", "#33691E", "#9CCC65"
+  ],
+  red: [
+    "#FFEBEE", "#FFCDD2", "#EF9A9A", "#E57373", "#EF5350", "#F44336", "#E53935",
+    "#D32F2F", "#C62828", "#B71C1C", "#7A0F0F", "#520A0A", "#330000", "#260000",
+    "#1A0000", "#0D0000", "#FF8A80", "#FF5252", "#FF1744", "#D50000", "#FF6B6B",
+    "#FF4757", "#FF3838", "#FF2D2D", "#FF1A1A", "#CC0000", "#B30000", "#FF9A9A"
+  ]
+}
+
+// Enhanced function with fallback to predefined palettes
+const getEnhancedThemeColorShades = (primaryColor: string, count: number, theme: "blue" | "green" | "red" = "blue"): string[] => {
+  // For large counts, use predefined palettes to ensure good variety
+  if (count > 15) {
+    const palette = THEME_PALETTES[theme]
+    // If we need more colors than available, cycle through the palette
+    const shades: string[] = []
+    for (let i = 0; i < count; i++) {
+      shades.push(palette[i % palette.length])
+    }
+    return shades
+  }
+
+  // For smaller counts, use the algorithmic approach
+  return getThemeColorShades(primaryColor, count)
+}
+
+// Fallback coordinates for all major countries
 const FALLBACK_COORDINATES: Record<string, [number, number]> = {
   "Africa": [21.0932, -1.2921],
   "Netherlands (Kingdom of the)": [5.2913, 52.1326],
@@ -319,35 +435,80 @@ const FALLBACK_COORDINATES: Record<string, [number, number]> = {
   "French Guiana": [-53.1258, 3.9339],
 }
 
-export function WorldMap({ 
-  countries = [], 
-  primaryColor, 
-  articlesByCountry, 
+// Function to calculate text width approximation
+const calculateTextWidth = (text: string, fontSize: number = 10): number => {
+  // Average character width approximation for the font
+  const avgCharWidth = fontSize * 0.6
+  return text.length * avgCharWidth
+}
+
+// Function to wrap text if it's too long
+const wrapCountryName = (countryName: string, maxWidth: number = 80): string[] => {
+  const words = countryName.split(' ')
+  const lines: string[] = []
+  let currentLine = ''
+
+  words.forEach(word => {
+    const testLine = currentLine ? `${currentLine} ${word}` : word
+    const testWidth = calculateTextWidth(testLine)
+
+    if (testWidth <= maxWidth) {
+      currentLine = testLine
+    } else {
+      if (currentLine) {
+        lines.push(currentLine)
+      }
+      currentLine = word
+    }
+  })
+
+  if (currentLine) {
+    lines.push(currentLine)
+  }
+
+  return lines
+}
+
+export function WorldMap({
+  countries = [],
+  primaryColor,
+  articlesByCountry,
   mappedCountries,
   onCountryMapping,
   onRemoveMapping,
   activeCountry = null,
   interactive = true,
-  showLegend = true
+  showLegend = true,
+  theme = "blue"
 }: WorldMapProps) {
   const [autoMappedCountries, setAutoMappedCountries] = useState<Record<string, string[]>>({})
 
   // Use useMemo to prevent recreation on every render
   const countriesWithArticles = useMemo(() => {
-    return countries.filter(country => 
+    return countries.filter(country =>
       articlesByCountry[country] && articlesByCountry[country].length > 0
     )
   }, [countries, articlesByCountry])
+
+  // Generate theme-based color shades with enhanced variety
+  const themeColors = useMemo(() => {
+    return getEnhancedThemeColorShades(primaryColor, Math.max(countriesWithArticles.length, 1), theme)
+  }, [primaryColor, countriesWithArticles.length, theme])
+
+  // Function to get a color for a country based on its index
+  const getCountryColor = (index: number): string => {
+    return themeColors[index % themeColors.length]
+  }
 
   // Auto-select countries on mount - ONLY countries with articles
   useEffect(() => {
     if (countriesWithArticles.length === 0) return
 
     const newMappings: Record<string, string[]> = {}
-    
+
     countriesWithArticles.forEach(country => {
       const normalizedCountry = country.trim()
-      
+
       // Handle special cases
       if (SPECIAL_CASES[normalizedCountry as keyof typeof SPECIAL_CASES]) {
         const specialCase = SPECIAL_CASES[normalizedCountry as keyof typeof SPECIAL_CASES]
@@ -366,7 +527,7 @@ export function WorldMap({
     })
 
     setAutoMappedCountries(newMappings)
-    
+
     // Auto-map only countries with articles
     if (onCountryMapping) {
       Object.entries(newMappings).forEach(([legendCountry, geoCountries]) => {
@@ -389,11 +550,11 @@ export function WorldMap({
       isSpecialCase: !!SPECIAL_CASES[country as keyof typeof SPECIAL_CASES],
       color: getCountryColor(index),
     }))
-  }, [countriesWithArticles, articlesByCountry])
+  }, [countriesWithArticles, articlesByCountry, getCountryColor])
 
   // Get all mapped geographic countries for highlighting - use normalized names
   const mappedGeoCountries = useMemo(() => {
-    return Object.values(mappedCountries).map(country => 
+    return Object.values(mappedCountries).map(country =>
       COUNTRY_NAME_MAP[country] || country
     )
   }, [mappedCountries])
@@ -427,7 +588,7 @@ export function WorldMap({
   // Function to get color for a specific geographic country
   const getColorForGeoCountry = (geoCountryName: string): string => {
     const normalizedGeoName = normalizeCountryName(geoCountryName)
-    
+
     // Find which legend country this geographic country belongs to via explicit mapping
     const explicitLegendCountry = Object.entries(mappedCountries).find(
       ([_, geo]) => normalizeCountryName(geo) === normalizedGeoName
@@ -439,7 +600,7 @@ export function WorldMap({
     }
 
     // Check if this is part of a special case mapping (like EU)
-    const specialCase = Object.entries(autoMappedCountries).find(([legendCountry, geoCountries]) => 
+    const specialCase = Object.entries(autoMappedCountries).find(([legendCountry, geoCountries]) =>
       geoCountries.some(geo => normalizeCountryName(geo) === normalizedGeoName)
     )?.[0]
 
@@ -450,7 +611,7 @@ export function WorldMap({
 
     // If we have global coverage and no specific mapping, use the first global country's color
     if (hasGlobalCoverage) {
-      const globalCountry = legendItems.find(item => 
+      const globalCountry = legendItems.find(item =>
         autoMappedCountries[item.country]?.[0] === "ALL"
       )
       return globalCountry?.color || primaryColor
@@ -463,7 +624,7 @@ export function WorldMap({
   // Function to check if a geographic country should be colored
   const shouldColorCountry = (geoCountryName: string): boolean => {
     const normalizedGeoName = normalizeCountryName(geoCountryName)
-    
+
     // If we have global coverage, color ALL countries
     if (hasGlobalCoverage) {
       return true
@@ -471,10 +632,10 @@ export function WorldMap({
 
     // Check if this country is explicitly mapped
     const isExplicitlyMapped = mappedGeoCountries.includes(normalizedGeoName)
-    
+
     // Check if this country is auto-mapped (like EU countries)
     const isAutoMapped = allAutoMappedGeoCountries.includes(normalizedGeoName)
-    
+
     return isExplicitlyMapped || isAutoMapped
   }
 
@@ -536,7 +697,7 @@ export function WorldMap({
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{
-            scale: 147,
+            scale: 100,
             center: [0, 20]
           }}
           width={800}
@@ -550,7 +711,7 @@ export function WorldMap({
                   const geoName = geo.properties.name
                   const shouldColor = shouldColorCountry(geoName)
                   const countryColor = shouldColor ? getColorForGeoCountry(geoName) : "#D6D6DA"
-                  
+
                   return (
                     <Geography
                       key={geo.rsmKey}
@@ -583,29 +744,80 @@ export function WorldMap({
             </Geographies>
 
             {/* Markers with Letters - show for ALL countries including special cases */}
-            {visibleMarkers.map(({ key, coordinates, item }) => (
-              <Marker key={key} coordinates={coordinates}>
-                <circle
-                  r={12}
-                  fill={item.color}
-                  stroke="#FFFFFF"
-                  strokeWidth={2}
-                />
-                <text
-                  textAnchor="middle"
-                  y={3}
-                  style={{
-                    fontFamily: "system-ui",
-                    fill: "#FFFFFF",
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                    pointerEvents: "none"
-                  }}
-                >
-                  {item.letter}
-                </text>
-              </Marker>
-            ))}
+            {visibleMarkers.map(({ key, coordinates, item }) => {
+              // Wrap country name if it's too long
+              const wrappedLines = wrapCountryName(item.country, 80)
+              const lineHeight = 12
+              const totalTextHeight = wrappedLines.length * lineHeight
+              const bgPadding = 4
+              const bgHeight = totalTextHeight + bgPadding * 2
+              const bgWidth = Math.max(...wrappedLines.map(line => calculateTextWidth(line))) + bgPadding * 2
+
+              // Determine position based on longitude
+              const isRightSide = coordinates[0] > 0
+              const textX = isRightSide ? 20 : -20
+              const textAnchor = isRightSide ? "start" : "end"
+              const bgX = isRightSide ? 15 : -15 - bgWidth
+              const firstTextY = - (totalTextHeight / 2) + lineHeight / 2
+
+              return (
+                <Marker key={key} coordinates={coordinates}>
+                  {/* Circle and letter */}
+                  <circle
+                    r={12}
+                    fill={item.color}
+                    stroke="#FFFFFF"
+                    strokeWidth={2}
+                  />
+                  <text
+                    textAnchor="middle"
+                    y={3}
+                    style={{
+                      fontFamily: "system-ui",
+                      fill: "#FFFFFF",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      pointerEvents: "none"
+                    }}
+                  >
+                    {item.letter}
+                  </text>
+
+                  {/* Country text with wrapped lines */}
+                  <g>
+                    {/* Background rectangle */}
+                    <rect
+                      x={bgX}
+                      y={-bgHeight / 2}
+                      width={bgWidth}
+                      height={bgHeight}
+                      fill="#000000"
+                      rx={3}
+                      opacity={0.9}
+                    />
+                    
+                    {/* Wrapped text lines */}
+                    {wrappedLines.map((line, index) => (
+                      <text
+                        key={index}
+                        x={textX}
+                        y={firstTextY + (index * lineHeight)}
+                        textAnchor={textAnchor}
+                        style={{
+                          fontFamily: "system-ui",
+                          fill: "#FFFFFF",
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          pointerEvents: "none"
+                        }}
+                      >
+                        {line}
+                      </text>
+                    ))}
+                  </g>
+                </Marker>
+              )
+            })}
           </g>
         </ComposableMap>
 
@@ -633,13 +845,11 @@ export function WorldMap({
       {/* Legend Section */}
       {showLegend && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Covered Countries ({countriesWithArticles.length} countries)
-          </h3>
+       
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {legendItems.map((item) => (
-              <div 
-                key={item.country} 
+              <div
+                key={item.country}
                 className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 border border-gray-200"
                 style={{ borderLeft: `4px solid ${item.color}` }}
               >
@@ -650,7 +860,7 @@ export function WorldMap({
                 >
                   <span className="text-white text-sm font-bold">{item.letter}</span>
                 </div>
-                
+
                 {/* Country and Headlines */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">
@@ -660,7 +870,7 @@ export function WorldMap({
                       </h4>
                     </div>
                   </div>
-                  
+
                   {item.articles.length > 0 ? (
                     <ul className="space-y-1 mt-2">
                       {item.articles.map((article, idx) => (
