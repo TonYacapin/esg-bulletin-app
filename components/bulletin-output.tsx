@@ -572,7 +572,7 @@ function HeaderEditModal({
               onImageUpload={(file) => handleImageUpload('headerImage', file)}
               currentImage={formData.headerImage}
               placeholder="Drag & drop header background image or click to browse"
-              className="h-32"
+              className="h-100"
             />
           </div>
 
@@ -585,7 +585,7 @@ function HeaderEditModal({
               onImageUpload={(file) => handleImageUpload('publisherLogo', file)}
               currentImage={formData.publisherLogo}
               placeholder="Drag & drop publisher logo or click to browse"
-              className="h-32"
+              className="h-100"
             />
           </div>
 
