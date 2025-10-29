@@ -1,125 +1,37 @@
 "use client"
 
 import { useState } from "react"
-import { fetchNewsFromAPI } from "@/lib/actions"
+import { fetchNewsAction } from "@/lib/actions"
 import { BulletinForm } from "./bulletin-form"
 import { BulletinOutput } from "./bulletin-output"
 import { ArticleSelector } from "./article-selector"
-
-export interface Article {
-  news_content: string
-  imageUrl: any
-  news_id: number
-  news_title: string
-  original_title: string
-  news_summary: string
-  published_at: string
-  created_at: string
-  updated_at: string
-  type_id: number
-  type: string
-  type_value: string
-  news_status: string
-  jurisdictions: {
-    name: string
-    code: string
-  }[]
-}
-
-// UPDATED: Complete BulletinConfig interface with all fields
-export interface BulletinConfig {
-  // Header Section
-  headerText: string
-  headerImage: string
-  issueNumber: string
-  publicationDate: string
-  publisherLogo: string
-  footerImage: string
-  
-  // Bulletin Structure
-  tableOfContents: boolean
-  greetingMessage: string
-  keyTrends: boolean
-  executiveSummary: boolean
-  keyTakeaways: boolean
-  interactiveMap: boolean
-  calendarSection: boolean
-  
-  // Regional Sections
-  euSection: {
-    enabled: boolean
-    title: string
-    keyTrends: boolean
-    introduction: string
-  }
-  usSection: {
-    enabled: boolean
-    title: string
-    keyTrends: boolean
-    introduction: string
-  }
-  globalSection: {
-    enabled: boolean
-    title: string
-    keyTrends: boolean
-    introduction: string
-  }
-  
-  // Additional Sections
-  calendarMinutes: boolean
-  keepAnEyeOn: boolean
-  comingEvents: boolean
-
-  // AI Generation Context
-  previousGreeting: string
-  customInstructions: string
-
-  // AI Generated Content Storage
-  generatedContent: {
-    keyTrends: string
-    executiveSummary: string
-    keyTakeaways: string
-    euTrends: string
-    usTrends: string
-    globalTrends: string
-  }
-}
-
-export interface BulletinData {
-  theme: "blue" | "green" | "red"
-  articles: Article[]
-  articlesByCountry: Record<string, Article[]>
-  bulletinConfig?: BulletinConfig // UPDATED: Now uses the complete interface
-}
+import type { Article, BulletinConfig, BulletinData, BulletinFormData, BulletinTheme } from "@/lib/types"
 
 type Step = "form" | "selector" | "output"
 
+/**
+ * Main bulletin generator component
+ * Orchestrates the multi-step bulletin creation workflow
+ */
 export default function BulletinGenerator() {
+  // State management
   const [step, setStep] = useState<Step>("form")
   const [bulletinData, setBulletinData] = useState<BulletinData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fetchedArticles, setFetchedArticles] = useState<Article[]>([])
-  const [selectedTheme, setSelectedTheme] = useState<"blue" | "green" | "red">("blue")
+  const [selectedTheme, setSelectedTheme] = useState<BulletinTheme>("blue")
 
-  const handleGenerateBulletin = async (filters: {
-    theme: "blue" | "green" | "red"
-    query: string
-    page: number
-    limit: number
-    type_id?: number
-    jurisdiction_id?: number
-    published_at_from?: string
-    published_at_to?: string
-    updated_at_from?: string
-    updated_at_to?: string
-  }) => {
+  /**
+   * Handles bulletin generation by fetching articles from API
+   */
+  const handleGenerateBulletin = async (filters: BulletinFormData) => {
     setLoading(true)
     setError(null)
     setSelectedTheme(filters.theme)
 
     try {
-      const data = await fetchNewsFromAPI({
+      const data = await fetchNewsAction({
         query: filters.query,
         page: filters.page,
         limit: filters.limit,
@@ -135,14 +47,19 @@ export default function BulletinGenerator() {
       setFetchedArticles(articles)
       setStep("selector")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
+      const errorMessage = err instanceof Error ? err.message : "An error occurred while fetching articles"
+      setError(errorMessage)
+      console.error("[BulletinGenerator] Error:", errorMessage)
     } finally {
       setLoading(false)
     }
   }
 
-  // FIXED: Now properly typed with the complete BulletinConfig
+  /**
+   * Handles article selection and moves to output step
+   */
   const handleArticlesSelected = (selectedArticles: Article[], bulletinConfig: BulletinConfig) => {
+    // Group articles by country for regional sections
     const articlesByCountry = selectedArticles.reduce((acc: Record<string, Article[]>, article: Article) => {
       const country = article.jurisdictions?.[0]?.name || "International"
       if (!acc[country]) acc[country] = []
@@ -154,11 +71,14 @@ export default function BulletinGenerator() {
       theme: selectedTheme,
       articles: selectedArticles,
       articlesByCountry,
-      bulletinConfig // FIXED: Include the complete bulletinConfig in the data
+      bulletinConfig,
     })
     setStep("output")
   }
 
+  /**
+   * Resets the workflow to start over
+   */
   const handleStartOver = () => {
     setBulletinData(null)
     setFetchedArticles([])
@@ -166,6 +86,7 @@ export default function BulletinGenerator() {
     setStep("form")
   }
 
+  // Render appropriate step
   if (step === "output" && bulletinData) {
     return <BulletinOutput data={bulletinData} onStartOver={handleStartOver} />
   }
