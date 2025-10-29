@@ -1890,7 +1890,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               <h2 className="text-4xl font-black mb-6 text-center text-gray-900 print:text-3xl print:mb-4">
                 Global Coverage
               </h2>
-              <WorldMap countryMappings={countryMappings} primaryColor={themeColors[theme]} />
+              <WorldMap
+                countries={mapCountries}
+                primaryColor={themeColors[theme]}
+                articlesByCountry={articlesByCountry}
+                mappedCountries={countryMappings}
+                theme={theme as "blue" | "green" | "red"}
+                interactive={true}
+                showLegend={true}
+              />
             </section>
           )}
 
