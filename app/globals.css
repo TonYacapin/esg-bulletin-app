@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -75,8 +75,8 @@
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: "Geist", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -121,5 +121,344 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Add comprehensive print styles for PDF generation */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: #000;
+  }
+
+  .bulletin-page {
+    page-break-after: always;
+    page-break-inside: avoid;
+    margin: 0;
+    padding: 40px;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    background: white;
+    color: #000;
+    font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  .bulletin-page:last-child {
+    page-break-after: avoid;
+  }
+
+  .bulletin-page header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #000;
+  }
+
+  .bulletin-page h1 {
+    font-size: 32pt;
+    font-weight: 700;
+    margin: 0;
+    padding: 0;
+    letter-spacing: 2px;
+    color: #000;
+  }
+
+  .bulletin-page h2 {
+    font-size: 24pt;
+    font-weight: 700;
+    margin: 4px 0 0 0;
+    padding: 0;
+    letter-spacing: 2px;
+    color: #000;
+  }
+
+  .bulletin-page h3 {
+    font-size: 14pt;
+    font-weight: 700;
+    margin: 16px 0 12px 0;
+    padding: 0;
+    color: #000;
+  }
+
+  .bulletin-page h4 {
+    font-size: 12pt;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    padding: 0;
+    color: #000;
+  }
+
+  .bulletin-page h5 {
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    padding: 0;
+    color: #000;
+  }
+
+  .bulletin-page p {
+    margin: 0 0 12px 0;
+    padding: 0;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #000;
+  }
+
+  .bulletin-page ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style: disc;
+  }
+
+  .bulletin-page li {
+    margin: 4px 0;
+    padding: 0;
+    font-size: 11pt;
+    color: #000;
+  }
+
+  .bulletin-page footer {
+    margin-top: 24px;
+    padding-top: 12px;
+    border-top: 1px solid #999;
+    font-size: 9pt;
+    text-align: center;
+    color: #666;
+  }
+
+  .bulletin-page .text-xs {
+    font-size: 9pt;
+  }
+
+  .bulletin-page .text-sm {
+    font-size: 10pt;
+  }
+
+  .bulletin-page .text-base {
+    font-size: 11pt;
+  }
+
+  .bulletin-page .text-lg {
+    font-size: 12pt;
+  }
+
+  .bulletin-page .text-2xl {
+    font-size: 18pt;
+  }
+
+  .bulletin-page .text-3xl {
+    font-size: 24pt;
+  }
+
+  .bulletin-page .text-4xl {
+    font-size: 32pt;
+  }
+
+  .bulletin-page .font-bold {
+    font-weight: 700;
+  }
+
+  .bulletin-page .font-semibold {
+    font-weight: 600;
+  }
+
+  .bulletin-page .leading-relaxed {
+    line-height: 1.625;
+  }
+
+  .bulletin-page .leading-tight {
+    line-height: 1.25;
+  }
+
+  .bulletin-page .text-gray-900 {
+    color: #000;
+  }
+
+  .bulletin-page .text-gray-700 {
+    color: #333;
+  }
+
+  .bulletin-page .text-gray-600 {
+    color: #666;
+  }
+
+  .bulletin-page .text-gray-500 {
+    color: #999;
+  }
+
+  .bulletin-page .border-b-2 {
+    border-bottom: 2px solid #000;
+  }
+
+  .bulletin-page .border-b {
+    border-bottom: 1px solid #ddd;
+  }
+
+  .bulletin-page .border-t {
+    border-top: 1px solid #999;
+  }
+
+  .bulletin-page .border-gray-300 {
+    border-color: #999;
+  }
+
+  .bulletin-page .border-gray-200 {
+    border-color: #ddd;
+  }
+
+  .bulletin-page .mb-4 {
+    margin-bottom: 12px;
+  }
+
+  .bulletin-page .mb-6 {
+    margin-bottom: 18px;
+  }
+
+  .bulletin-page .mb-8 {
+    margin-bottom: 24px;
+  }
+
+  .bulletin-page .mt-8 {
+    margin-top: 24px;
+  }
+
+  .bulletin-page .mt-12 {
+    margin-top: 36px;
+  }
+
+  .bulletin-page .pt-8 {
+    padding-top: 24px;
+  }
+
+  .bulletin-page .pb-8 {
+    padding-bottom: 24px;
+  }
+
+  .bulletin-page .pb-4 {
+    padding-bottom: 12px;
+  }
+
+  .bulletin-page .pb-6 {
+    padding-bottom: 18px;
+  }
+
+  .bulletin-page .space-y-1 > * + * {
+    margin-top: 4px;
+  }
+
+  .bulletin-page .space-y-8 > * + * {
+    margin-top: 24px;
+  }
+
+  .bulletin-page .grid {
+    display: grid;
+  }
+
+  .bulletin-page .grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .bulletin-page .gap-6 {
+    gap: 24px;
+  }
+
+  .bulletin-page .flex {
+    display: flex;
+  }
+
+  .bulletin-page .flex-1 {
+    flex: 1;
+  }
+
+  .bulletin-page .justify-between {
+    justify-content: space-between;
+  }
+
+  .bulletin-page .justify-center {
+    justify-content: center;
+  }
+
+  .bulletin-page .items-start {
+    align-items: flex-start;
+  }
+
+  .bulletin-page .items-center {
+    align-items: center;
+  }
+
+  .bulletin-page .text-center {
+    text-align: center;
+  }
+
+  .bulletin-page .text-right {
+    text-align: right;
+  }
+
+  .bulletin-page .tracking-wider {
+    letter-spacing: 0.05em;
+  }
+
+  .bulletin-page .tracking-wide {
+    letter-spacing: 0.025em;
+  }
+
+  .bulletin-page .uppercase {
+    text-transform: uppercase;
+  }
+
+  .bulletin-page .flex-grow {
+    flex-grow: 1;
+  }
+
+  .bulletin-page .mt-auto {
+    margin-top: auto;
+  }
+
+  .bulletin-page .pt-6 {
+    padding-top: 18px;
+  }
+
+  .bulletin-page .mt-3 {
+    margin-top: 12px;
+  }
+
+  .bulletin-page .mt-1 {
+    margin-top: 4px;
+  }
+
+  .bulletin-page .mt-2 {
+    margin-top: 8px;
+  }
+
+  .bulletin-page .mr-2 {
+    margin-right: 8px;
+  }
+
+  .bulletin-page .mx-4 {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .bulletin-page .h-0\.5 {
+    height: 2px;
+  }
+
+  .bulletin-page .bg-gray-300 {
+    background-color: #ddd;
+  }
+
+  .bulletin-page .flex-items-start {
+    display: flex;
+    align-items: flex-start;
   }
 }

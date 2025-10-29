@@ -19,8 +19,29 @@ export function CoverPage({ data, colors }: CoverPageProps) {
 
   const sortedCountries = Object.keys(data.articlesByCountry).sort()
 
+  const countryLetterMap: Record<string, string> = {
+    Australia: "A",
+    Brazil: "B",
+    Cambodia: "D",
+    Chile: "E",
+    Ecuador: "F",
+    "European Union": "G",
+    France: "H",
+    Ghana: "I",
+    India: "J",
+    International: "K",
+    Netherlands: "L",
+    "New Zealand": "M",
+    Nigeria: "N",
+    "South Korea": "O",
+    Spain: "P",
+    "United Kingdom": "Q",
+    "United States": "U",
+  }
+
   return (
     <div className="bulletin-page">
+      {/* Header */}
       <header className="flex justify-between items-start pb-8 border-b-2 border-gray-300">
         <div>
           <h1 className="text-4xl font-bold tracking-wider text-gray-900">ESG</h1>
@@ -34,6 +55,7 @@ export function CoverPage({ data, colors }: CoverPageProps) {
         </div>
       </header>
 
+      {/* Welcome Section */}
       <div className="mt-8 mb-8">
         <h3 className="text-lg font-bold text-gray-900 mb-4">Welcome to our ESG Regulatory SCORE Bulletin!</h3>
         <p className="text-gray-700 text-sm leading-relaxed mb-4">
@@ -48,12 +70,16 @@ export function CoverPage({ data, colors }: CoverPageProps) {
         </p>
       </div>
 
+      {/* Table of Contents */}
       <div className="mt-8">
         <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">In This Issue</h3>
         <div className="grid grid-cols-3 gap-6 text-xs">
           {sortedCountries.map((country) => (
             <div key={country}>
-              <h5 className="font-bold text-gray-900 mb-2 text-sm">{country}</h5>
+              <div className="flex items-center mb-3">
+                <h5 className="font-bold text-gray-900 text-sm">{country}</h5>
+                <span className="ml-2 text-gray-600 font-semibold">{countryLetterMap[country] || "•"}</span>
+              </div>
               <ul className="space-y-1">
                 {data.articlesByCountry[country].map((article) => (
                   <li key={article.news_id} className="text-gray-700 flex items-start">
@@ -67,6 +93,7 @@ export function CoverPage({ data, colors }: CoverPageProps) {
         </div>
       </div>
 
+      {/* Footer */}
       <footer className="text-center pt-8 text-gray-600 text-xs border-t border-gray-300 mt-12">
         <p>info@Scorealytics.com | Subscribe | About</p>
         <p className="mt-2">Home Button</p>
