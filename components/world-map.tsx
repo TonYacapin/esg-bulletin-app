@@ -767,9 +767,7 @@ export function WorldMap({
                       <h4 className="font-medium text-gray-900 text-base">
                         {item.letter}. {item.country}
                       </h4>
-                      <span className="ml-2 px-2 py-1 text-xs rounded-full bg-gray-200 text-gray-700 capitalize">
-                        {item.type}
-                      </span>
+             
                     </div>
                   </div>
 
