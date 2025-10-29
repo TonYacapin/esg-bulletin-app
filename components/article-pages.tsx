@@ -19,33 +19,38 @@ export function ArticlePages({ data, colors }: ArticlePagesProps) {
     <>
       {sortedCountries.map((country) => (
         <div key={country} className="bulletin-page">
-          {/* Header */}
-          <header className="flex justify-between items-center pb-2 mb-6">
-            <h2 className="text-2xl font-bold uppercase" style={{ color: colors.primary }}>
-              {country}
-            </h2>
-            <div className="w-24 h-1 rounded-full" style={{ backgroundColor: colors.primary }} />
+          <header className="flex justify-between items-center pb-4 mb-8 border-b-2 border-gray-300">
+            <h2 className="text-2xl font-bold uppercase tracking-wide text-gray-900">{country}</h2>
+            <div className="flex-1 mx-4 h-0.5 bg-gray-300" />
+            <p className="text-xs text-gray-600">
+              {country === "European Union" ? "G" : country === "United States" ? "U" : country.charAt(0)}
+            </p>
           </header>
 
-          {/* Articles */}
-          <div className="flex-grow space-y-6">
+          <div className="flex-grow space-y-8">
             {data.articlesByCountry[country].map((article, index) => (
               <div
                 key={article.news_id}
-                className={
-                  index !== data.articlesByCountry[country].length - 1 ? "border-b border-gray-200 pb-6 mb-6" : ""
-                }
+                className={index !== data.articlesByCountry[country].length - 1 ? "border-b border-gray-200 pb-8" : ""}
               >
-                <p className="text-xs text-gray-500 mb-1">{article.published_at}</p>
-                <h4 className="font-bold text-lg text-gray-900">{article.news_title}</h4>
-                <p className="mt-2 text-sm text-gray-600 leading-relaxed">{article.news_summary}</p>
+                {/* Article title with category */}
+                <div className="mb-3">
+                  <h4 className="font-bold text-base text-gray-900 leading-tight mb-1">{article.news_title}</h4>
+                  {article.category && <p className="text-xs text-gray-500 font-semibold">{article.category}</p>}
+                </div>
+
+                {/* Article summary */}
+                <p className="text-sm text-gray-700 leading-relaxed">{article.news_summary}</p>
+
+                {/* Published date */}
+                {article.published_at && <p className="text-xs text-gray-500 mt-3">{article.published_at}</p>}
               </div>
             ))}
           </div>
 
-          {/* Footer */}
-          <footer className="text-center mt-auto pt-6 text-gray-500 text-xs border-t border-gray-200">
-            <p>Page for {country}</p>
+          <footer className="text-center mt-auto pt-6 text-gray-600 text-xs border-t border-gray-300">
+            <p>info@Scorealytics.com | Subscribe | About</p>
+            <p className="mt-1">Home Button</p>
           </footer>
         </div>
       ))}
