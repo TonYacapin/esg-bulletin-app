@@ -4,8 +4,8 @@ import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
+import { WorldMap } from "./world-map"
 import type { BulletinData } from "./bulletin-generator"
-import html2pdf from "html2pdf.js"
 
 interface BulletinOutputProps {
   data: BulletinData
@@ -412,6 +412,14 @@ function DragDropImageUpload({
   )
 }
 
+interface ArticleImageDisplayProps {
+  imageUrl?: string
+  alt: string
+  onImageUpload?: (file: File) => void
+  onRemoveImage?: () => void
+  editable?: boolean
+  className?: string
+}
 interface ArticleImageDisplayProps {
   imageUrl?: string
   alt: string
@@ -930,219 +938,988 @@ function ArticleEditModal({ isOpen, onClose, onSave, article }: ArticleEditModal
 }
 
 export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
-  const bulletinRef = useRef<HTMLDivElement>(null)
+  const { theme, articles: initialArticles, articlesByCountry, bulletinConfig } = data
+
+  // Create a safe bulletin config with fallbacks
+  const safeBulletinConfig = bulletinConfig || {
+    headerText: "ESG DISCLOSURE & REPORTING BULLETIN",
+    issueNumber: "",
+    publicationDate: new Date().toISOString().split("T")[0],
+    headerImage: "",
+    publisherLogo: "",
+    footerImage: "",
+    greetingMessage: "",
+    keyTrends: true,
+    executiveSummary: true,
+    keyTakeaways: true,
+    interactiveMap: true,
+    euSection: { enabled: true, title: "", introduction: "", trends: "", keyTrends: true },
+    usSection: { enabled: true, title: "", introduction: "", trends: "", keyTrends: true },
+    globalSection: { enabled: true, title: "", introduction: "", trends: "", keyTrends: true },
+    generatedContent: {
+      keyTrends: "",
+      executiveSummary: "",
+      keyTakeaways: "",
+    },
+  }
+
+  const [showMappingModal, setShowMappingModal] = useState(true)
+  const [showHeaderEditModal, setShowHeaderEditModal] = useState(false)
+  const [showArticleEditModal, setShowArticleEditModal] = useState(false)
+  const [countryMappings, setCountryMappings] = useState<Record<string, string>>({})
+  const [editingArticle, setEditingArticle] = useState<any>(null)
+  const [regeneratingArticle, setRegeneratingArticle] = useState<string | null>(null)
+  const [articles, setArticles] = useState(initialArticles)
+  const [loadingSources, setLoadingSources] = useState(false)
   const [editableContent, setEditableContent] = useState({
-    headerText: data.bulletinConfig?.headerText || "ESG DISCLOSURE & REPORTING BULLETIN",
-    issueNumber: data.bulletinConfig?.issueNumber || "Issue #23",
-    publicationDate:
-      data.bulletinConfig?.publicationDate ||
-      new Date().toLocaleDateString("en-US", { year: "numeric", month: "long" }),
-    greetingMessage: data.bulletinConfig?.greetingMessage || "",
+    // Header content
+    headerText: safeBulletinConfig.headerText || "",
+    issueNumber: safeBulletinConfig.issueNumber || "",
+    publicationDate: safeBulletinConfig.publicationDate || "",
+    headerImage: safeBulletinConfig.headerImage || "",
+    publisherLogo: safeBulletinConfig.publisherLogo || "",
+    footerImage: safeBulletinConfig.footerImage || "",
+
+    // Main content
+    greetingMessage: safeBulletinConfig.greetingMessage || "",
+    keyTrends: safeBulletinConfig.generatedContent?.keyTrends || "",
+    executiveSummary: safeBulletinConfig.generatedContent?.executiveSummary || "",
+    keyTakeaways: safeBulletinConfig.generatedContent?.keyTakeaways || "",
+
+    // Regional sections
+    euSection: {
+      title: safeBulletinConfig.euSection?.title || "",
+      introduction: safeBulletinConfig.euSection?.introduction || "",
+      trends: safeBulletinConfig.euSection?.trends || "",
+    },
+    usSection: {
+      title: safeBulletinConfig.usSection?.title || "",
+      introduction: safeBulletinConfig.usSection?.introduction || "",
+      trends: safeBulletinConfig.usSection?.trends || "",
+    },
+    globalSection: {
+      title: safeBulletinConfig.globalSection?.title || "",
+      introduction: safeBulletinConfig.globalSection?.introduction || "",
+      trends: safeBulletinConfig.globalSection?.trends || "",
+    },
   })
+  const [isEditing, setIsEditing] = useState<string | null>(null)
+  const [isRegenerating, setIsRegenerating] = useState<string | null>(null)
 
-  const themeColors: Record<string, string> = {
-    blue: "#1e40af",
-    green: "#15803d",
-    red: "#991b1b",
+  const countries = Object.keys(articlesByCountry)
+
+  const themeColors = {
+    blue: "#1976D2",
+    green: "#388E3C",
+    red: "#D32F2F",
   }
 
-  const regionLabels: Record<string, string> = {
-    "European Union": "EU",
-    "United States": "US",
-    "United Kingdom": "UK",
-    Australia: "AU",
-    Singapore: "SG",
-    California: "CA",
-    Africa: "AF",
-  }
+  // Automatically fetch source data for all articles on initial load
+  useEffect(() => {
+    const fetchMissingSources = async () => {
+      const articlesNeedingSource = articles.filter(
+        (article) =>
+          article.news_id && (!article.source || article.source.length === 0 || !article.source[0]?.source_alias),
+      )
 
-  const regionEmojis: Record<string, string> = {
-    "European Union": "🇪🇺",
-    "United States": "🇺🇸",
-    "United Kingdom": "🇬🇧",
-    Australia: "🇦🇺",
-    Singapore: "🇸🇬",
-    California: "🇺🇸",
-    Africa: "🌍",
-  }
+      if (articlesNeedingSource.length === 0) return
 
-  const handleDownloadPDF = async () => {
-    if (!bulletinRef.current) return
+      setLoadingSources(true)
 
-    const element = bulletinRef.current
-    const opt = {
-      margin: 10,
-      filename: `ESG-Bulletin-${editableContent.issueNumber}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+      try {
+        for (const article of articlesNeedingSource) {
+          try {
+            const response = await fetch(`/api/internal/news/${article.news_id}/details`)
+
+            if (response.ok) {
+              const data = await response.json()
+
+              if (data.data?.source?.[0]) {
+                handleArticleUpdate(article.news_id, {
+                  source: [
+                    {
+                      id: article.source?.[0]?.id,
+                      source_alias: data.data.source[0].source_alias || "",
+                      source_url: data.data.source[0].source_url || "",
+                      source_file_key: article.source?.[0]?.source_file_key,
+                    },
+                  ],
+                })
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching source for article ${article.news_id}:`, error)
+          }
+        }
+      } finally {
+        setLoadingSources(false)
+      }
     }
 
-    html2pdf().set(opt).from(element).save()
+    if (articles.length > 0) {
+      fetchMissingSources()
+    }
+  }, [articles.length])
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+  }
+
+  const formatConfigDate = (dateString: string) => {
+    if (!dateString) return "Current Month"
+    return new Date(dateString + "-01").toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+    })
+  }
+
+  const handleHeaderSave = (headerData: {
+    headerText: string
+    issueNumber: string
+    publicationDate: string
+    headerImage: string
+    publisherLogo: string
+  }) => {
+    setEditableContent((prev) => ({
+      ...prev,
+      ...headerData,
+    }))
+  }
+
+  const handleArticleUpdate = (articleId: string, updatedArticle: any) => {
+    setArticles((prev) =>
+      prev.map((article) => (article.news_id === articleId ? { ...article, ...updatedArticle } : article)),
+    )
+  }
+
+  const handleContentChange = (section: string, field: string, value: string) => {
+    setEditableContent((prev) => {
+      if (!field) {
+        return {
+          ...prev,
+          [section]: value,
+        }
+      }
+
+      if (section.includes("Section")) {
+        const sectionKey = section as "euSection" | "usSection" | "globalSection"
+        return {
+          ...prev,
+          [sectionKey]: {
+            ...prev[sectionKey],
+            [field]: value,
+          },
+        }
+      } else {
+        return {
+          ...prev,
+          [section]: value,
+        }
+      }
+    })
+  }
+
+  const handleEditToggle = (sectionId: string) => {
+    setIsEditing(isEditing === sectionId ? null : sectionId)
+  }
+
+  const handleSave = (sectionId: string) => {
+    setIsEditing(null)
+    console.log(`Saved content for ${sectionId}:`, editableContent)
+  }
+
+  // Formatting helper functions
+  const applyFormatting = (text: string, formatType: "bold" | "italic"): string => {
+    const textarea = document.activeElement as HTMLTextAreaElement
+    if (!textarea || textarea.tagName !== "TEXTAREA") return text
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = text.substring(start, end)
+
+    if (!selectedText) return text
+
+    let formattedText = ""
+    if (formatType === "bold") {
+      formattedText = `**${selectedText}**`
+    } else if (formatType === "italic") {
+      formattedText = `*${selectedText}*`
+    }
+
+    const newText = text.substring(0, start) + formattedText + text.substring(end)
+
+    setTimeout(() => {
+      textarea.selectionStart = start + formattedText.length
+      textarea.selectionEnd = start + formattedText.length
+      textarea.focus()
+    }, 0)
+
+    return newText
+  }
+
+  const handleBold = () => {
+    if (!isEditing) return
+
+    const [section, field] = isEditing.split("-")
+    const currentContent = field
+      ? editableContent[section as keyof typeof editableContent]?.[
+          field as keyof (typeof editableContent)[keyof typeof editableContent]
+        ]
+      : editableContent[section as keyof typeof editableContent]
+
+    if (typeof currentContent === "string") {
+      const newContent = applyFormatting(currentContent, "bold")
+      handleContentChange(section, field, newContent)
+    }
+  }
+
+  const handleItalic = () => {
+    if (!isEditing) return
+
+    const [section, field] = isEditing.split("-")
+    const currentContent = field
+      ? editableContent[section as keyof typeof editableContent]?.[
+          field as keyof (typeof editableContent)[keyof typeof editableContent]
+        ]
+      : editableContent[section as keyof typeof editableContent]
+
+    if (typeof currentContent === "string") {
+      const newContent = applyFormatting(currentContent, "italic")
+      handleContentChange(section, field, newContent)
+    }
+  }
+
+  // Keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && isEditing) {
+        switch (e.key.toLowerCase()) {
+          case "b":
+            e.preventDefault()
+            handleBold()
+            break
+          case "i":
+            e.preventDefault()
+            handleItalic()
+            break
+        }
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [isEditing])
+
+  const handleRegenerate = async (sectionId: string) => {
+    setIsRegenerating(sectionId)
+    try {
+      const [section, field] = sectionId.split("-")
+      const typeMapping: Record<string, string> = {
+        headerText: "header_text",
+        issueNumber: "issue_number",
+        greetingMessage: "greeting",
+        keyTrends: "key_trends",
+        executiveSummary: "executive_summary",
+        keyTakeaways: "key_takeaways",
+        "euSection-title": "section_title",
+        "euSection-introduction": "section_intro",
+        "euSection-trends": "section_trends",
+        "usSection-title": "section_title",
+        "usSection-introduction": "section_intro",
+        "usSection-trends": "section_trends",
+        "globalSection-title": "section_title",
+        "globalSection-introduction": "section_intro",
+        "globalSection-trends": "section_trends",
+      }
+
+      const apiType = typeMapping[sectionId]
+      if (!apiType) {
+        console.error("Unknown section type:", sectionId)
+        return
+      }
+
+      let regionalArticles = []
+      let region = ""
+
+      if (section.includes("Section")) {
+        region = section.replace("Section", "").toUpperCase()
+        regionalArticles = getArticlesByJurisdiction(region)
+      } else {
+        regionalArticles = articles
+      }
+
+      const requestBody: any = {
+        type: apiType,
+        articles: regionalArticles,
+        currentDate: safeBulletinConfig.publicationDate || new Date().toISOString().split("T")[0],
+        customInstructions: safeBulletinConfig.customInstructions || "",
+      }
+
+      if (region) {
+        requestBody.region = region
+      }
+
+      if (apiType === "greeting") {
+        requestBody.previousGreeting = safeBulletinConfig.previousGreeting || ""
+      }
+
+      const response = await fetch("/api/generate-bulletin-content", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to regenerate content")
+      }
+
+      const data = await response.json()
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      setEditableContent((prev) => {
+        if (section.includes("Section")) {
+          const sectionKey = section as "euSection" | "usSection" | "globalSection"
+          return {
+            ...prev,
+            [sectionKey]: {
+              ...prev[sectionKey],
+              [field]: data.content,
+            },
+          }
+        } else {
+          return {
+            ...prev,
+            [section]: data.content,
+          }
+        }
+      })
+    } catch (error) {
+      console.error("Error regenerating content:", error)
+    } finally {
+      setIsRegenerating(null)
+    }
+  }
+
+  const handleRegenerateArticle = async (articleId: string) => {
+    setRegeneratingArticle(articleId)
+    try {
+      const article = articles.find((a) => a.news_id === articleId)
+      if (!article) return
+
+      const response = await fetch("/api/generate-article-summary", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          articleContent: article.news_content || article.news_summary,
+          prompt:
+            "Generate a concise, professional summary focusing on key ESG-related aspects and main points. Include key deadlines, dates, and the issuing authority.",
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to regenerate article summary")
+      }
+
+      const data = await response.json()
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      handleArticleUpdate(articleId, {
+        news_summary: data.summary,
+      })
+    } catch (error) {
+      console.error("Error regenerating article summary:", error)
+    } finally {
+      setRegeneratingArticle(null)
+    }
+  }
+
+  const formatBoldText = (text: string) => {
+    if (!text) return ""
+
+    const sentences = text.split(/(?<=[.!?])\s+/)
+
+    return (
+      <div className="text-justify leading-relaxed">
+        {sentences.map((sentence, index) => {
+          const formattedSentence = sentence.split(/(\*\*.*?\*\*|\*.*?\*)/g).map((part, partIndex) => {
+            if (part.startsWith("**") && part.endsWith("**")) {
+              const boldText = part.slice(2, -2)
+              return (
+                <strong key={partIndex} className="font-bold">
+                  {boldText}
+                </strong>
+              )
+            } else if (part.startsWith("*") && part.endsWith("*") && part.length > 1) {
+              const italicText = part.slice(1, -1)
+              return (
+                <em key={partIndex} className="italic">
+                  {italicText}
+                </em>
+              )
+            }
+            return part
+          })
+
+          if (index === 0) {
+            return (
+              <span key={index} className="inline-block">
+                <span className="inline-block w-8">{"\u00A0"}</span>
+                {formattedSentence}
+              </span>
+            )
+          }
+
+          return <span key={index}> {formattedSentence}</span>
+        })}
+      </div>
+    )
+  }
+
+  const getArticlesByJurisdiction = (jurisdiction: string) => {
+    return articles.filter((article) => {
+      if (!article.jurisdictions || article.jurisdictions.length === 0) {
+        return jurisdiction === "GLOBAL"
+      }
+
+      return article.jurisdictions.some((j) => {
+        const jName = j.name?.toLowerCase() || ""
+        const jCode = j.code?.toLowerCase() || ""
+
+        switch (jurisdiction.toUpperCase()) {
+          case "EU":
+            return (
+              jName.includes("eu") || jName.includes("europe") || jName.includes("european") || jCode.includes("eu")
+            )
+          case "US":
+            return (
+              jName.includes("us") ||
+              jName.includes("united states") ||
+              jName.includes("america") ||
+              jCode.includes("us")
+            )
+          case "GLOBAL":
+            return !(
+              jName.includes("eu") ||
+              jName.includes("europe") ||
+              jName.includes("us") ||
+              jName.includes("united states")
+            )
+          default:
+            return jName.includes(jurisdiction.toLowerCase()) || jCode.includes(jurisdiction.toLowerCase())
+        }
+      })
+    })
+  }
+
+  const handleDownloadPDF = () => {
+    window.print()
+  }
+
+  const getMapCountries = () => {
+    const countrySet = new Set<string>()
+
+    articles.forEach((article) => {
+      article.jurisdictions?.forEach((jurisdiction) => {
+        const countryName = jurisdiction.name
+        if (countryName && countryName !== "International") {
+          countrySet.add(countryName)
+        }
+      })
+    })
+
+    return Array.from(countrySet)
+  }
+
+  const mapCountries = getMapCountries()
+
+  const handleMappingConfirm = (mappings: Record<string, string>) => {
+    setCountryMappings(mappings)
+    setShowMappingModal(false)
+  }
+
+  // Direct image upload handler for article images only
+  const handleArticleImageUpload = (articleId: string, file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      handleArticleUpdate(articleId, { imageUrl: result })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const renderEditableText = (content: string, sectionId: string, placeholder: string, rows = 4) => {
+    if (isEditing === sectionId) {
+      return (
+        <div className="space-y-3">
+          <textarea
+            value={content}
+            onChange={(e) => {
+              const section = sectionId.split("-")[0]
+              const field = sectionId.split("-")[1]
+              handleContentChange(section, field, e.target.value)
+            }}
+            rows={rows}
+            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            placeholder={placeholder}
+          />
+          <div className="flex gap-2">
+            <Button
+              onClick={() => handleSave(sectionId)}
+              className="bg-green-600 hover:bg-green-700 text-white text-sm"
+            >
+              Save
+            </Button>
+            <Button onClick={() => setIsEditing(null)} variant="outline" className="text-sm">
+              Cancel
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Use <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+B</kbd> for bold,{" "}
+            <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+I</kbd> for italic.
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="group relative">
+        <div className="text-justify leading-relaxed whitespace-pre-wrap">{formatBoldText(content)}</div>
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+          <Button
+            onClick={() => handleEditToggle(sectionId)}
+            variant="outline"
+            size="sm"
+            className="bg-white/90 hover:bg-white"
+          >
+            Edit
+          </Button>
+          <Button
+            onClick={() => handleRegenerate(sectionId)}
+            disabled={isRegenerating === sectionId}
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {isRegenerating === sectionId ? "Regenerating..." : "Regenerate"}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const renderEditableTitle = (title: string, sectionId: string, placeholder: string) => {
+    if (isEditing === sectionId) {
+      return (
+        <div className="space-y-3">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => {
+              const section = sectionId.split("-")[0]
+              const field = sectionId.split("-")[1]
+              handleContentChange(section, field, e.target.value)
+            }}
+            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-3xl font-bold"
+            placeholder={placeholder}
+          />
+          <div className="flex gap-2">
+            <Button
+              onClick={() => handleSave(sectionId)}
+              className="bg-green-600 hover:bg-green-700 text-white text-sm"
+            >
+              Save
+            </Button>
+            <Button onClick={() => setIsEditing(null)} variant="outline" className="text-sm">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="group relative mb-8">
+        <h2 className="text-5xl lg:text-6xl font-black mb-4 text-gray-900 border-b-4 pb-4 print:text-4xl print:mb-3 tracking-tight leading-tight">
+          {title || placeholder}
+        </h2>
+        <div className="absolute top-4 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+          <Button
+            onClick={() => handleEditToggle(sectionId)}
+            variant="outline"
+            size="sm"
+            className="bg-white/90 hover:bg-white"
+          >
+            Edit
+          </Button>
+          <Button
+            onClick={() => handleRegenerate(sectionId)}
+            disabled={isRegenerating === sectionId}
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {isRegenerating === sectionId ? "Regenerating..." : "Regenerate"}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const renderArticle = (article: any) => {
+    const currentArticle = articles.find((a) => a.news_id === article.news_id) || article
+
+    // Handler for removing article image
+    const handleRemoveArticleImage = (articleId: string) => {
+      handleArticleUpdate(articleId, { imageUrl: "" })
+    }
+
+    return (
+      <div
+        key={currentArticle.news_id}
+        className="border-l-4 pl-6 py-2 group relative"
+        style={{ borderColor: themeColors[theme] }}
+      >
+        {/* Edit/Regenerate buttons - shown on hover */}
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 print:hidden">
+          <Button
+            onClick={() => {
+              setEditingArticle(currentArticle)
+              setShowArticleEditModal(true)
+            }}
+            variant="outline"
+            size="sm"
+            className="bg-white/90 hover:bg-white"
+          >
+            Edit
+          </Button>
+          <Button
+            onClick={() => handleRegenerateArticle(currentArticle.news_id)}
+            disabled={regeneratingArticle === currentArticle.news_id}
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {regeneratingArticle === currentArticle.news_id ? "Regenerating..." : "Regenerate"}
+          </Button>
+        </div>
+
+        <div className="flex items-start gap-3 mb-2 print:mb-1">
+          <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
+            {currentArticle.jurisdictions?.[0]?.code || "GLOBAL"}
+          </span>
+        </div>
+        <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{currentArticle.news_title}</h3>
+
+        {/* Article Image - Using the new component with remove functionality */}
+        <ArticleImageDisplay
+          imageUrl={currentArticle.imageUrl}
+          alt={currentArticle.news_title}
+          onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+          editable={true}
+        />
+
+        <div className="text-gray-700 mb-4 print:text-sm">{formatBoldText(currentArticle.news_summary)}</div>
+
+        {/* Source Information - Use currentArticle instead of article */}
+        {currentArticle.source && currentArticle.source.length > 0 && (
+          <div className="mb-3 print:mb-2">
+            <div className="text-sm text-gray-600 print:text-xs">
+              <strong>Source:</strong>{" "}
+              {currentArticle.source[0].source_url ? (
+                <a
+                  href={currentArticle.source[0].source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
+                >
+                  {currentArticle.source[0].source_url || "Original Source"}
+                </a>
+              ) : (
+                <span>{currentArticle.source[0].source_alias || "Original Source"}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="text-sm text-gray-500 print:text-xs">Published: {formatDate(currentArticle.published_at)}</div>
+      </div>
+    )
+  }
+
+  const renderRegionalSection = (region: "euSection" | "usSection" | "globalSection") => {
+    const sectionConfig = safeBulletinConfig[region]
+    const sectionContent = editableContent[region]
+
+    let regionalArticles = []
+    switch (region) {
+      case "euSection":
+        regionalArticles = getArticlesByJurisdiction("EU")
+        break
+      case "usSection":
+        regionalArticles = getArticlesByJurisdiction("US")
+        break
+      case "globalSection":
+        regionalArticles = getArticlesByJurisdiction("GLOBAL")
+        break
+    }
+
+    const hasContent =
+      sectionContent.title ||
+      sectionContent.introduction ||
+      sectionContent.trends ||
+      regionalArticles.length > 0 ||
+      sectionConfig.enabled
+
+    if (!hasContent) return null
+
+    const sectionHeaders = {
+      euSection: "European Union Regulatory Developments",
+      usSection: "United States Regulatory Developments",
+      globalSection: "Global Regulatory Developments",
+    }
+
+    return (
+      <section className="print:min-h-[calc(29.7cm-2cm)] print:break-after-page mb-16">
+        {(sectionContent.title || regionalArticles.length > 0) &&
+          renderEditableTitle(sectionContent.title, `${region}-title`, sectionHeaders[region])}
+
+        {sectionContent.introduction && (
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-8 rounded-xl border-l-8 border-purple-500 mb-8 print:p-4 print:mb-6">
+            {renderEditableText(sectionContent.introduction, `${region}-introduction`, "Section introduction...", 4)}
+          </div>
+        )}
+
+        {sectionContent.trends && (
+          <div className="mb-8 print:mb-6">
+            <h3 className="text-3xl font-black mb-4 text-gray-800 print:text-xl print:mb-3 tracking-tight">
+              {region.replace("Section", "")} Key Trends
+            </h3>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-8 rounded-xl border-l-8 border-green-500 print:p-4">
+              {renderEditableText(sectionContent.trends, `${region}-trends`, "Regional trends...", 6)}
+            </div>
+          </div>
+        )}
+
+        {regionalArticles.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:gap-6">{regionalArticles.map(renderArticle)}</div>
+        )}
+      </section>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Controls */}
-        <div className="flex justify-center gap-4 mb-8 print:hidden">
-          <Button
-            onClick={onStartOver}
-            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg"
-          >
-            Create New Bulletin
+    <>
+      <CountryMappingModal
+        isOpen={showMappingModal}
+        onClose={() => setShowMappingModal(false)}
+        onConfirm={handleMappingConfirm}
+        countries={mapCountries}
+        primaryColor={themeColors[theme]}
+        articlesByCountry={articlesByCountry}
+      />
+
+      <HeaderEditModal
+        isOpen={showHeaderEditModal}
+        onClose={() => setShowHeaderEditModal(false)}
+        onSave={handleHeaderSave}
+        currentData={{
+          headerText: editableContent.headerText,
+          issueNumber: editableContent.issueNumber,
+          publicationDate: editableContent.publicationDate,
+          headerImage: editableContent.headerImage,
+          publisherLogo: editableContent.publisherLogo,
+        }}
+      />
+
+      {editingArticle && (
+        <ArticleEditModal
+          isOpen={showArticleEditModal}
+          onClose={() => setShowArticleEditModal(false)}
+          onSave={handleArticleUpdate}
+          article={editingArticle}
+        />
+      )}
+
+      <div className="container mx-auto px-4 py-8 print:p-0 print:m-0">
+        <div className="flex justify-between items-center mb-8 print:hidden">
+          <Button onClick={onStartOver} variant="outline" className="print:hidden bg-transparent">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 mr-2"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 19V2m0 0H5.18C4.08 2 3 2.94 3 4.04V12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7.82"></path>
+              <path d="M12 19l-7-7 7-7"></path>
+            </svg>
+            Start Over
           </Button>
-          <Button
-            onClick={handleDownloadPDF}
-            className="text-white font-bold py-2 px-6 rounded-lg"
-            style={{ backgroundColor: themeColors[data.theme] }}
-          >
-            Download PDF
-          </Button>
+          <div className="flex gap-3">
+            <Button onClick={() => setShowHeaderEditModal(true)} variant="outline">
+              Edit Header
+            </Button>
+            <Button onClick={handleDownloadPDF} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 mr-2"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 17.5v-10"></path>
+                <path d="m8 10 4 4 4-4"></path>
+                <path d="M7 22h10"></path>
+              </svg>
+              Download PDF
+            </Button>
+          </div>
         </div>
 
-        {/* Magazine-Style Bulletin */}
-        <div ref={bulletinRef} className="bg-white shadow-lg rounded-lg overflow-hidden">
-          {/* HEADER SECTION */}
-          <div
-            className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-12 text-center border-b-4"
-            style={{ borderColor: themeColors[data.theme] }}
-          >
-            <h1 className="text-5xl font-bold mb-2 tracking-tight">{editableContent.headerText}</h1>
-            <div className="flex justify-center items-center gap-4 mt-6 text-lg">
-              <span className="font-semibold">{editableContent.issueNumber}</span>
-              <span className="text-gray-400">|</span>
-              <span>{editableContent.publicationDate}</span>
-            </div>
+        {/* Header Section */}
+        <header className="mb-16 print:mb-8 text-center relative">
+          <div className="absolute top-4 right-4 print:hidden">
+            {editableContent.headerImage && (
+              <button
+                onClick={() => handleContentChange("headerImage", "", "")}
+                className="text-red-500 hover:text-red-700 font-medium text-sm underline"
+              >
+                Remove Header Image
+              </button>
+            )}
           </div>
-
-          {/* GREETING MESSAGE */}
-          {editableContent.greetingMessage && (
-            <div className="p-12 bg-gradient-to-r from-blue-50 to-gray-50 border-b">
-              <p className="text-gray-700 text-lg leading-relaxed text-justify">{editableContent.greetingMessage}</p>
+          {editableContent.headerImage && (
+            <div className="w-full h-96 overflow-hidden relative print:h-48">
+              <img
+                src={editableContent.headerImage || "/placeholder.svg"}
+                alt="Header Background"
+                className="w-full h-full object-cover filter blur-sm brightness-75"
+              />
             </div>
           )}
-
-          {/* GLOBAL COVERAGE MAP */}
-          <div className="p-12 border-b">
-            <h2 className="text-3xl font-bold mb-8 text-gray-900">Global Coverage Map</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              {Object.entries(data.articlesByCountry).map(([country, articles]) => (
-                <div key={country} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div className="text-2xl mb-2">{regionEmojis[country] || "🌐"}</div>
-                  <div className="font-bold text-gray-900">{regionLabels[country] || country}</div>
-                  <div className="text-sm text-gray-600">{country}</div>
-                  <div className="text-xs text-gray-500 mt-2">
-                    {articles.length} article{articles.length !== 1 ? "s" : ""}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ARTICLES BY REGION */}
-          <div className="p-12">
-            {Object.entries(data.articlesByCountry).map(([country, articles], regionIndex) => (
-              <div key={country} className="mb-12">
-                {/* Region Header */}
-                <div
-                  className="flex items-center gap-3 mb-8 pb-4 border-b-2"
-                  style={{ borderColor: themeColors[data.theme] }}
-                >
-                  <span className="text-3xl">{regionEmojis[country] || "🌐"}</span>
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">{country}</h3>
-                    <p className="text-sm text-gray-600">Regional Developments</p>
-                  </div>
-                </div>
-
-                {/* Articles Grid */}
-                <div className="space-y-8">
-                  {(articles as any[]).map((article, idx) => (
-                    <div key={idx} className="border-l-4 pl-6" style={{ borderColor: themeColors[data.theme] }}>
-                      {/* Article Header */}
-                      <div className="mb-3">
-                        <h4 className="text-xl font-bold text-gray-900 mb-2">
-                          {article.news_title || article.original_title}
-                        </h4>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span className="font-semibold">{regionLabels[country] || country}</span>
-                          <span>•</span>
-                          <span>
-                            {new Date(article.published_at).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Article Summary */}
-                      <p className="text-gray-700 leading-relaxed mb-3">
-                        {article.news_summary || article.news_content?.substring(0, 300) + "..."}
-                      </p>
-
-                      {/* Article Content */}
-                      {article.news_content && (
-                        <div className="text-gray-600 text-sm leading-relaxed">
-                          {article.news_content.substring(0, 500)}
-                          {article.news_content.length > 500 && "..."}
-                        </div>
-                      )}
-
-                      {/* Source */}
-                      {article.type && (
-                        <div className="mt-3 text-xs text-gray-500">
-                          <span className="inline-block bg-gray-100 px-3 py-1 rounded">{article.type}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* FOOTER */}
           <div
-            className="bg-gray-900 text-white p-12 text-center border-t-4"
-            style={{ borderColor: themeColors[data.theme] }}
+            className={`absolute inset-0 flex flex-col items-center justify-center px-4 ${editableContent.headerImage ? "" : "py-16"}`}
           >
-            <div className="flex justify-center gap-8 mb-6 text-lg">
-              <span>info@example.com</span>
-              <span>•</span>
-              <span>Subscribe</span>
-              <span>•</span>
-              <span>About</span>
+            <div className="relative group w-full">
+              <h1 className="text-5xl lg:text-6xl font-black mb-4 text-white print:text-4xl print:mb-3 tracking-tight leading-tight">
+                {editableContent.headerText || "Bulletin Header"}
+              </h1>
+              <div className="absolute top-1/2 -translate-y-1/2 -right-8 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 print:hidden">
+                <Button
+                  onClick={() => setShowHeaderEditModal(true)}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/90 hover:bg-white"
+                >
+                  Edit
+                </Button>
+              </div>
             </div>
-            <p className="text-gray-400 text-sm">
-              Generated on {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-            </p>
+            <div className="text-lg text-white print:text-base print:mt-2">
+              Issue {editableContent.issueNumber || "#N/A"} | Published{" "}
+              {formatConfigDate(editableContent.publicationDate)}
+            </div>
+            {editableContent.publisherLogo && (
+              <div className="mt-6 print:mt-4">
+                <img
+                  src={editableContent.publisherLogo || "/placeholder.svg"}
+                  alt="Publisher Logo"
+                  className="h-16 print:h-10"
+                />
+              </div>
+            )}
           </div>
-        </div>
-      </div>
+        </header>
 
-      {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          body {
-            background: white;
-            margin: 0;
-            padding: 0;
-          }
-          
-          .print\\:hidden {
-            display: none !important;
-          }
-          
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
-        }
-      `}</style>
-    </div>
+        <main>
+          {/* Greeting Message */}
+          {editableContent.greetingMessage && (
+            <section className="mb-12 print:mb-6">
+              <div className="text-justify leading-relaxed whitespace-pre-wrap text-lg text-gray-700 print:text-base">
+                {formatBoldText(editableContent.greetingMessage)}
+              </div>
+            </section>
+          )}
+
+          {/* Key Trends, Executive Summary, Key Takeaways */}
+          {(safeBulletinConfig.keyTrends || safeBulletinConfig.executiveSummary || safeBulletinConfig.keyTakeaways) && (
+            <section className="mb-12 print:mb-6 grid grid-cols-1 lg:grid-cols-3 gap-8 print:gap-4">
+              {safeBulletinConfig.keyTrends && (
+                <div className="bg-gray-50 p-6 rounded-lg border-l-4 border-blue-500 print:p-4">
+                  <h3 className="text-2xl font-bold mb-3 text-blue-800 print:text-xl">Key Trends</h3>
+                  {renderEditableText(editableContent.keyTrends, "keyTrends", "Key trends content...")}
+                </div>
+              )}
+              {safeBulletinConfig.executiveSummary && (
+                <div className="bg-gray-50 p-6 rounded-lg border-l-4 border-green-500 print:p-4">
+                  <h3 className="text-2xl font-bold mb-3 text-green-800 print:text-xl">Executive Summary</h3>
+                  {renderEditableText(
+                    editableContent.executiveSummary,
+                    "executiveSummary",
+                    "Executive summary content...",
+                  )}
+                </div>
+              )}
+              {safeBulletinConfig.keyTakeaways && (
+                <div className="bg-gray-50 p-6 rounded-lg border-l-4 border-red-500 print:p-4">
+                  <h3 className="text-2xl font-bold mb-3 text-red-800 print:text-xl">Key Takeaways</h3>
+                  {renderEditableText(editableContent.keyTakeaways, "keyTakeaways", "Key takeaways content...")}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Interactive Map */}
+          {safeBulletinConfig.interactiveMap && mapCountries.length > 0 && (
+            <section className="mb-12 print:mb-6">
+              <h2 className="text-4xl font-black mb-6 text-center text-gray-900 print:text-3xl print:mb-4">
+                Global Coverage
+              </h2>
+              <WorldMap countryMappings={countryMappings} primaryColor={themeColors[theme]} />
+            </section>
+          )}
+
+          {/* EU Section */}
+          {renderRegionalSection("euSection")}
+
+          {/* US Section */}
+          {renderRegionalSection("usSection")}
+
+          {/* Global Section */}
+          {renderRegionalSection("globalSection")}
+        </main>
+
+        {/* Footer */}
+        <footer className="mt-16 pt-8 border-t print:mt-4 print:pt-2 print:border-t-2">
+          {editableContent.footerImage && (
+            <div className="w-full mb-4 print:mb-2">
+              <img
+                src={editableContent.footerImage || "/placeholder.svg"}
+                alt="Footer Image"
+                className="w-full h-auto object-cover"
+              />
+            </div>
+          )}
+          <p className="text-center text-sm text-gray-500 print:text-xs">
+            © {new Date().getFullYear()} [Your Company Name]. All rights reserved.
+          </p>
+        </footer>
+      </div>
+    </>
   )
 }
