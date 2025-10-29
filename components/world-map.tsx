@@ -147,146 +147,23 @@ const SPECIAL_MARKER_POSITIONS: Record<string, [number, number]> = {
   "EU": [10, 50],
 }
 
-// Enhanced function to generate more diverse color shades
-const getThemeColorShades = (primaryColor: string, count: number): string[] => {
-  if (count === 0) return [primaryColor]
-
-  // Convert hex to RGB
-  const hex = primaryColor.replace('#', '')
-  const r = parseInt(hex.substring(0, 2), 16)
-  const g = parseInt(hex.substring(2, 4), 16)
-  const b = parseInt(hex.substring(4, 6), 16)
-
-  const shades: string[] = []
-
-  // Generate base shades with different strategies
-  for (let i = 0; i < count; i++) {
-    const progress = i / Math.max(count - 1, 1)
-
-    // Use multiple strategies to create diverse shades
-    let newR, newG, newB
-
-    if (count <= 8) {
-      // For smaller counts, use brightness-based variations
-      const brightness = 0.3 + (progress * 0.6) // 30% to 90% brightness
-      newR = Math.min(255, Math.floor(r * brightness))
-      newG = Math.min(255, Math.floor(g * brightness))
-      newB = Math.min(255, Math.floor(b * brightness))
-    } else {
-      // For larger counts, use more complex variations
-      const angle = (i * 137.5) % 360 // Golden angle for distribution
-      const saturationShift = Math.sin(angle * Math.PI / 180) * 0.2
-
-      // Vary brightness non-linearly for better distribution
-      const brightness = 0.25 + (progress * 0.7) // 25% to 95% brightness
-
-      // Apply slight hue shifts for more variety
-      const hueShift = Math.sin(progress * Math.PI * 2) * 0.1
-
-      // Convert to HSL for better color manipulation
-      const max = Math.max(r, g, b)
-      const min = Math.min(r, g, b)
-      let h = 0, s, l = (max + min) / 2
-
-      if (max !== min) {
-        const d = max - min
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-        switch (max) {
-          case r: h = (g - b) / d + (g < b ? 6 : 0); break
-          case g: h = (b - r) / d + 2; break
-          case b: h = (r - g) / d + 4; break
-        }
-        h /= 6
-      } else {
-        s = 0
-        h = 0
-      }
-
-      // Apply shifts
-      h = (h + hueShift) % 1
-      s = Math.max(0, Math.min(1, s + saturationShift))
-      l = brightness
-
-      // Convert back to RGB
-      const hue2rgb = (p: number, q: number, t: number) => {
-        if (t < 0) t += 1
-        if (t > 1) t -= 1
-        if (t < 1 / 6) return p + (q - p) * 6 * t
-        if (t < 1 / 2) return q
-        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
-        return p
-      }
-
-      if (s === 0) {
-        newR = newG = newB = Math.floor(l * 255)
-      } else {
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s
-        const p = 2 * l - q
-        newR = Math.floor(hue2rgb(p, q, h + 1 / 3) * 255)
-        newG = Math.floor(hue2rgb(p, q, h) * 255)
-        newB = Math.floor(hue2rgb(p, q, h - 1 / 3) * 255)
-      }
-    }
-
-    // Ensure values are within bounds
-    newR = Math.max(0, Math.min(255, newR))
-    newG = Math.max(0, Math.min(255, newG))
-    newB = Math.max(0, Math.min(255, newB))
-
-    shades.push(`rgb(${newR}, ${newG}, ${newB})`)
+// Three-color theme system
+const THEME_SHADES = {
+  blue: {
+    world: "#90CAF9",    // Darker than before but lighter than region
+    region: "#64B5F6",   // Medium Blue
+    country: "#1565C0",  // Dark Blue
+  },
+  green: {
+    world: "#A5D6A7",    // Darker than before but lighter than region
+    region: "#66BB6A",   // Medium Green
+    country: "#1B5E20",  // Dark Green
+  },
+  red: {
+    world: "#EF9A9A",    // Darker than before but lighter than region
+    region: "#EF5350",   // Medium Red
+    country: "#B71C1C",  // Dark Red
   }
-
-  // Sort shades by brightness for better visual progression
-  shades.sort((a, b) => {
-    const getBrightness = (color: string) => {
-      const match = color.match(/rgb\((\d+), (\d+), (\d+)\)/)
-      if (!match) return 0
-      const r = parseInt(match[1]), g = parseInt(match[2]), b = parseInt(match[3])
-      return (r * 299 + g * 587 + b * 114) / 1000
-    }
-    return getBrightness(a) - getBrightness(b)
-  })
-
-  return shades
-}
-
-// Alternative: Predefined extensive shade palettes for each theme as fallback
-const THEME_PALETTES = {
-  blue: [
-    "#E3F2FD", "#BBDEFB", "#90CAF9", "#64B5F6", "#42A5F5", "#2196F3", "#1E88E5",
-    "#1976D2", "#1565C0", "#0D47A1", "#082E5C", "#051A30", "#003366", "#00264D",
-    "#001A33", "#000D1A", "#82B1FF", "#448AFF", "#2979FF", "#2962FF", "#304FFE",
-    "#3D5AFE", "#536DFE", "#5C6BC0", "#3949AB", "#283593", "#1A237E", "#8C9EFF"
-  ],
-  green: [
-    "#E8F5E8", "#C8E6C9", "#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#43A047",
-    "#388E3C", "#2E7D32", "#1B5E20", "#0A3D0A", "#052905", "#004D00", "#003300",
-    "#002200", "#001100", "#A5D6A7", "#81C784", "#4CAF50", "#43A047", "#2E7D32",
-    "#1B5E20", "#8BC34A", "#7CB342", "#689F38", "#558B2F", "#33691E", "#9CCC65"
-  ],
-  red: [
-    "#FFEBEE", "#FFCDD2", "#EF9A9A", "#E57373", "#EF5350", "#F44336", "#E53935",
-    "#D32F2F", "#C62828", "#B71C1C", "#7A0F0F", "#520A0A", "#330000", "#260000",
-    "#1A0000", "#0D0000", "#FF8A80", "#FF5252", "#FF1744", "#D50000", "#FF6B6B",
-    "#FF4757", "#FF3838", "#FF2D2D", "#FF1A1A", "#CC0000", "#B30000", "#FF9A9A"
-  ]
-}
-
-// Enhanced function with fallback to predefined palettes
-const getEnhancedThemeColorShades = (primaryColor: string, count: number, theme: "blue" | "green" | "red" = "blue"): string[] => {
-  // For large counts, use predefined palettes to ensure good variety
-  if (count > 15) {
-    const palette = THEME_PALETTES[theme]
-    // If we need more colors than available, cycle through the palette
-    const shades: string[] = []
-    for (let i = 0; i < count; i++) {
-      shades.push(palette[i % palette.length])
-    }
-    return shades
-  }
-
-  // For smaller counts, use the algorithmic approach
-  return getThemeColorShades(primaryColor, count)
 }
 
 // Fallback coordinates for all major countries
@@ -490,47 +367,35 @@ export function WorldMap({
     )
   }, [countries, articlesByCountry])
 
-  // Separate "World" from other countries to ensure it always gets the lightest color
-  const { worldCountries, otherCountries } = useMemo(() => {
+  // Categorize countries into World, Region, and Country levels
+  const { worldCountries, regionCountries, countryCountries } = useMemo(() => {
     const worldCountries = countriesWithArticles.filter(country => 
       SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] === "ALL"
     )
-    const otherCountries = countriesWithArticles.filter(country => 
-      SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] !== "ALL"
+    
+    const regionCountries = countriesWithArticles.filter(country => 
+      SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] && 
+      SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] !== "ALL" &&
+      !worldCountries.includes(country)
     )
-    return { worldCountries, otherCountries }
+    
+    const countryCountries = countriesWithArticles.filter(country => 
+      !worldCountries.includes(country) && !regionCountries.includes(country)
+    )
+
+    return { worldCountries, regionCountries, countryCountries }
   }, [countriesWithArticles])
 
-  // Generate theme-based color shades with enhanced variety
-  const themeColors = useMemo(() => {
-    const otherColors = getEnhancedThemeColorShades(primaryColor, Math.max(otherCountries.length, 1), theme)
+  // Get the appropriate color based on country type
+  const getCountryColor = (country: string): string => {
+    const shades = THEME_SHADES[theme]
     
-    // For world countries, always use the lightest available color from the palette
-    const worldColors = worldCountries.map(() => {
-      // Get the lightest color from the theme palette
-      const lightestColor = THEME_PALETTES[theme]?.[0] || 
-        (theme === "green" ? "#E8F5E8" : 
-         theme === "red" ? "#FFEBEE" : "#E3F2FD")
-      return lightestColor
-    })
-
-    // Combine colors: world colors first (lightest), then other colors
-    return [...worldColors, ...otherColors]
-  }, [primaryColor, worldCountries.length, otherCountries.length, theme])
-
-  // Function to get a color for a country based on its index
-  const getCountryColor = (country: string, index: number): string => {
-    // Check if this is a world country
-    const isWorldCountry = worldCountries.includes(country)
-    
-    if (isWorldCountry) {
-      // World countries get the first colors in the array (lightest)
-      const worldIndex = worldCountries.indexOf(country)
-      return themeColors[worldIndex]
+    if (worldCountries.includes(country)) {
+      return shades.world
+    } else if (regionCountries.includes(country)) {
+      return shades.region
     } else {
-      // Other countries get colors after the world countries
-      const otherIndex = otherCountries.indexOf(country)
-      return themeColors[worldCountries.length + otherIndex]
+      return shades.country
     }
   }
 
@@ -576,8 +441,8 @@ export function WorldMap({
 
   // Generate legend items with letters - ONLY for countries with articles
   const legendItems = useMemo(() => {
-    // Sort countries to ensure world countries come first
-    const sortedCountries = [...worldCountries, ...otherCountries]
+    // Sort countries by type: World first, then Regions, then Countries
+    const sortedCountries = [...worldCountries, ...regionCountries, ...countryCountries]
     
     return sortedCountries.map((country, index) => ({
       country,
@@ -585,9 +450,11 @@ export function WorldMap({
       articles: articlesByCountry[country] || [],
       isMapped: true,
       isSpecialCase: !!SPECIAL_CASES[country as keyof typeof SPECIAL_CASES],
-      color: getCountryColor(country, index),
+      color: getCountryColor(country),
+      type: worldCountries.includes(country) ? "world" : 
+            regionCountries.includes(country) ? "region" : "country"
     }))
-  }, [worldCountries, otherCountries, articlesByCountry, getCountryColor])
+  }, [worldCountries, regionCountries, countryCountries, articlesByCountry, getCountryColor])
 
   // Get all mapped geographic countries for highlighting - use normalized names
   const mappedGeoCountries = useMemo(() => {
@@ -632,8 +499,7 @@ export function WorldMap({
     )?.[0]
 
     if (explicitLegendCountry) {
-      const legendItem = legendItems.find(item => item.country === explicitLegendCountry)
-      return legendItem?.color || primaryColor
+      return getCountryColor(explicitLegendCountry)
     }
 
     // Check if this is part of a special case mapping (like EU)
@@ -642,16 +508,13 @@ export function WorldMap({
     )?.[0]
 
     if (specialCase) {
-      const legendItem = legendItems.find(item => item.country === specialCase)
-      return legendItem?.color || primaryColor
+      return getCountryColor(specialCase)
     }
 
     // If we have global coverage and no specific mapping, use the world country's color
     if (hasGlobalCoverage) {
-      const worldCountry = legendItems.find(item =>
-        autoMappedCountries[item.country]?.[0] === "ALL"
-      )
-      return worldCountry?.color || primaryColor
+      const worldCountry = worldCountries[0]
+      return worldCountry ? getCountryColor(worldCountry) : THEME_SHADES[theme].world
     }
 
     // Default color for unmapped countries
@@ -678,7 +541,7 @@ export function WorldMap({
 
   // Get all markers that should be displayed
   const getVisibleMarkers = () => {
-    const markers: { key: string; coordinates: [number, number]; item: { country: string; letter: string; articles: any[]; isMapped: boolean; isSpecialCase: boolean; color: string } }[] = []
+    const markers: { key: string; coordinates: [number, number]; item: any }[] = []
 
     legendItems.forEach((item) => {
       // For global special cases (World/International), use predefined positions
@@ -873,7 +736,7 @@ export function WorldMap({
               </p>
             )}
             <p className="text-xs mt-1">
-              Auto-mapped: {Object.keys(autoMappedCountries).join(", ")}
+              World: {worldCountries.length}, Regions: {regionCountries.length}, Countries: {countryCountries.length}
             </p>
           </div>
         )}
@@ -882,7 +745,6 @@ export function WorldMap({
       {/* Legend Section */}
       {showLegend && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-       
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {legendItems.map((item) => (
               <div
@@ -905,6 +767,9 @@ export function WorldMap({
                       <h4 className="font-medium text-gray-900 text-base">
                         {item.letter}. {item.country}
                       </h4>
+                      <span className="ml-2 px-2 py-1 text-xs rounded-full bg-gray-200 text-gray-700 capitalize">
+                        {item.type}
+                      </span>
                     </div>
                   </div>
 

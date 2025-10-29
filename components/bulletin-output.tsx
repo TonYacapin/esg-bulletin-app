@@ -178,10 +178,10 @@ interface DragDropImageUploadProps {
   showRemoveButton?: boolean
 }
 
-function DragDropImageUpload({ 
-  onImageUpload, 
+function DragDropImageUpload({
+  onImageUpload,
   onRemoveImage,
-  currentImage, 
+  currentImage,
   placeholder = "Drag & drop an image here or click to browse",
   className = "",
   disabled = false,
@@ -212,7 +212,7 @@ function DragDropImageUpload({
     if (disabled) return
     e.preventDefault()
     setIsDragging(false)
-    
+
     const files = e.dataTransfer.files
     if (files.length > 0) {
       const file = files[0]
@@ -330,7 +330,7 @@ function DragDropImageUpload({
         onChange={handleFileInput}
         className="hidden"
       />
-      
+
       {previewUrl ? (
         <div className="space-y-2 relative">
           <div className="w-full aspect-square max-w-xs mx-auto">
@@ -385,10 +385,10 @@ interface ArticleImageDisplayProps {
   className?: string
 }
 
-function ArticleImageDisplay({ 
-  imageUrl, 
-  alt, 
-  onImageUpload, 
+function ArticleImageDisplay({
+  imageUrl,
+  alt,
+  onImageUpload,
   onRemoveImage,
   editable = true,
   className = ""
@@ -660,16 +660,16 @@ function ArticleEditModal({
     try {
       setLoadingSource(true)
       setSourceError(null)
-      
+
       const response = await fetch(`/api/internal/news/${newsId}/details`)
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
       }
 
       const data = await response.json()
-      
+
       // Update the source fields with the fetched data
       if (data.data?.source?.[0]) {
         setEditedArticle(prev => ({
@@ -703,7 +703,7 @@ function ArticleEditModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Prepare the updated source array
     const updatedSource = [{
       id: article.source?.[0]?.id,
@@ -735,7 +735,7 @@ function ArticleEditModal({
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
     const selectedText = text.substring(start, end)
-    
+
     if (!selectedText) return text
 
     let formattedText = ''
@@ -746,7 +746,7 @@ function ArticleEditModal({
     }
 
     const newText = text.substring(0, start) + formattedText + text.substring(end)
-    
+
     setTimeout(() => {
       textarea.selectionStart = start + formattedText.length
       textarea.selectionEnd = start + formattedText.length
@@ -847,7 +847,7 @@ function ArticleEditModal({
                 <span className="ml-2 text-xs text-blue-600">Loading source data...</span>
               )}
             </label>
-            
+
             {sourceError && (
               <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-sm text-red-800">
@@ -862,7 +862,7 @@ function ArticleEditModal({
                 </button>
               </div>
             )}
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-gray-600 mb-1">
@@ -889,7 +889,7 @@ function ArticleEditModal({
                 />
               </div>
             </div>
-            
+
             {!editedArticle.source_alias && !editedArticle.source_url && !loadingSource && (
               <p className="mt-2 text-xs text-gray-500">
                 Source information will be automatically loaded if available.
@@ -946,7 +946,7 @@ function ArticleEditModal({
 
 export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const { theme, articles: initialArticles, articlesByCountry, bulletinConfig } = data
-  
+
   // Create a safe bulletin config with fallbacks
   const safeBulletinConfig = bulletinConfig || {
     headerText: "ESG DISCLOSURE & REPORTING BULLETIN",
@@ -1024,22 +1024,22 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   // Automatically fetch source data for all articles on initial load
   useEffect(() => {
     const fetchMissingSources = async () => {
-      const articlesNeedingSource = articles.filter(article => 
+      const articlesNeedingSource = articles.filter(article =>
         article.news_id && (!article.source || article.source.length === 0 || !article.source[0]?.source_alias)
       );
 
       if (articlesNeedingSource.length === 0) return;
 
       setLoadingSources(true);
-      
+
       try {
         for (const article of articlesNeedingSource) {
           try {
             const response = await fetch(`/api/internal/news/${article.news_id}/details`);
-            
+
             if (response.ok) {
               const data = await response.json();
-              
+
               if (data.data?.source?.[0]) {
                 handleArticleUpdate(article.news_id, {
                   source: [{
@@ -1095,9 +1095,9 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   }
 
   const handleArticleUpdate = (articleId: string, updatedArticle: any) => {
-    setArticles(prev => 
-      prev.map(article => 
-        article.news_id === articleId 
+    setArticles(prev =>
+      prev.map(article =>
+        article.news_id === articleId
           ? { ...article, ...updatedArticle }
           : article
       )
@@ -1112,7 +1112,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           [section]: value
         }
       }
-      
+
       if (section.includes('Section')) {
         const sectionKey = section as 'euSection' | 'usSection' | 'globalSection'
         return {
@@ -1148,7 +1148,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
     const selectedText = text.substring(start, end)
-    
+
     if (!selectedText) return text
 
     let formattedText = ''
@@ -1159,7 +1159,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     }
 
     const newText = text.substring(0, start) + formattedText + text.substring(end)
-    
+
     setTimeout(() => {
       textarea.selectionStart = start + formattedText.length
       textarea.selectionEnd = start + formattedText.length
@@ -1173,7 +1173,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     if (!isEditing) return
 
     const [section, field] = isEditing.split('-')
-    const currentContent = field 
+    const currentContent = field
       ? editableContent[section as keyof typeof editableContent]?.[field as keyof typeof editableContent[keyof typeof editableContent]]
       : editableContent[section as keyof typeof editableContent]
 
@@ -1187,7 +1187,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     if (!isEditing) return
 
     const [section, field] = isEditing.split('-')
-    const currentContent = field 
+    const currentContent = field
       ? editableContent[section as keyof typeof editableContent]?.[field as keyof typeof editableContent[keyof typeof editableContent]]
       : editableContent[section as keyof typeof editableContent]
 
@@ -1591,7 +1591,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
   const renderArticle = (article: any) => {
     const currentArticle = articles.find(a => a.news_id === article.news_id) || article;
-    
+
     // Handler for removing article image
     const handleRemoveArticleImage = (articleId: string) => {
       handleArticleUpdate(articleId, { imageUrl: "" })
@@ -1634,7 +1634,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           imageUrl={currentArticle.imageUrl}
           alt={currentArticle.news_title}
           onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
-      
+
           editable={true}
         />
 
@@ -1648,9 +1648,9 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             <div className="text-sm text-gray-600 print:text-xs">
               <strong>Source:</strong>{' '}
               {currentArticle.source[0].source_url ? (
-                <a 
-                  href={currentArticle.source[0].source_url} 
-                  target="_blank" 
+                <a
+                  href={currentArticle.source[0].source_url}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
                 >
@@ -1688,11 +1688,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     }
 
     // Show section if there's content OR articles OR the section is enabled
-    const hasContent = sectionContent.title || 
-                      sectionContent.introduction || 
-                      sectionContent.trends ||
-                      regionalArticles.length > 0 ||
-                      sectionConfig.enabled;
+    const hasContent = sectionContent.title ||
+      sectionContent.introduction ||
+      sectionContent.trends ||
+      regionalArticles.length > 0 ||
+      sectionConfig.enabled;
 
     if (!hasContent) return null;
 
@@ -1775,7 +1775,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       />
 
       <div className={`container mx-auto p-8 max-w-6xl bg-white ${showMappingModal ? 'overflow-hidden' : ''}`}>
-    
+
         <div className="flex justify-center gap-4 mb-8 print:hidden">
           <Button
             onClick={onStartOver}
@@ -1809,12 +1809,12 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
           {/* HEADER SECTION */}
           <div className="relative mb-12 border-b pb-8 overflow-hidden print:mb-8 print:pb-6 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-            
+
             {/* Header Image Container */}
             <div className="absolute inset-0 z-0 print:relative print:inset-auto print:h-64">
               <div className="absolute inset-0 bg-black/50 print:bg-black/30 z-10"></div>
               <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-white/60 print:hidden z-20"></div>
-              
+
               {/* Header Background Image */}
               <div className="relative w-full h-full z-0">
                 {editableContent.headerImage ? (
@@ -1837,7 +1837,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             {/* Header Content */}
             <div className="relative z-30 text-center flex flex-col items-center print:relative print:z-auto">
               <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-5xl mx-auto px-6 print:px-0 print:max-w-full">
-                
+
                 {/* Header Title */}
                 <div className="relative">
                   <h1
@@ -1912,6 +1912,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                   primaryColor={themeColors[theme]}
                   articlesByCountry={articlesByCountry}
                   mappedCountries={countryMappings}
+                  theme={theme} 
                   interactive={false}
                   showLegend={true}
                 />

@@ -423,21 +423,18 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
   const themeConfig = {
     blue: {
       color: "#3B82F6",
-      gradient: "from-blue-500 to-blue-600",
       light: "bg-blue-50/50",
       border: "border-blue-100",
       error: "border-red-200 focus:border-red-400"
     },
     green: {
       color: "#10B981",
-      gradient: "from-emerald-500 to-emerald-600",
       light: "bg-emerald-50/50",
       border: "border-emerald-100",
       error: "border-red-200 focus:border-red-400"
     },
     red: {
       color: "#EF4444",
-      gradient: "from-rose-500 to-rose-600",
       light: "bg-rose-50/50",
       border: "border-rose-100",
       error: "border-red-200 focus:border-red-400"
@@ -473,9 +470,17 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
         </div>
 
         <Card className="shadow-sm border-0 bg-white/70 backdrop-blur-sm">
-          <CardHeader className={`pb-6 ${themeConfig[theme].light} border-b ${themeConfig[theme].border}`}>
+          <CardHeader className={`pb-6 border-b ${
+            theme === 'blue' ? 'bg-blue-50/50 border-blue-100' :
+            theme === 'green' ? 'bg-emerald-50/50 border-emerald-100' :
+            'bg-rose-50/50 border-rose-100'
+          }`}>
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg bg-gradient-to-r ${themeConfig[theme].gradient}`}>
+              <div className={`p-2 rounded-lg ${
+                theme === 'blue' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                theme === 'green' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
+                'bg-gradient-to-r from-rose-500 to-rose-600'
+              }`}>
                 <Layout className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -570,7 +575,11 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
                         htmlFor={color}
                         className={`flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
                           theme === color 
-                            ? `border-${color === 'blue' ? 'blue' : color === 'green' ? 'emerald' : 'rose'}-500 shadow-sm bg-white` 
+                            ? `shadow-sm bg-white ${
+                                color === 'blue' ? 'border-blue-500' : 
+                                color === 'green' ? 'border-emerald-500' : 
+                                'border-rose-500'
+                              }` 
                             : "border-gray-200 hover:border-gray-300 bg-white/50"
                         } ${
                           getFieldError("theme") ? "border-red-300" : ""
@@ -847,7 +856,11 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
                 <Button
                   type="submit"
                   disabled={loading || validationErrors.length > 0}
-                  className={`bg-gradient-to-r ${themeConfig[theme].gradient} text-white font-medium py-2.5 px-8 rounded-lg text-sm shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px] group`}
+                  className={`bg-gradient-to-r text-white font-medium py-2.5 px-8 rounded-lg text-sm shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px] group ${
+                    theme === 'blue' ? 'from-blue-500 to-blue-600' :
+                    theme === 'green' ? 'from-emerald-500 to-emerald-600' :
+                    'from-rose-500 to-rose-600'
+                  }`}
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
@@ -868,4 +881,4 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
       </div>
     </div>
   )
-};
+}
