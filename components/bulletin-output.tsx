@@ -1,9 +1,13 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { WorldMap } from "./world-map"
 import type { BulletinData } from "./bulletin-generator"
+import { THEME_MAPPING } from "@/lib/config/theme.config"
+import { formatDateToMonthYear } from "@/lib/utils/date.utils"
 
 interface BulletinOutputProps {
   data: BulletinData
@@ -25,7 +29,7 @@ function CountryMappingModal({
   onConfirm,
   countries,
   primaryColor,
-  articlesByCountry
+  articlesByCountry,
 }: CountryMappingModalProps) {
   const [mappedCountries, setMappedCountries] = useState<Record<string, string>>({})
   const [hasAutoMapped, setHasAutoMapped] = useState(false)
@@ -34,55 +38,101 @@ function CountryMappingModal({
     "United States of America": "United States",
     "United Kingdom": "United Kingdom",
     "Dem. Rep. Congo": "Democratic Republic of the Congo",
-    "Czechia": "Czech Republic",
+    Czechia: "Czech Republic",
     "Bosnia and Herz.": "Bosnia and Herzegovina",
     "Dominican Rep.": "Dominican Republic",
   }
 
   const SPECIAL_CASES = {
     "European Union": [
-      "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic",
-      "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary",
-      "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta",
-      "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia",
-      "Spain", "Sweden"
+      "Austria",
+      "Belgium",
+      "Bulgaria",
+      "Croatia",
+      "Cyprus",
+      "Czech Republic",
+      "Denmark",
+      "Estonia",
+      "Finland",
+      "France",
+      "Germany",
+      "Greece",
+      "Hungary",
+      "Ireland",
+      "Italy",
+      "Latvia",
+      "Lithuania",
+      "Luxembourg",
+      "Malta",
+      "Netherlands",
+      "Poland",
+      "Portugal",
+      "Romania",
+      "Slovakia",
+      "Slovenia",
+      "Spain",
+      "Sweden",
     ],
-    "EU": [
-      "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic",
-      "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary",
-      "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta",
-      "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia",
-      "Spain", "Sweden"
+    EU: [
+      "Austria",
+      "Belgium",
+      "Bulgaria",
+      "Croatia",
+      "Cyprus",
+      "Czech Republic",
+      "Denmark",
+      "Estonia",
+      "Finland",
+      "France",
+      "Germany",
+      "Greece",
+      "Hungary",
+      "Ireland",
+      "Italy",
+      "Latvia",
+      "Lithuania",
+      "Luxembourg",
+      "Malta",
+      "Netherlands",
+      "Poland",
+      "Portugal",
+      "Romania",
+      "Slovakia",
+      "Slovenia",
+      "Spain",
+      "Sweden",
     ],
-    "International": "ALL",
-    "World": "ALL",
-    "Global": "ALL",
+    International: "ALL",
+    World: "ALL",
+    Global: "ALL",
   }
 
   const findMatchingCountries = (countryName: string): string[] => {
     const matches: string[] = []
 
-    const exactMatch = Object.keys(COUNTRY_NAME_MAP).find(
-      geoName => geoName.toLowerCase() === countryName.toLowerCase()
-    ) || Object.values(COUNTRY_NAME_MAP).find(
-      mappedName => mappedName.toLowerCase() === countryName.toLowerCase()
-    )
+    const exactMatch =
+      Object.keys(COUNTRY_NAME_MAP).find((geoName) => geoName.toLowerCase() === countryName.toLowerCase()) ||
+      Object.values(COUNTRY_NAME_MAP).find((mappedName) => mappedName.toLowerCase() === countryName.toLowerCase())
 
     if (exactMatch) {
       matches.push(COUNTRY_NAME_MAP[exactMatch] || exactMatch)
       return matches
     }
 
-    Object.keys(COUNTRY_NAME_MAP).forEach(geoName => {
-      if (geoName.toLowerCase().includes(countryName.toLowerCase()) ||
-        countryName.toLowerCase().includes(geoName.toLowerCase())) {
+    Object.keys(COUNTRY_NAME_MAP).forEach((geoName) => {
+      if (
+        geoName.toLowerCase().includes(countryName.toLowerCase()) ||
+        countryName.toLowerCase().includes(geoName.toLowerCase())
+      ) {
         matches.push(COUNTRY_NAME_MAP[geoName] || geoName)
       }
     })
 
-    Object.values(COUNTRY_NAME_MAP).forEach(mappedName => {
-      if (mappedName.toLowerCase().includes(countryName.toLowerCase()) ||
-        countryName.toLowerCase().includes(mappedName.toLowerCase())) {
+    Object.values(COUNTRY_NAME_MAP).forEach((mappedName) => {
+      if (
+        mappedName.toLowerCase().includes(countryName.toLowerCase()) ||
+        countryName.toLowerCase().includes(mappedName.toLowerCase())
+      ) {
         matches.push(mappedName)
       }
     })
@@ -94,7 +144,7 @@ function CountryMappingModal({
     if (isOpen && !hasAutoMapped) {
       const autoMappings: Record<string, string> = {}
 
-      countries.forEach(country => {
+      countries.forEach((country) => {
         const normalizedCountry = country.trim()
 
         if (SPECIAL_CASES[normalizedCountry as keyof typeof SPECIAL_CASES]) {
@@ -133,10 +183,7 @@ function CountryMappingModal({
   if (!isOpen) return null
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={handleBackdropClick}
-    >
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={handleBackdropClick}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto">
         <div className="p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Auto-Mapping Countries</h2>
@@ -145,8 +192,8 @@ function CountryMappingModal({
           </p>
           <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-3">
             <p className="text-sm text-green-800">
-              <strong>Auto-mapping in progress:</strong> All countries are being automatically mapped.
-              Special cases like "European Union", "International", and "World" are handled automatically.
+              <strong>Auto-mapping in progress:</strong> All countries are being automatically mapped. Special cases
+              like "European Union", "International", and "World" are handled automatically.
             </p>
           </div>
         </div>
@@ -186,7 +233,7 @@ function DragDropImageUpload({
   className = "",
   disabled = false,
   showUploadInterface = true,
-  showRemoveButton = true
+  showRemoveButton = true,
 }: DragDropImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(currentImage || "")
@@ -216,7 +263,7 @@ function DragDropImageUpload({
     const files = e.dataTransfer.files
     if (files.length > 0) {
       const file = files[0]
-      if (file.type.startsWith('image/')) {
+      if (file.type.startsWith("image/")) {
         handleFile(file)
       }
     }
@@ -256,7 +303,7 @@ function DragDropImageUpload({
       <div className={`relative ${className}`}>
         <div className="w-full aspect-square max-w-xs mx-auto">
           <img
-            src={previewUrl}
+            src={previewUrl || "/placeholder.svg"}
             alt="Article"
             className="w-full h-full object-cover rounded-lg border shadow-sm"
           />
@@ -284,7 +331,7 @@ function DragDropImageUpload({
           <div className="relative">
             <div className="w-full aspect-square max-w-xs mx-auto">
               <img
-                src={previewUrl}
+                src={previewUrl || "/placeholder.svg"}
                 alt="Preview"
                 className="w-full h-full object-cover rounded-lg border shadow-sm"
               />
@@ -315,7 +362,7 @@ function DragDropImageUpload({
     <div
       className={`
         border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
-        ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+        ${isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"}
         ${className}
       `}
       onDragOver={handleDragOver}
@@ -323,19 +370,13 @@ function DragDropImageUpload({
       onDrop={handleDrop}
       onClick={handleClick}
     >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileInput}
-        className="hidden"
-      />
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
 
       {previewUrl ? (
         <div className="space-y-2 relative">
           <div className="w-full aspect-square max-w-xs mx-auto">
             <img
-              src={previewUrl}
+              src={previewUrl || "/placeholder.svg"}
               alt="Preview"
               className="w-full h-full object-cover rounded-lg border shadow-sm"
             />
@@ -357,7 +398,12 @@ function DragDropImageUpload({
         <div className="py-8">
           <div className="text-gray-400 mb-2">
             <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
             </svg>
           </div>
           <p className="text-gray-600">{placeholder}</p>
@@ -391,7 +437,7 @@ function ArticleImageDisplay({
   onImageUpload,
   onRemoveImage,
   editable = true,
-  className = ""
+  className = "",
 }: ArticleImageDisplayProps) {
   const [imageError, setImageError] = useState(false)
 
@@ -406,9 +452,11 @@ function ArticleImageDisplay({
   if (imageUrl && !imageError) {
     return (
       <div className={`mb-6 print:mb-4 relative ${className}`}>
-        <div className="w-full aspect-[4/3]"> {/* 4:3 aspect ratio */}
+        <div className="w-full aspect-[4/3]">
+          {" "}
+          {/* 4:3 aspect ratio */}
           <img
-            src={imageUrl}
+            src={imageUrl || "/placeholder.svg"}
             alt={alt}
             className="w-full h-full object-cover rounded-lg border shadow-lg"
             onError={() => setImageError(true)}
@@ -471,12 +519,7 @@ interface HeaderEditModalProps {
   }
 }
 
-function HeaderEditModal({
-  isOpen,
-  onClose,
-  onSave,
-  currentData
-}: HeaderEditModalProps) {
+function HeaderEditModal({ isOpen, onClose, onSave, currentData }: HeaderEditModalProps) {
   const [formData, setFormData] = useState(currentData)
 
   useEffect(() => {
@@ -485,11 +528,11 @@ function HeaderEditModal({
     }
   }, [isOpen, currentData])
 
-  const handleImageUpload = (field: 'headerImage' | 'publisherLogo', file: File) => {
+  const handleImageUpload = (field: "headerImage" | "publisherLogo", file: File) => {
     const reader = new FileReader()
     reader.onload = (e) => {
       const result = e.target?.result as string
-      setFormData(prev => ({ ...prev, [field]: result }))
+      setFormData((prev) => ({ ...prev, [field]: result }))
     }
     reader.readAsDataURL(file)
   }
@@ -509,28 +552,21 @@ function HeaderEditModal({
   if (!isOpen) return null
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={handleBackdropClick}
-    >
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={handleBackdropClick}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Edit Header Content</h2>
-          <p className="text-gray-600 mt-2">
-            Update your bulletin header information and images
-          </p>
+          <p className="text-gray-600 mt-2">Update your bulletin header information and images</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Header Text */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Header Title
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Header Title</label>
             <input
               type="text"
               value={formData.headerText}
-              onChange={(e) => setFormData(prev => ({ ...prev, headerText: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, headerText: e.target.value }))}
               className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="ESG DISCLOSURE & REPORTING BULLETIN"
             />
@@ -539,25 +575,21 @@ function HeaderEditModal({
           {/* Issue Number and Publication Date */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Issue Number
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Issue Number</label>
               <input
                 type="text"
                 value={formData.issueNumber}
-                onChange={(e) => setFormData(prev => ({ ...prev, issueNumber: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, issueNumber: e.target.value }))}
                 className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Issue #10"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Publication Date
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Publication Date</label>
               <input
                 type="month"
                 value={formData.publicationDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, publicationDate: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, publicationDate: e.target.value }))}
                 className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -565,11 +597,9 @@ function HeaderEditModal({
 
           {/* Header Background Image */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Header Background Image
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Header Background Image</label>
             <DragDropImageUpload
-              onImageUpload={(file) => handleImageUpload('headerImage', file)}
+              onImageUpload={(file) => handleImageUpload("headerImage", file)}
               currentImage={formData.headerImage}
               placeholder="Drag & drop header background image or click to browse"
               className="h-100"
@@ -578,11 +608,9 @@ function HeaderEditModal({
 
           {/* Publisher Logo */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Publisher Logo
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Publisher Logo</label>
             <DragDropImageUpload
-              onImageUpload={(file) => handleImageUpload('publisherLogo', file)}
+              onImageUpload={(file) => handleImageUpload("publisherLogo", file)}
               currentImage={formData.publisherLogo}
               placeholder="Drag & drop publisher logo or click to browse"
               className="h-100"
@@ -591,18 +619,10 @@ function HeaderEditModal({
 
           {/* Action Buttons */}
           <div className="flex gap-3 justify-end pt-4 border-t">
-            <Button
-              type="button"
-              onClick={onClose}
-              variant="outline"
-              className="px-6"
-            >
+            <Button type="button" onClick={onClose} variant="outline" className="px-6 bg-transparent">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6"
-            >
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6">
               Save Changes
             </Button>
           </div>
@@ -619,18 +639,13 @@ interface ArticleEditModalProps {
   article: any
 }
 
-function ArticleEditModal({
-  isOpen,
-  onClose,
-  onSave,
-  article
-}: ArticleEditModalProps) {
+function ArticleEditModal({ isOpen, onClose, onSave, article }: ArticleEditModalProps) {
   const [editedArticle, setEditedArticle] = useState({
-    news_title: article?.news_title || '',
-    news_summary: article?.news_summary || '',
-    imageUrl: article?.imageUrl || '',
-    source_alias: article?.source?.[0]?.source_alias || '',
-    source_url: article?.source?.[0]?.source_url || ''
+    news_title: article?.news_title || "",
+    news_summary: article?.news_summary || "",
+    imageUrl: article?.imageUrl || "",
+    source_alias: article?.source?.[0]?.source_alias || "",
+    source_url: article?.source?.[0]?.source_url || "",
   })
 
   const [loadingSource, setLoadingSource] = useState(false)
@@ -639,11 +654,11 @@ function ArticleEditModal({
   useEffect(() => {
     if (isOpen && article) {
       setEditedArticle({
-        news_title: article.news_title || '',
-        news_summary: article.news_summary || '',
-        imageUrl: article.imageUrl || '',
-        source_alias: article.source?.[0]?.source_alias || '',
-        source_url: article.source?.[0]?.source_url || ''
+        news_title: article.news_title || "",
+        news_summary: article.news_summary || "",
+        imageUrl: article.imageUrl || "",
+        source_alias: article.source?.[0]?.source_alias || "",
+        source_url: article.source?.[0]?.source_url || "",
       })
 
       // Reset error state
@@ -664,7 +679,7 @@ function ArticleEditModal({
       const response = await fetch(`/api/internal/news/${newsId}/details`)
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
       }
 
@@ -672,17 +687,17 @@ function ArticleEditModal({
 
       // Update the source fields with the fetched data
       if (data.data?.source?.[0]) {
-        setEditedArticle(prev => ({
+        setEditedArticle((prev) => ({
           ...prev,
-          source_alias: data.data.source[0].source_alias || '',
-          source_url: data.data.source[0].source_url || ''
+          source_alias: data.data.source[0].source_alias || "",
+          source_url: data.data.source[0].source_url || "",
         }))
       } else {
-        setSourceError('No source data found for this article')
+        setSourceError("No source data found for this article")
       }
     } catch (error) {
-      console.error('Error fetching source data:', error)
-      setSourceError(error instanceof Error ? error.message : 'Failed to fetch source data')
+      console.error("Error fetching source data:", error)
+      setSourceError(error instanceof Error ? error.message : "Failed to fetch source data")
     } finally {
       setLoadingSource(false)
     }
@@ -692,31 +707,33 @@ function ArticleEditModal({
     const reader = new FileReader()
     reader.onload = (e) => {
       const result = e.target?.result as string
-      setEditedArticle(prev => ({ ...prev, imageUrl: result }))
+      setEditedArticle((prev) => ({ ...prev, imageUrl: result }))
     }
     reader.readAsDataURL(file)
   }
 
   const handleRemoveImage = () => {
-    setEditedArticle(prev => ({ ...prev, imageUrl: '' }))
+    setEditedArticle((prev) => ({ ...prev, imageUrl: "" }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
     // Prepare the updated source array
-    const updatedSource = [{
-      id: article.source?.[0]?.id,
-      source_alias: editedArticle.source_alias,
-      source_url: editedArticle.source_url,
-      source_file_key: article.source?.[0]?.source_file_key
-    }]
+    const updatedSource = [
+      {
+        id: article.source?.[0]?.id,
+        source_alias: editedArticle.source_alias,
+        source_url: editedArticle.source_url,
+        source_file_key: article.source?.[0]?.source_file_key,
+      },
+    ]
 
     onSave(article.news_id, {
       news_title: editedArticle.news_title,
       news_summary: editedArticle.news_summary,
       imageUrl: editedArticle.imageUrl,
-      source: updatedSource
+      source: updatedSource,
     })
     onClose()
   }
@@ -728,9 +745,9 @@ function ArticleEditModal({
   }
 
   // Formatting helper functions for article modal
-  const applyFormatting = (text: string, formatType: 'bold' | 'italic'): string => {
+  const applyFormatting = (text: string, formatType: "bold" | "italic"): string => {
     const textarea = document.activeElement as HTMLTextAreaElement
-    if (!textarea || textarea.tagName !== 'TEXTAREA') return text
+    if (!textarea || textarea.tagName !== "TEXTAREA") return text
 
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
@@ -738,10 +755,10 @@ function ArticleEditModal({
 
     if (!selectedText) return text
 
-    let formattedText = ''
-    if (formatType === 'bold') {
+    let formattedText = ""
+    if (formatType === "bold") {
       formattedText = `**${selectedText}**`
-    } else if (formatType === 'italic') {
+    } else if (formatType === "italic") {
       formattedText = `*${selectedText}*`
     }
 
@@ -757,13 +774,13 @@ function ArticleEditModal({
   }
 
   const handleBold = () => {
-    const newSummary = applyFormatting(editedArticle.news_summary, 'bold')
-    setEditedArticle(prev => ({ ...prev, news_summary: newSummary }))
+    const newSummary = applyFormatting(editedArticle.news_summary, "bold")
+    setEditedArticle((prev) => ({ ...prev, news_summary: newSummary }))
   }
 
   const handleItalic = () => {
-    const newSummary = applyFormatting(editedArticle.news_summary, 'italic')
-    setEditedArticle(prev => ({ ...prev, news_summary: newSummary }))
+    const newSummary = applyFormatting(editedArticle.news_summary, "italic")
+    setEditedArticle((prev) => ({ ...prev, news_summary: newSummary }))
   }
 
   // Keyboard shortcut handler for article modal
@@ -771,13 +788,13 @@ function ArticleEditModal({
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && isOpen) {
         const activeElement = document.activeElement
-        if (activeElement && activeElement.tagName === 'TEXTAREA') {
+        if (activeElement && activeElement.tagName === "TEXTAREA") {
           switch (e.key.toLowerCase()) {
-            case 'b':
+            case "b":
               e.preventDefault()
               handleBold()
               break
-            case 'i':
+            case "i":
               e.preventDefault()
               handleItalic()
               break
@@ -787,36 +804,29 @@ function ArticleEditModal({
     }
 
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown)
-      return () => document.removeEventListener('keydown', handleKeyDown)
+      document.addEventListener("keydown", handleKeyDown)
+      return () => document.removeEventListener("keydown", handleKeyDown)
     }
   }, [isOpen, editedArticle.news_summary])
 
   if (!isOpen || !article) return null
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={handleBackdropClick}
-    >
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={handleBackdropClick}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Edit News Article</h2>
-          <p className="text-gray-600 mt-2">
-            Update the article title, summary, image, and source
-          </p>
+          <p className="text-gray-600 mt-2">Update the article title, summary, image, and source</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Article Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Article Title
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Article Title</label>
             <input
               type="text"
               value={editedArticle.news_title}
-              onChange={(e) => setEditedArticle(prev => ({ ...prev, news_title: e.target.value }))}
+              onChange={(e) => setEditedArticle((prev) => ({ ...prev, news_title: e.target.value }))}
               className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter article title"
             />
@@ -824,18 +834,17 @@ function ArticleEditModal({
 
           {/* Article Summary */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Article Summary
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Article Summary</label>
             <textarea
               value={editedArticle.news_summary}
-              onChange={(e) => setEditedArticle(prev => ({ ...prev, news_summary: e.target.value }))}
+              onChange={(e) => setEditedArticle((prev) => ({ ...prev, news_summary: e.target.value }))}
               rows={8}
               className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               placeholder="Enter article summary"
             />
             <p className="text-xs text-gray-500 mt-2">
-              Use <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+B</kbd> for bold, <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+I</kbd> for italic
+              Use <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+B</kbd> for bold,{" "}
+              <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+I</kbd> for italic
             </p>
           </div>
 
@@ -843,9 +852,7 @@ function ArticleEditModal({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Source Information
-              {loadingSource && (
-                <span className="ml-2 text-xs text-blue-600">Loading source data...</span>
-              )}
+              {loadingSource && <span className="ml-2 text-xs text-blue-600">Loading source data...</span>}
             </label>
 
             {sourceError && (
@@ -865,25 +872,21 @@ function ArticleEditModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Source Name
-                </label>
+                <label className="block text-xs text-gray-600 mb-1">Source Name</label>
                 <input
                   type="text"
                   value={editedArticle.source_alias}
-                  onChange={(e) => setEditedArticle(prev => ({ ...prev, source_alias: e.target.value }))}
+                  onChange={(e) => setEditedArticle((prev) => ({ ...prev, source_alias: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Source name"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Source URL
-                </label>
+                <label className="block text-xs text-gray-600 mb-1">Source URL</label>
                 <input
                   type="url"
                   value={editedArticle.source_url}
-                  onChange={(e) => setEditedArticle(prev => ({ ...prev, source_url: e.target.value }))}
+                  onChange={(e) => setEditedArticle((prev) => ({ ...prev, source_url: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="https://example.com/article"
                 />
@@ -923,18 +926,10 @@ function ArticleEditModal({
 
           {/* Action Buttons */}
           <div className="flex gap-3 justify-end pt-4 border-t">
-            <Button
-              type="button"
-              onClick={onClose}
-              variant="outline"
-              className="px-6"
-            >
+            <Button type="button" onClick={onClose} variant="outline" className="px-6 bg-transparent">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6"
-            >
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6">
               Save Changes
             </Button>
           </div>
@@ -944,14 +939,14 @@ function ArticleEditModal({
   )
 }
 
-export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
+export const BulletinOutput = ({ data, onStartOver }: BulletinOutputProps) => {
   const { theme, articles: initialArticles, articlesByCountry, bulletinConfig } = data
 
   // Create a safe bulletin config with fallbacks
   const safeBulletinConfig = bulletinConfig || {
     headerText: "ESG DISCLOSURE & REPORTING BULLETIN",
     issueNumber: "",
-    publicationDate: new Date().toISOString().split('T')[0],
+    publicationDate: new Date().toISOString().split("T")[0],
     headerImage: "",
     publisherLogo: "",
     footerImage: "",
@@ -966,8 +961,8 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     generatedContent: {
       keyTrends: "",
       executiveSummary: "",
-      keyTakeaways: ""
-    }
+      keyTakeaways: "",
+    },
   }
 
   const [showMappingModal, setShowMappingModal] = useState(true)
@@ -997,18 +992,18 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     euSection: {
       title: safeBulletinConfig.euSection?.title || "",
       introduction: safeBulletinConfig.euSection?.introduction || "",
-      trends: safeBulletinConfig.euSection?.trends || ""
+      trends: safeBulletinConfig.euSection?.trends || "",
     },
     usSection: {
       title: safeBulletinConfig.usSection?.title || "",
       introduction: safeBulletinConfig.usSection?.introduction || "",
-      trends: safeBulletinConfig.usSection?.trends || ""
+      trends: safeBulletinConfig.usSection?.trends || "",
     },
     globalSection: {
       title: safeBulletinConfig.globalSection?.title || "",
       introduction: safeBulletinConfig.globalSection?.introduction || "",
-      trends: safeBulletinConfig.globalSection?.trends || ""
-    }
+      trends: safeBulletinConfig.globalSection?.trends || "",
+    },
   })
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [isRegenerating, setIsRegenerating] = useState<string | null>(null)
@@ -1016,69 +1011,79 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const countries = Object.keys(articlesByCountry)
 
   const themeColors = {
-    blue: "#1976D2",
-    green: "#388E3C",
-    red: "#D32F2F",
+    blue: THEME_MAPPING.blue.primary,
+    green: THEME_MAPPING.green.primary,
+    red: THEME_MAPPING.red.primary,
   }
 
   // Automatically fetch source data for all articles on initial load
   useEffect(() => {
     const fetchMissingSources = async () => {
-      const articlesNeedingSource = articles.filter(article =>
-        article.news_id && (!article.source || article.source.length === 0 || !article.source[0]?.source_alias)
-      );
+      const articlesNeedingSource = articles.filter(
+        (article) =>
+          article.news_id && (!article.source || article.source.length === 0 || !article.source[0]?.source_alias),
+      )
 
-      if (articlesNeedingSource.length === 0) return;
+      if (articlesNeedingSource.length === 0) return
 
-      setLoadingSources(true);
+      setLoadingSources(true)
 
       try {
         for (const article of articlesNeedingSource) {
           try {
-            const response = await fetch(`/api/internal/news/${article.news_id}/details`);
+            const response = await fetch(`/api/internal/news/${article.news_id}/details`)
 
             if (response.ok) {
-              const data = await response.json();
+              const data = await response.json()
 
               if (data.data?.source?.[0]) {
                 handleArticleUpdate(article.news_id, {
-                  source: [{
-                    id: article.source?.[0]?.id,
-                    source_alias: data.data.source[0].source_alias || '',
-                    source_url: data.data.source[0].source_url || '',
-                    source_file_key: article.source?.[0]?.source_file_key
-                  }]
-                });
+                  source: [
+                    {
+                      id: article.source?.[0]?.id,
+                      source_alias: data.data.source[0].source_alias || "",
+                      source_url: data.data.source[0].source_url || "",
+                      source_file_key: article.source?.[0]?.source_file_key,
+                    },
+                  ],
+                })
               }
             }
           } catch (error) {
-            console.error(`Error fetching source for article ${article.news_id}:`, error);
+            console.error(`Error fetching source for article ${article.news_id}:`, error)
           }
         }
       } finally {
-        setLoadingSources(false);
+        setLoadingSources(false)
       }
-    };
+    }
 
     if (articles.length > 0) {
-      fetchMissingSources();
+      fetchMissingSources()
     }
-  }, [articles.length]);
+  }, [articles.length])
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     })
   }
 
   const formatConfigDate = (dateString: string) => {
     if (!dateString) return "Current Month"
-    return new Date(dateString + '-01').toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long'
-    })
+    try {
+      // If it's already a full date (YYYY-MM-DD), use it directly
+      // If it's month-only (YYYY-MM), append -01 to make it a valid date
+      const dateToFormat = dateString.length === 7 ? dateString + "-01" : dateString
+      return new Date(dateToFormat).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+      })
+    } catch {
+      return dateString
+    }
   }
 
   const handleHeaderSave = (headerData: {
@@ -1088,44 +1093,40 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     headerImage: string
     publisherLogo: string
   }) => {
-    setEditableContent(prev => ({
+    setEditableContent((prev) => ({
       ...prev,
-      ...headerData
+      ...headerData,
     }))
   }
 
   const handleArticleUpdate = (articleId: string, updatedArticle: any) => {
-    setArticles(prev =>
-      prev.map(article =>
-        article.news_id === articleId
-          ? { ...article, ...updatedArticle }
-          : article
-      )
+    setArticles((prev) =>
+      prev.map((article) => (article.news_id === articleId ? { ...article, ...updatedArticle } : article)),
     )
   }
 
   const handleContentChange = (section: string, field: string, value: string) => {
-    setEditableContent(prev => {
+    setEditableContent((prev) => {
       if (!field) {
         return {
           ...prev,
-          [section]: value
+          [section]: value,
         }
       }
 
-      if (section.includes('Section')) {
-        const sectionKey = section as 'euSection' | 'usSection' | 'globalSection'
+      if (section.includes("Section")) {
+        const sectionKey = section as "euSection" | "usSection" | "globalSection"
         return {
           ...prev,
           [sectionKey]: {
             ...prev[sectionKey],
-            [field]: value
-          }
+            [field]: value,
+          },
         }
       } else {
         return {
           ...prev,
-          [section]: value
+          [section]: value,
         }
       }
     })
@@ -1141,9 +1142,9 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   }
 
   // Formatting helper functions
-  const applyFormatting = (text: string, formatType: 'bold' | 'italic'): string => {
+  const applyFormatting = (text: string, formatType: "bold" | "italic"): string => {
     const textarea = document.activeElement as HTMLTextAreaElement
-    if (!textarea || textarea.tagName !== 'TEXTAREA') return text
+    if (!textarea || textarea.tagName !== "TEXTAREA") return text
 
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
@@ -1151,10 +1152,10 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
     if (!selectedText) return text
 
-    let formattedText = ''
-    if (formatType === 'bold') {
+    let formattedText = ""
+    if (formatType === "bold") {
       formattedText = `**${selectedText}**`
-    } else if (formatType === 'italic') {
+    } else if (formatType === "italic") {
       formattedText = `*${selectedText}*`
     }
 
@@ -1172,13 +1173,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const handleBold = () => {
     if (!isEditing) return
 
-    const [section, field] = isEditing.split('-')
+    const [section, field] = isEditing.split("-")
     const currentContent = field
-      ? editableContent[section as keyof typeof editableContent]?.[field as keyof typeof editableContent[keyof typeof editableContent]]
+      ? editableContent[section as keyof typeof editableContent]?.[
+          field as keyof (typeof editableContent)[keyof typeof editableContent]
+        ]
       : editableContent[section as keyof typeof editableContent]
 
-    if (typeof currentContent === 'string') {
-      const newContent = applyFormatting(currentContent, 'bold')
+    if (typeof currentContent === "string") {
+      const newContent = applyFormatting(currentContent, "bold")
       handleContentChange(section, field, newContent)
     }
   }
@@ -1186,13 +1189,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const handleItalic = () => {
     if (!isEditing) return
 
-    const [section, field] = isEditing.split('-')
+    const [section, field] = isEditing.split("-")
     const currentContent = field
-      ? editableContent[section as keyof typeof editableContent]?.[field as keyof typeof editableContent[keyof typeof editableContent]]
+      ? editableContent[section as keyof typeof editableContent]?.[
+          field as keyof (typeof editableContent)[keyof typeof editableContent]
+        ]
       : editableContent[section as keyof typeof editableContent]
 
-    if (typeof currentContent === 'string') {
-      const newContent = applyFormatting(currentContent, 'italic')
+    if (typeof currentContent === "string") {
+      const newContent = applyFormatting(currentContent, "italic")
       handleContentChange(section, field, newContent)
     }
   }
@@ -1202,11 +1207,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && isEditing) {
         switch (e.key.toLowerCase()) {
-          case 'b':
+          case "b":
             e.preventDefault()
             handleBold()
             break
-          case 'i':
+          case "i":
             e.preventDefault()
             handleItalic()
             break
@@ -1214,124 +1219,124 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
   }, [isEditing])
 
   const handleRegenerate = async (sectionId: string) => {
-    setIsRegenerating(sectionId);
+    setIsRegenerating(sectionId)
     try {
-      const [section, field] = sectionId.split('-');
+      const [section, field] = sectionId.split("-")
       const typeMapping: Record<string, string> = {
-        'headerText': 'header_text',
-        'issueNumber': 'issue_number',
-        'greetingMessage': 'greeting',
-        'keyTrends': 'key_trends',
-        'executiveSummary': 'executive_summary',
-        'keyTakeaways': 'key_takeaways',
-        'euSection-title': 'section_title',
-        'euSection-introduction': 'section_intro',
-        'euSection-trends': 'section_trends',
-        'usSection-title': 'section_title',
-        'usSection-introduction': 'section_intro',
-        'usSection-trends': 'section_trends',
-        'globalSection-title': 'section_title',
-        'globalSection-introduction': 'section_intro',
-        'globalSection-trends': 'section_trends'
-      };
-
-      const apiType = typeMapping[sectionId];
-      if (!apiType) {
-        console.error('Unknown section type:', sectionId);
-        return;
+        headerText: "header_text",
+        issueNumber: "issue_number",
+        greetingMessage: "greeting",
+        keyTrends: "key_trends",
+        executiveSummary: "executive_summary",
+        keyTakeaways: "key_takeaways",
+        "euSection-title": "section_title",
+        "euSection-introduction": "section_intro",
+        "euSection-trends": "section_trends",
+        "usSection-title": "section_title",
+        "usSection-introduction": "section_intro",
+        "usSection-trends": "section_trends",
+        "globalSection-title": "section_title",
+        "globalSection-introduction": "section_intro",
+        "globalSection-trends": "section_trends",
       }
 
-      let regionalArticles = [];
-      let region = '';
+      const apiType = typeMapping[sectionId]
+      if (!apiType) {
+        console.error("Unknown section type:", sectionId)
+        return
+      }
 
-      if (section.includes('Section')) {
-        region = section.replace('Section', '').toUpperCase();
-        regionalArticles = getArticlesByJurisdiction(region);
+      let regionalArticles = []
+      let region = ""
+
+      if (section.includes("Section")) {
+        region = section.replace("Section", "").toUpperCase()
+        regionalArticles = getArticlesByJurisdiction(region)
       } else {
-        regionalArticles = articles;
+        regionalArticles = articles
       }
 
       const requestBody: any = {
         type: apiType,
         articles: regionalArticles,
-        currentDate: safeBulletinConfig.publicationDate || new Date().toISOString().split('T')[0],
-        customInstructions: safeBulletinConfig.customInstructions || ''
-      };
+        currentDate: safeBulletinConfig.publicationDate || new Date().toISOString().split("T")[0],
+        customInstructions: safeBulletinConfig.customInstructions || "",
+      }
 
       if (region) {
-        requestBody.region = region;
+        requestBody.region = region
       }
 
-      if (apiType === 'greeting') {
-        requestBody.previousGreeting = safeBulletinConfig.previousGreeting || '';
+      if (apiType === "greeting") {
+        requestBody.previousGreeting = safeBulletinConfig.previousGreeting || ""
       }
 
-      const response = await fetch('/api/generate-bulletin-content', {
-        method: 'POST',
+      const response = await fetch("/api/generate-bulletin-content", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to regenerate content');
+        throw new Error("Failed to regenerate content")
       }
 
-      const data = await response.json();
+      const data = await response.json()
       if (data.error) {
-        throw new Error(data.error);
+        throw new Error(data.error)
       }
 
-      setEditableContent(prev => {
-        if (section.includes('Section')) {
-          const sectionKey = section as 'euSection' | 'usSection' | 'globalSection';
+      setEditableContent((prev) => {
+        if (section.includes("Section")) {
+          const sectionKey = section as "euSection" | "usSection" | "globalSection"
           return {
             ...prev,
             [sectionKey]: {
               ...prev[sectionKey],
-              [field]: data.content
-            }
-          };
+              [field]: data.content,
+            },
+          }
         } else {
           return {
             ...prev,
-            [section]: data.content
-          };
+            [section]: data.content,
+          }
         }
-      });
-
+      })
     } catch (error) {
-      console.error('Error regenerating content:', error);
+      console.error("Error regenerating content:", error)
     } finally {
-      setIsRegenerating(null);
+      setIsRegenerating(null)
     }
-  };
+  }
 
   const handleRegenerateArticle = async (articleId: string) => {
     setRegeneratingArticle(articleId)
     try {
-      const article = articles.find(a => a.news_id === articleId)
+      const article = articles.find((a) => a.news_id === articleId)
       if (!article) return
 
-      const response = await fetch('/api/generate-article-summary', {
-        method: 'POST',
+      const response = await fetch("/api/generate-article-summary", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           articleContent: article.news_content || article.news_summary,
-          prompt: "Generate a concise, professional summary focusing on key ESG-related aspects and main points. Include key deadlines, dates, and the issuing authority."
+          prompt:
+            "Generate a concise, professional summary focusing on key ESG-related aspects and main points. Include key deadlines, dates, and the issuing authority.",
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to regenerate article summary')
+        throw new Error("Failed to regenerate article summary")
       }
 
       const data = await response.json()
@@ -1340,42 +1345,41 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       }
 
       handleArticleUpdate(articleId, {
-        news_summary: data.summary
+        news_summary: data.summary,
       })
-
     } catch (error) {
-      console.error('Error regenerating article summary:', error)
+      console.error("Error regenerating article summary:", error)
     } finally {
       setRegeneratingArticle(null)
     }
   }
 
   const formatBoldText = (text: string) => {
-    if (!text) return "";
+    if (!text) return ""
 
-    const sentences = text.split(/(?<=[.!?])\s+/);
+    const sentences = text.split(/(?<=[.!?])\s+/)
 
     return (
       <div className="text-justify leading-relaxed">
         {sentences.map((sentence, index) => {
           const formattedSentence = sentence.split(/(\*\*.*?\*\*|\*.*?\*)/g).map((part, partIndex) => {
             if (part.startsWith("**") && part.endsWith("**")) {
-              const boldText = part.slice(2, -2);
+              const boldText = part.slice(2, -2)
               return (
                 <strong key={partIndex} className="font-bold">
                   {boldText}
                 </strong>
-              );
+              )
             } else if (part.startsWith("*") && part.endsWith("*") && part.length > 1) {
-              const italicText = part.slice(1, -1);
+              const italicText = part.slice(1, -1)
               return (
                 <em key={partIndex} className="italic">
                   {italicText}
                 </em>
-              );
+              )
             }
-            return part;
-          });
+            return part
+          })
 
           if (index === 0) {
             return (
@@ -1383,71 +1387,71 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 <span className="inline-block w-8">{"\u00A0"}</span>
                 {formattedSentence}
               </span>
-            );
+            )
           }
 
-          return (
-            <span key={index}>
-              {" "}{formattedSentence}
-            </span>
-          );
+          return <span key={index}> {formattedSentence}</span>
         })}
       </div>
-    );
+    )
   }
 
   const getArticlesByJurisdiction = (jurisdiction: string) => {
-    return articles.filter(article => {
+    return articles.filter((article) => {
       if (!article.jurisdictions || article.jurisdictions.length === 0) {
-        return jurisdiction === 'GLOBAL';
+        return jurisdiction === "GLOBAL"
       }
 
-      return article.jurisdictions.some(j => {
-        const jName = j.name?.toLowerCase() || '';
-        const jCode = j.code?.toLowerCase() || '';
+      return article.jurisdictions.some((j) => {
+        const jName = j.name?.toLowerCase() || ""
+        const jCode = j.code?.toLowerCase() || ""
 
         switch (jurisdiction.toUpperCase()) {
-          case 'EU':
-            return jName.includes('eu') ||
-              jName.includes('europe') ||
-              jName.includes('european') ||
-              jCode.includes('eu');
-          case 'US':
-            return jName.includes('us') ||
-              jName.includes('united states') ||
-              jName.includes('america') ||
-              jCode.includes('us');
-          case 'GLOBAL':
-            return !(jName.includes('eu') || jName.includes('europe') ||
-              jName.includes('us') || jName.includes('united states'));
+          case "EU":
+            return (
+              jName.includes("eu") || jName.includes("europe") || jName.includes("european") || jCode.includes("eu")
+            )
+          case "US":
+            return (
+              jName.includes("us") ||
+              jName.includes("united states") ||
+              jName.includes("america") ||
+              jCode.includes("us")
+            )
+          case "GLOBAL":
+            return !(
+              jName.includes("eu") ||
+              jName.includes("europe") ||
+              jName.includes("us") ||
+              jName.includes("united states")
+            )
           default:
-            return jName.includes(jurisdiction.toLowerCase()) ||
-              jCode.includes(jurisdiction.toLowerCase());
+            return jName.includes(jurisdiction.toLowerCase()) || jCode.includes(jurisdiction.toLowerCase())
         }
-      });
-    });
+      })
+    })
   }
 
   const handleDownloadPDF = () => {
-    window.print();
+    window.print()
   }
 
   const getMapCountries = () => {
-    const countrySet = new Set<string>();
+    const countrySet = new Set<string>()
 
-    articles.forEach(article => {
-      article.jurisdictions?.forEach(jurisdiction => {
-        const countryName = jurisdiction.name;
+    articles.forEach((article) => {
+      article.jurisdictions?.forEach((jurisdiction) => {
+        const countryName = jurisdiction.name
         if (countryName && countryName !== "International") {
-          countrySet.add(countryName);
+          countrySet.add(countryName)
         }
-      });
-    });
+      })
+    })
 
-    return Array.from(countrySet);
+    return Array.from(countrySet)
   }
 
-  const mapCountries = getMapCountries();
+  const mapCountries = getMapCountries()
 
   const handleMappingConfirm = (mappings: Record<string, string>) => {
     setCountryMappings(mappings)
@@ -1464,16 +1468,16 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     reader.readAsDataURL(file)
   }
 
-  const renderEditableText = (content: string, sectionId: string, placeholder: string, rows: number = 4) => {
+  const renderEditableText = (content: string, sectionId: string, placeholder: string, rows = 4) => {
     if (isEditing === sectionId) {
       return (
         <div className="space-y-3">
           <textarea
             value={content}
             onChange={(e) => {
-              const section = sectionId.split('-')[0];
-              const field = sectionId.split('-')[1];
-              handleContentChange(section, field, e.target.value);
+              const section = sectionId.split("-")[0]
+              const field = sectionId.split("-")[1]
+              handleContentChange(section, field, e.target.value)
             }}
             rows={rows}
             className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
@@ -1486,26 +1490,21 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             >
               Save
             </Button>
-            <Button
-              onClick={() => setIsEditing(null)}
-              variant="outline"
-              className="text-sm"
-            >
+            <Button onClick={() => setIsEditing(null)} variant="outline" className="text-sm">
               Cancel
             </Button>
           </div>
           <p className="text-xs text-gray-500">
-            Use <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+B</kbd> for bold, <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+I</kbd> for italic.
+            Use <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+B</kbd> for bold,{" "}
+            <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+I</kbd> for italic.
           </p>
         </div>
-      );
+      )
     }
 
     return (
       <div className="group relative">
-        <div className="text-justify leading-relaxed whitespace-pre-wrap">
-          {formatBoldText(content)}
-        </div>
+        <div className="text-justify leading-relaxed whitespace-pre-wrap">{formatBoldText(content)}</div>
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
           <Button
             onClick={() => handleEditToggle(sectionId)}
@@ -1521,12 +1520,12 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {isRegenerating === sectionId ? 'Regenerating...' : 'Regenerate'}
+            {isRegenerating === sectionId ? "Regenerating..." : "Regenerate"}
           </Button>
         </div>
       </div>
-    );
-  };
+    )
+  }
 
   const renderEditableTitle = (title: string, sectionId: string, placeholder: string) => {
     if (isEditing === sectionId) {
@@ -1536,9 +1535,9 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             type="text"
             value={title}
             onChange={(e) => {
-              const section = sectionId.split('-')[0];
-              const field = sectionId.split('-')[1];
-              handleContentChange(section, field, e.target.value);
+              const section = sectionId.split("-")[0]
+              const field = sectionId.split("-")[1]
+              handleContentChange(section, field, e.target.value)
             }}
             className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-3xl font-bold"
             placeholder={placeholder}
@@ -1550,16 +1549,12 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             >
               Save
             </Button>
-            <Button
-              onClick={() => setIsEditing(null)}
-              variant="outline"
-              className="text-sm"
-            >
+            <Button onClick={() => setIsEditing(null)} variant="outline" className="text-sm">
               Cancel
             </Button>
           </div>
         </div>
-      );
+      )
     }
 
     return (
@@ -1582,15 +1577,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {isRegenerating === sectionId ? 'Regenerating...' : 'Regenerate'}
+            {isRegenerating === sectionId ? "Regenerating..." : "Regenerate"}
           </Button>
         </div>
       </div>
-    );
-  };
+    )
+  }
 
   const renderArticle = (article: any) => {
-    const currentArticle = articles.find(a => a.news_id === article.news_id) || article;
+    const currentArticle = articles.find((a) => a.news_id === article.news_id) || article
 
     // Handler for removing article image
     const handleRemoveArticleImage = (articleId: string) => {
@@ -1598,7 +1593,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     }
 
     return (
-      <div key={currentArticle.news_id} className="border-l-4 pl-6 py-2 group relative" style={{ borderColor: themeColors[theme] }}>
+      <div
+        key={currentArticle.news_id}
+        className="border-l-4 pl-6 py-2 group relative"
+        style={{ borderColor: themeColors[theme] }}
+      >
         {/* Edit/Regenerate buttons - shown on hover */}
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 print:hidden">
           <Button
@@ -1618,13 +1617,13 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {regeneratingArticle === currentArticle.news_id ? 'Regenerating...' : 'Regenerate'}
+            {regeneratingArticle === currentArticle.news_id ? "Regenerating..." : "Regenerate"}
           </Button>
         </div>
 
         <div className="flex items-start gap-3 mb-2 print:mb-1">
           <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
-            {currentArticle.jurisdictions?.[0]?.code || 'GLOBAL'}
+            {currentArticle.jurisdictions?.[0]?.code || "GLOBAL"}
           </span>
         </div>
         <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{currentArticle.news_title}</h3>
@@ -1634,19 +1633,16 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           imageUrl={currentArticle.imageUrl}
           alt={currentArticle.news_title}
           onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
-
           editable={true}
         />
 
-        <div className="text-gray-700 mb-4 print:text-sm">
-          {formatBoldText(currentArticle.news_summary)}
-        </div>
+        <div className="text-gray-700 mb-4 print:text-sm">{formatBoldText(currentArticle.news_summary)}</div>
 
         {/* Source Information - Use currentArticle instead of article */}
         {currentArticle.source && currentArticle.source.length > 0 && (
           <div className="mb-3 print:mb-2">
             <div className="text-sm text-gray-600 print:text-xs">
-              <strong>Source:</strong>{' '}
+              <strong>Source:</strong>{" "}
               {currentArticle.source[0].source_url ? (
                 <a
                   href={currentArticle.source[0].source_url}
@@ -1654,91 +1650,190 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
                 >
-                  {currentArticle.source[0].source_url || 'Original Source'}
+                  {currentArticle.source[0].source_url || "Original Source"}
                 </a>
               ) : (
-                <span>{currentArticle.source[0].source_alias || 'Original Source'}</span>
+                <span>{currentArticle.source[0].source_alias || "Original Source"}</span>
               )}
             </div>
           </div>
         )}
 
-        <div className="text-sm text-gray-500 print:text-xs">
-          Published: {formatDate(currentArticle.published_at)}
-        </div>
+        <div className="text-sm text-gray-500 print:text-xs">Published: {formatDate(currentArticle.published_at)}</div>
       </div>
     )
   }
 
-  const renderRegionalSection = (region: 'euSection' | 'usSection' | 'globalSection') => {
-    const sectionConfig = safeBulletinConfig[region];
-    const sectionContent = editableContent[region];
+  const renderRegionalSection = (region: "euSection" | "usSection" | "globalSection") => {
+    const sectionConfig = safeBulletinConfig[region]
+    const sectionContent = editableContent[region]
 
-    let regionalArticles = [];
+    let regionalArticles = []
     switch (region) {
-      case 'euSection':
-        regionalArticles = getArticlesByJurisdiction('EU');
-        break;
-      case 'usSection':
-        regionalArticles = getArticlesByJurisdiction('US');
-        break;
-      case 'globalSection':
-        regionalArticles = getArticlesByJurisdiction('GLOBAL');
-        break;
+      case "euSection":
+        regionalArticles = getArticlesByJurisdiction("EU")
+        break
+      case "usSection":
+        regionalArticles = getArticlesByJurisdiction("US")
+        break
+      case "globalSection":
+        regionalArticles = getArticlesByJurisdiction("GLOBAL")
+        break
     }
 
     // Show section if there's content OR articles OR the section is enabled
-    const hasContent = sectionContent.title ||
+    const hasContent =
+      sectionContent.title ||
       sectionContent.introduction ||
       sectionContent.trends ||
       regionalArticles.length > 0 ||
-      sectionConfig.enabled;
+      sectionConfig.enabled
 
-    if (!hasContent) return null;
+    if (!hasContent) return null
 
     return (
       <section className="print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-        {(sectionContent.title || regionalArticles.length > 0) && renderEditableTitle(
-          sectionContent.title,
-          `${region}-title`,
-          `${region.replace('Section', '').toUpperCase()} Regulatory Developments`
-        )}
+        {(sectionContent.title || regionalArticles.length > 0) &&
+          renderEditableTitle(
+            sectionContent.title,
+            `${region}-title`,
+            `${region.replace("Section", "").toUpperCase()} Regulatory Developments`,
+          )}
 
         {sectionContent.introduction && (
           <div className="bg-gray-50 p-6 rounded-lg mb-8 print:p-4 print:mb-6">
-            {renderEditableText(
-              sectionContent.introduction,
-              `${region}-introduction`,
-              "Section introduction...",
-              4
-            )}
+            {renderEditableText(sectionContent.introduction, `${region}-introduction`, "Section introduction...", 4)}
           </div>
         )}
 
         {sectionContent.trends && (
           <div className="mb-8 print:mb-6">
             <h3 className="text-2xl font-semibold mb-4 text-gray-800 print:text-xl print:mb-3">
-              {region.replace('Section', '')} Key Trends
+              {region.replace("Section", "")} Key Trends
             </h3>
             <div className="bg-purple-50 p-6 rounded-lg border border-purple-200 print:p-4">
-              {renderEditableText(
-                sectionContent.trends,
-                `${region}-trends`,
-                "Regional trends...",
-                6
-              )}
+              {renderEditableText(sectionContent.trends, `${region}-trends`, "Regional trends...", 6)}
             </div>
           </div>
         )}
 
         {regionalArticles.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:gap-6">
-            {regionalArticles.map(renderArticle)}
-          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:gap-6">{regionalArticles.map(renderArticle)}</div>
         )}
       </section>
-    );
-  };
+    )
+  }
+
+  const renderHeaderSection = () => {
+    return (
+      <div className="relative mb-12 border-b pb-8 overflow-hidden print:mb-8 print:pb-6 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
+        {/* Header Image Container */}
+        <div className="absolute inset-0 z-0 print:relative print:inset-auto print:h-64">
+          <div className="absolute inset-0 bg-black/50 print:bg-black/30 z-10"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-white/60 print:hidden z-20"></div>
+
+          {/* Header Background Image */}
+          <div className="relative w-full h-full z-0">
+            {editableContent.headerImage ? (
+              <img
+                src={editableContent.headerImage || "/placeholder.svg"}
+                alt="Header Background"
+                className="w-full h-full object-cover print:h-64 print:object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none"
+                }}
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                <span className="text-gray-500">No header image</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Header Content */}
+        <div className="relative z-30 text-center flex flex-col items-center print:relative print:z-auto">
+          <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-5xl mx-auto px-6 print:px-0 print:max-w-full">
+            {/* Header Title */}
+            <div className="relative">
+              <h1
+                className="text-5xl font-bold mb-6 text-white tracking-tight leading-tight text-center sm:text-left break-words print:text-4xl print:text-black print:mb-4"
+                dangerouslySetInnerHTML={{
+                  __html: (() => {
+                    const header = editableContent.headerText || "ESG DISCLOSURE & REPORTING BULLETIN"
+                    const words = header.split(" ")
+                    const mid = Math.ceil(words.length / 2)
+                    return words.slice(0, mid).join(" ").concat("<br/>").concat(words.slice(mid).join(" "))
+                  })(),
+                }}
+              />
+
+              <div className="text-white print:text-black text-center sm:text-left mb-4 print:mb-2">
+                <p className="text-lg font-semibold print:text-base">
+                  Issue #{editableContent.issueNumber} - {formatDateToMonthYear(editableContent.publicationDate)}
+                </p>
+              </div>
+            </div>
+
+            {/* Publisher Logo */}
+            {editableContent.publisherLogo && (
+              <div className="mt-6 sm:mt-0 sm:ml-8 shrink-0">
+                <img
+                  src={editableContent.publisherLogo || "/placeholder.svg"}
+                  alt="Publisher Logo"
+                  className="h-16 w-auto print:h-12"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none"
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderArticleImages = (article: any) => {
+    const summaries = {
+      short: article.news_summary?.substring(0, 150) + "...",
+      medium: article.news_summary?.substring(0, 300) + "...",
+      long: article.news_summary,
+    }
+
+    return (
+      <div className="mb-8 print:mb-6">
+        <h3 className="text-xl font-bold mb-4 text-gray-800 print:text-lg">Article Summaries</h3>
+
+        {/* Top: Medium Summary */}
+        <article className="mb-6 print:mb-4">
+          <h4 className="text-lg font-semibold text-gray-700 mb-2 print:text-base">Medium Summary</h4>
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 print:bg-white print:border-gray-300">
+            <p className="text-gray-700 text-left leading-relaxed print:text-sm">{summaries.medium}</p>
+          </div>
+        </article>
+
+        {/* Right: Long Summary (in a grid with Short Summary below) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid-cols-1 print:gap-4">
+          {/* Long Summary - takes 2 columns on large screens */}
+          <article className="lg:col-span-2">
+            <h4 className="text-lg font-semibold text-gray-700 mb-2 print:text-base">Long Summary</h4>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 print:bg-white print:border-gray-300 h-full">
+              <p className="text-gray-700 text-left leading-relaxed print:text-sm">{summaries.long}</p>
+            </div>
+          </article>
+
+          {/* Short Summary - takes 1 column on large screens */}
+          <article>
+            <h4 className="text-lg font-semibold text-gray-700 mb-2 print:text-base">Short Summary</h4>
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200 print:bg-white print:border-gray-300 h-full">
+              <p className="text-gray-700 text-left leading-relaxed print:text-sm">{summaries.short}</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -1760,7 +1855,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           issueNumber: editableContent.issueNumber,
           publicationDate: editableContent.publicationDate,
           headerImage: editableContent.headerImage,
-          publisherLogo: editableContent.publisherLogo
+          publisherLogo: editableContent.publisherLogo,
         }}
       />
 
@@ -1774,8 +1869,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         article={editingArticle}
       />
 
-      <div className={`container mx-auto p-8 max-w-6xl bg-white ${showMappingModal ? 'overflow-hidden' : ''}`}>
-
+      <div className={`container mx-auto p-8 max-w-6xl bg-white ${showMappingModal ? "overflow-hidden" : ""}`}>
         <div className="flex justify-center gap-4 mb-8 print:hidden">
           <Button
             onClick={onStartOver}
@@ -1806,96 +1900,14 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         )}
 
         <div className="print:block print:bg-white print:p-0 print:max-w-none">
-
           {/* HEADER SECTION */}
-          <div className="relative mb-12 border-b pb-8 overflow-hidden print:mb-8 print:pb-6 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-
-            {/* Header Image Container */}
-            <div className="absolute inset-0 z-0 print:relative print:inset-auto print:h-64">
-              <div className="absolute inset-0 bg-black/50 print:bg-black/30 z-10"></div>
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-white/60 print:hidden z-20"></div>
-
-              {/* Header Background Image */}
-              <div className="relative w-full h-full z-0">
-                {editableContent.headerImage ? (
-                  <img
-                    src={editableContent.headerImage}
-                    alt="Header Background"
-                    className="w-full h-full object-cover print:h-64 print:object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                    <span className="text-gray-500">No header image</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Header Content */}
-            <div className="relative z-30 text-center flex flex-col items-center print:relative print:z-auto">
-              <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-5xl mx-auto px-6 print:px-0 print:max-w-full">
-
-                {/* Header Title */}
-                <div className="relative">
-                  <h1
-                    className="text-5xl font-bold mb-6 text-white tracking-tight leading-tight text-center sm:text-left break-words print:text-4xl print:text-black print:mb-4"
-                    dangerouslySetInnerHTML={{
-                      __html: (() => {
-                        const header = editableContent.headerText || "ESG DISCLOSURE & REPORTING BULLETIN";
-                        const words = header.split(" ");
-                        const mid = Math.ceil(words.length / 2);
-                        return (
-                          words.slice(0, mid).join(" ") +
-                          "<br />" +
-                          words.slice(mid).join(" ")
-                        );
-                      })(),
-                    }}
-                  />
-                </div>
-
-                {/* Publisher Logo */}
-                <div className="relative">
-                  {editableContent.publisherLogo ? (
-                    <img
-                      src={editableContent.publisherLogo}
-                      alt="Publisher Logo"
-                      className="h-20 w-auto object-contain mt-4 sm:mt-0 sm:ml-8 print:h-16 print:mt-2"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="h-20 w-32 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center mt-4 sm:mt-0 sm:ml-8 print:h-16">
-                      <span className="text-gray-500 text-sm text-center">No logo</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Issue Info */}
-              <div className="relative mt-6 flex justify-start w-full max-w-5xl mx-auto px-6 text-lg font-semibold text-white print:px-0 print:max-w-full print:mt-4 print:text-base">
-                <span className="px-4 py-2 rounded-lg print:bg-transparent print:px-0">
-                  {editableContent.issueNumber || "Issue #10"} |{" "}
-                  {formatConfigDate(editableContent.publicationDate)}
-                </span>
-              </div>
-            </div>
-          </div>
+          {renderHeaderSection()}
 
           {/* GREETING MESSAGE */}
           {editableContent.greetingMessage && (
             <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
               <div className="text-gray-700 text-lg text-justify leading-relaxed print:text-base">
-                {renderEditableText(
-                  editableContent.greetingMessage,
-                  "greetingMessage",
-                  "Greeting message...",
-                  6
-                )}
+                {renderEditableText(editableContent.greetingMessage, "greetingMessage", "Greeting message...", 6)}
               </div>
             </div>
           )}
@@ -1912,7 +1924,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                   primaryColor={themeColors[theme]}
                   articlesByCountry={articlesByCountry}
                   mappedCountries={countryMappings}
-                  theme={theme} 
+                  theme={theme}
                   interactive={false}
                   showLegend={true}
                 />
@@ -1923,14 +1935,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           {/* KEY TRENDS */}
           {editableContent.keyTrends && (
             <div className="mb-12 print:mb-8 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">5 Key Trends</h2>
+              <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">
+                5 Key Trends
+              </h2>
               <div className="bg-blue-50 p-6 rounded-lg border border-blue-200 print:p-4">
-                {renderEditableText(
-                  editableContent.keyTrends,
-                  "keyTrends",
-                  "Key trends will appear here...",
-                  8
-                )}
+                {renderEditableText(editableContent.keyTrends, "keyTrends", "Key trends will appear here...", 8)}
               </div>
             </div>
           )}
@@ -1944,27 +1953,29 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                   editableContent.executiveSummary,
                   "executiveSummary",
                   "Executive summary will appear here...",
-                  10
+                  10,
                 )}
               </div>
             </div>
           )}
 
           {/* REGIONAL SECTIONS */}
-          {renderRegionalSection('euSection')}
-          {renderRegionalSection('usSection')}
-          {renderRegionalSection('globalSection')}
+          {renderRegionalSection("euSection")}
+          {renderRegionalSection("usSection")}
+          {renderRegionalSection("globalSection")}
 
           {/* KEY TAKEAWAYS */}
           {editableContent.keyTakeaways && (
             <div className="mt-16 bg-gradient-to-r from-gray-50 to-blue-50 p-8 rounded-lg border print:mt-12 print:p-6 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <h2 className="text-2xl font-bold mb-6 text-gray-900 print:text-xl print:mb-4">Conclusion & Key Takeaways</h2>
+              <h2 className="text-2xl font-bold mb-6 text-gray-900 print:text-xl print:mb-4">
+                Conclusion & Key Takeaways
+              </h2>
               <div className="text-gray-700 text-lg space-y-4 print:text-base print:space-y-3">
                 {renderEditableText(
                   editableContent.keyTakeaways,
                   "keyTakeaways",
                   "Key takeaways will appear here...",
-                  8
+                  8,
                 )}
               </div>
             </div>
@@ -1975,11 +1986,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             <div className="absolute inset-0 z-0 print:relative print:inset-auto">
               {editableContent.footerImage ? (
                 <img
-                  src={editableContent.footerImage}
+                  src={editableContent.footerImage || "/placeholder.svg"}
                   alt="Footer Background"
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.style.display = "none"
                   }}
                 />
               ) : (
@@ -1997,10 +2008,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                   <span>About</span>
                 </div>
                 <div className="text-sm print:text-xs">
-                  Generated on {new Date().toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                  Generated on{" "}
+                  {new Date().toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
                   })}
                 </div>
               </div>
@@ -2055,7 +2067,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               break-before: page !important;
             }
             
-            .print\\:min-h-\\[calc\\(29\\.7cm-2cm\\)\\] {
+            .print\\:min-h-\\[calc\$$29\\.7cm-2cm\$$\\] {
               min-height: calc(29.7cm - 2cm) !important;
             }
             
@@ -2137,7 +2149,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           }
           
           @media screen {
-            .print\\:min-h-\\[calc\\(29\\.7cm-2cm\\)\\] {
+            .print\\:min-h-\\[calc\$$29\\.7cm-2cm\$$\\] {
               min-height: auto !important;
             }
           }

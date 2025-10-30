@@ -4,12 +4,15 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ConfirmationModal } from "./confirmation-modal"
 import { ArticleDetailModal } from "./article-detail-modal"
 import { ImageModal } from "./image-modal"
 import { BulletinConfigModal, type BulletinConfig } from "./bulletin-config-modal"
 import type { Article } from "./bulletin-generator"
 import { toast } from "sonner"
+import { THEME_MAPPING, THEME_TO_TYPE_VALUE, type ThemeType } from "@/lib/config/theme.config"
+import { DateFilterType, DATE_FILTER_OPTIONS, getDateRange } from "@/lib/utils/date.utils"
 
 interface ArticleSelectorProps {
   articles: Article[]
@@ -33,6 +36,9 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   const [customPrompts, setCustomPrompts] = useState<Map<number, string>>(new Map())
   const [customSummaries, setCustomSummaries] = useState<Map<number, string>>(new Map())
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<number | null>(null)
+
+  const [selectedDateFilter, setSelectedDateFilter] = useState<DateFilterType>(DateFilterType.LAST_WEEK)
+  const [filteredArticles, setFilteredArticles] = useState<Article[]>(articles)
 
   const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
     headerText: "ESG Bulletin",
@@ -99,16 +105,39 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     "https://picsum.photos/900/600",
   ]
 
-  // Auto-generate bulletin content when articles are selected
   useEffect(() => {
-    const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id))
+    const dateRange = getDateRange(selectedDateFilter)
+    const fromDate = new Date(dateRange.fromDate)
+    const toDate = new Date(dateRange.toDate)
+
+    const filtered = articles.filter((article) => {
+      const articleDate = new Date(article.published_at)
+      const isInDateRange = articleDate >= fromDate && articleDate <= toDate
+
+      const typeValue = THEME_TO_TYPE_VALUE[theme as ThemeType]
+      const isMatchingTheme = article.type_value?.toLowerCase() === typeValue.toLowerCase()
+
+      return isInDateRange && isMatchingTheme
+    })
+
+    setFilteredArticles(filtered)
+  }, [selectedDateFilter, articles, theme])
+
+  useEffect(() => {
+    if (filteredArticles.length > 0 && !bulletinConfig.greetingMessage && !isAutoGenerating) {
+      generateGreetingMessageImmediate(filteredArticles)
+    }
+  }, [filteredArticles])
+
+  useEffect(() => {
+    const selectedArticles = filteredArticles.filter((a) => selectedIds.has(a.news_id))
     if (selectedArticles.length > 0 && !isAutoGenerating) {
       autoGenerateBulletinContent(selectedArticles)
     }
-  }, [selectedIds, articles])
+  }, [selectedIds, filteredArticles])
 
   const hasUnsavedChanges = () => {
-    const initialSelectedIds = new Set(articles.map((a) => a.news_id))
+    const initialSelectedIds = new Set(filteredArticles.map((a) => a.news_id))
 
     if (
       selectedIds.size !== initialSelectedIds.size ||
@@ -136,6 +165,9 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
       greetingMessage: "",
       keyTrends: true,
       executiveSummary: true,
+      keyTakeaways: true,
+      interactiveMap: true,
+      calendarSection: true,
       euSection: {
         enabled: true,
         title: "",
@@ -201,10 +233,10 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   }
 
   const toggleAll = () => {
-    if (selectedIds.size === articles.length) {
+    if (selectedIds.size === filteredArticles.length) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(articles.map((a) => a.news_id)))
+      setSelectedIds(new Set(filteredArticles.map((a) => a.news_id)))
     }
   }
 
@@ -360,7 +392,6 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     }
   }
 
-  // Generate greeting message function
   const generateGreetingMessage = async (selectedArticles: Article[]): Promise<string> => {
     try {
       if (!selectedArticles || selectedArticles.length === 0) {
@@ -379,7 +410,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         },
         body: JSON.stringify({
           type: "greeting_message",
-          articles: selectedArticles,
+          articles: selectedArticles.slice(0, 5),
           currentDate: bulletinConfig.publicationDate,
         }),
       })
@@ -414,29 +445,43 @@ We remain committed to delivering high-quality, actionable intelligence to help 
     }
   }
 
+  const generateGreetingMessageImmediate = async (selectedArticles: Article[]) => {
+    if (selectedArticles.length === 0) return
+
+    try {
+      const greetingMessage = await generateGreetingMessage(selectedArticles)
+      setBulletinConfig((prev) => ({
+        ...prev,
+        greetingMessage,
+      }))
+    } catch (error) {
+      console.error("[v0] Failed to generate greeting message immediately:", error)
+    }
+  }
+
   const autoGenerateBulletinContent = async (selectedArticles: Article[]) => {
     if (selectedArticles.length === 0) return
 
     setIsAutoGenerating(true)
 
     try {
-      // Generate issue number based on current date
       const currentDate = new Date()
       const month = currentDate.toLocaleString("en-US", { month: "long" })
       const year = currentDate.getFullYear()
-      const issueNumber = `Issue #${Math.floor(Math.random() * 100) + 1} - ${month} ${year}`
+      const issueNumber = `${Math.floor(Math.random() * 100) + 1}`
 
-      let greetingMessage = ""
-      try {
-        greetingMessage = await generateGreetingMessage(selectedArticles)
-      } catch (greetingError) {
-        console.error("[v0] Greeting generation failed, using fallback:", greetingError)
-        const fallbackMonth = currentDate.toLocaleString("en-US", { month: "long" })
-        const fallbackYear = currentDate.getFullYear()
-        greetingMessage = `Welcome to our ${fallbackMonth} ${fallbackYear} ESG Regulatory Bulletin.`
+      let greetingMessage = bulletinConfig.greetingMessage
+      if (!greetingMessage) {
+        try {
+          greetingMessage = await generateGreetingMessage(selectedArticles)
+        } catch (greetingError) {
+          console.error("[v0] Greeting generation failed, using fallback:", greetingError)
+          const fallbackMonth = currentDate.toLocaleString("en-US", { month: "long" })
+          const fallbackYear = currentDate.getFullYear()
+          greetingMessage = `Welcome to our ${fallbackMonth} ${fallbackYear} ESG Regulatory Bulletin.`
+        }
       }
 
-      // Update basic configuration
       setBulletinConfig((prev) => ({
         ...prev,
         headerText: "ESG DISCLOSURE & REPORTING BULLETIN",
@@ -447,7 +492,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         greetingMessage,
       }))
 
-      // Generate AI content for the bulletin
       await generateAIContentForBulletin(selectedArticles)
 
       toast.success("Bulletin content auto-generated successfully!")
@@ -461,7 +505,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
 
   const generateAIContentForBulletin = async (selectedArticles: Article[]) => {
     try {
-      // Generate key trends
       const keyTrendsResponse = await fetch("/api/generate-bulletin-content", {
         method: "POST",
         headers: {
@@ -485,7 +528,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         }))
       }
 
-      // Generate executive summary
       const execSummaryResponse = await fetch("/api/generate-bulletin-content", {
         method: "POST",
         headers: {
@@ -509,7 +551,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         }))
       }
 
-      // Generate key takeaways
       const keyTakeawaysResponse = await fetch("/api/generate-bulletin-content", {
         method: "POST",
         headers: {
@@ -533,7 +574,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         }))
       }
 
-      // Generate regional content for enabled sections
       const regions = ["euSection", "usSection", "globalSection"] as const
 
       for (const region of regions) {
@@ -541,7 +581,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
           const regionalArticles = getRegionalArticles(selectedArticles, region)
 
           if (regionalArticles.length > 0) {
-            // Generate regional title
             const titleResponse = await fetch("/api/generate-bulletin-content", {
               method: "POST",
               headers: {
@@ -566,7 +605,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
               }))
             }
 
-            // Generate regional trends if enabled
             if (bulletinConfig[region].keyTrends) {
               const trendsResponse = await fetch("/api/generate-bulletin-content", {
                 method: "POST",
@@ -653,9 +691,8 @@ We remain committed to delivering high-quality, actionable intelligence to help 
     })
 
     try {
-      const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id))
+      const selectedArticles = filteredArticles.filter((a) => selectedIds.has(a.news_id))
 
-      // Step 1: Generate greeting message
       setGenerationProgress({
         currentStep: "Generating greeting message...",
         progress: 1,
@@ -668,7 +705,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         greetingMessage,
       }))
 
-      // Step 2: Generate key trends
       setGenerationProgress({
         currentStep: "Generating key trends...",
         progress: 2,
@@ -698,7 +734,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         }
       }
 
-      // Step 3: Generate executive summary
       setGenerationProgress({
         currentStep: "Generating executive summary...",
         progress: 3,
@@ -728,7 +763,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         }
       }
 
-      // Step 4: Generate key takeaways
       setGenerationProgress({
         currentStep: "Generating key takeaways...",
         progress: 4,
@@ -758,7 +792,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         }
       }
 
-      // Step 5: Generate regional content
       setGenerationProgress({
         currentStep: "Generating regional content...",
         progress: 5,
@@ -796,14 +829,12 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         }
       }
 
-      // Step 6: Finalize configuration
       setGenerationProgress({
         currentStep: "Finalizing bulletin...",
         progress: 6,
         totalSteps: 7,
       })
 
-      // Step 7: Complete
       setGenerationProgress({
         currentStep: "Bulletin ready!",
         progress: 7,
@@ -812,7 +843,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
 
       await new Promise((resolve) => setTimeout(resolve, 500))
 
-      // Call the onConfirm callback with the generated content
       const finalSelectedArticles = selectedArticles.map((article) => ({
         ...article,
         imageUrl: articlesWithImages.get(article.news_id),
@@ -829,7 +859,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
     }
   }
 
-  const selectedArticles = articles
+  const selectedArticles = filteredArticles
     .filter((a) => selectedIds.has(a.news_id))
     .map((article) => ({
       ...article,
@@ -854,18 +884,14 @@ We remain committed to delivering high-quality, actionable intelligence to help 
     }
   }
 
-  const themeColors = {
-    blue: "#1976D2",
-    green: "#388E3C",
-    red: "#D32F2F",
-  }
+  const themeConfig = THEME_MAPPING[theme as ThemeType]
 
   return (
     <div className="container mx-auto p-8 max-w-6xl">
       <div className="bg-white rounded-lg shadow-md p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold mb-2" style={{ color: themeColors[theme] }}>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: themeConfig.primary }}>
               Select Articles for Your Bulletin
             </h2>
             <p className="text-gray-600">
@@ -875,7 +901,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
                   Auto-generating bulletin content...
                 </span>
               ) : (
-                `Choose which articles to include in your bulletin (${selectedArticles.length} of ${articles.length} selected)`
+                `Choose which articles to include in your bulletin (${selectedArticles.length} of ${filteredArticles.length} selected)`
               )}
             </p>
           </div>
@@ -886,34 +912,57 @@ We remain committed to delivering high-quality, actionable intelligence to help 
           )}
         </div>
 
+        <div className="mb-6 grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Theme</label>
+            <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 font-medium">
+              {themeConfig.label}
+            </div>
+            <p className="text-xs text-gray-500">{themeConfig.description}</p>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="date-filter" className="text-sm font-medium text-gray-700">
+              Date Filter
+            </label>
+            <Select
+              value={selectedDateFilter}
+              onValueChange={(value) => setSelectedDateFilter(value as DateFilterType)}
+            >
+              <SelectTrigger id="date-filter" className="border-gray-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(DATE_FILTER_OPTIONS).map(([key, option]) => (
+                  <SelectItem key={key} value={key}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500">Automatically filters articles by publication date</p>
+          </div>
+        </div>
+
         <div className="mb-6 flex justify-between items-center">
           <div className="flex gap-4">
             <Button
               onClick={toggleAll}
               className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
             >
-              {selectedIds.size === articles.length ? "Deselect All" : "Select All"}
+              {selectedIds.size === filteredArticles.length ? "Deselect All" : "Select All"}
             </Button>
             <span className="text-sm text-gray-600 self-center">
               {selectedIds.size} article{selectedIds.size !== 1 ? "s" : ""} selected
             </span>
           </div>
-          {/* <Button
-            onClick={openConfigModal}
-            className="text-white font-bold py-2 px-4 rounded-lg"
-            style={{
-              backgroundColor: selectedArticles.length === 0 ? "#ccc" : themeColors[theme],
-            }}
-          >
-            Configure Bulletin
-          </Button> */}
         </div>
 
         <div className="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4">
-          {articles.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No articles found</p>
+          {filteredArticles.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No articles found matching the selected filters</p>
           ) : (
-            articles.map((article) => (
+            filteredArticles.map((article) => (
               <div
                 key={article.news_id}
                 className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer group"
@@ -1018,7 +1067,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
             disabled={selectedArticles.length === 0 || isGenerating || isAutoGenerating}
             className="text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: selectedArticles.length === 0 ? "#ccc" : themeColors[theme],
+              backgroundColor: selectedArticles.length === 0 ? "#ccc" : themeConfig.primary,
             }}
           >
             {isGenerating ? (
