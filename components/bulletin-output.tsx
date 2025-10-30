@@ -376,14 +376,6 @@ interface ArticleImageDisplayProps {
   editable?: boolean
   className?: string
 }
-interface ArticleImageDisplayProps {
-  imageUrl?: string
-  alt: string
-  onImageUpload?: (file: File) => void
-  onRemoveImage?: () => void
-  editable?: boolean
-  className?: string
-}
 
 function ArticleImageDisplay({
   imageUrl,
@@ -405,8 +397,8 @@ function ArticleImageDisplay({
   // If image exists and loaded successfully, show it in 4:3 format with remove button
   if (imageUrl && !imageError) {
     return (
-      <div className={`mb-6 print:mb-4 relative ${className}`}>
-        <div className="w-full aspect-[4/3]"> {/* 4:3 aspect ratio */}
+      <div className={`relative ${className}`}>
+        <div className="w-full aspect-[4/3]">
           <img
             src={imageUrl}
             alt={alt}
@@ -434,7 +426,7 @@ function ArticleImageDisplay({
   // If no image or image failed to load, and editing is allowed, show upload interface
   if (editable && onImageUpload) {
     return (
-      <div className={`mb-6 print:mb-4 print:hidden ${className}`}>
+      <div className={`print:hidden ${className}`}>
         <DragDropImageUpload
           onImageUpload={onImageUpload}
           onRemoveImage={onRemoveImage}
@@ -1353,44 +1345,25 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const formatBoldText = (text: string) => {
     if (!text) return "";
 
-    const sentences = text.split(/(?<=[.!?])\s+/);
-
     return (
-      <div className="text-justify leading-relaxed">
-        {sentences.map((sentence, index) => {
-          const formattedSentence = sentence.split(/(\*\*.*?\*\*|\*.*?\*)/g).map((part, partIndex) => {
-            if (part.startsWith("**") && part.endsWith("**")) {
-              const boldText = part.slice(2, -2);
-              return (
-                <strong key={partIndex} className="font-bold">
-                  {boldText}
-                </strong>
-              );
-            } else if (part.startsWith("*") && part.endsWith("*") && part.length > 1) {
-              const italicText = part.slice(1, -1);
-              return (
-                <em key={partIndex} className="italic">
-                  {italicText}
-                </em>
-              );
-            }
-            return part;
-          });
-
-          if (index === 0) {
+      <div className="leading-relaxed">
+        {text.split(/(\*\*.*?\*\*|\*.*?\*)/g).map((part, index) => {
+          if (part.startsWith("**") && part.endsWith("**")) {
+            const boldText = part.slice(2, -2);
             return (
-              <span key={index} className="inline-block">
-                <span className="inline-block w-8">{"\u00A0"}</span>
-                {formattedSentence}
-              </span>
+              <strong key={index} className="font-bold">
+                {boldText}
+              </strong>
+            );
+          } else if (part.startsWith("*") && part.endsWith("*") && part.length > 1) {
+            const italicText = part.slice(1, -1);
+            return (
+              <em key={index} className="italic">
+                {italicText}
+              </em>
             );
           }
-
-          return (
-            <span key={index}>
-              {" "}{formattedSentence}
-            </span>
-          );
+          return part;
         })}
       </div>
     );
@@ -1464,6 +1437,10 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     reader.readAsDataURL(file)
   }
 
+  const handleRemoveArticleImage = (articleId: string) => {
+    handleArticleUpdate(articleId, { imageUrl: "" })
+  }
+
   const renderEditableText = (content: string, sectionId: string, placeholder: string, rows: number = 4) => {
     if (isEditing === sectionId) {
       return (
@@ -1503,7 +1480,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
     return (
       <div className="group relative">
-        <div className="text-justify leading-relaxed whitespace-pre-wrap">
+        <div className="leading-relaxed whitespace-pre-wrap">
           {formatBoldText(content)}
         </div>
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
@@ -1592,10 +1569,9 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const renderArticle = (article: any) => {
     const currentArticle = articles.find(a => a.news_id === article.news_id) || article;
 
-    // Handler for removing article image
-    const handleRemoveArticleImage = (articleId: string) => {
-      handleArticleUpdate(articleId, { imageUrl: "" })
-    }
+    // Determine if article is short or long based on summary length
+    const articleContent = currentArticle.news_summary || "";
+    const isShortArticle = articleContent.length <= 1000;
 
     return (
       <div key={currentArticle.news_id} className="border-l-4 pl-6 py-2 group relative" style={{ borderColor: themeColors[theme] }}>
@@ -1622,49 +1598,89 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           </Button>
         </div>
 
-        <div className="flex items-start gap-3 mb-2 print:mb-1">
-          <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
-            {currentArticle.jurisdictions?.[0]?.code || 'GLOBAL'}
-          </span>
-        </div>
-        <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{currentArticle.news_title}</h3>
+        {/* Content container with proper spacing */}
+        <div className="space-y-4">
+    
 
-        {/* Article Image - Using the new component with remove functionality */}
-        <ArticleImageDisplay
-          imageUrl={currentArticle.imageUrl}
-          alt={currentArticle.news_title}
-          onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
-
-          editable={true}
-        />
-
-        <div className="text-gray-700 mb-4 print:text-sm">
-          {formatBoldText(currentArticle.news_summary)}
-        </div>
-
-        {/* Source Information - Use currentArticle instead of article */}
-        {currentArticle.source && currentArticle.source.length > 0 && (
-          <div className="mb-3 print:mb-2">
-            <div className="text-sm text-gray-600 print:text-xs">
-              <strong>Source:</strong>{' '}
-              {currentArticle.source[0].source_url ? (
-                <a
-                  href={currentArticle.source[0].source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
-                >
-                  {currentArticle.source[0].source_url || 'Original Source'}
-                </a>
-              ) : (
-                <span>{currentArticle.source[0].source_alias || 'Original Source'}</span>
-              )}
-            </div>
+          {/* Article header and jurisdiction */}
+          <div className="flex items-start gap-3 mb-2 print:mb-1">
+            <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
+              {currentArticle.jurisdictions?.[0]?.code || 'GLOBAL'}
+            </span>
           </div>
-        )}
 
-        <div className="text-sm text-gray-500 print:text-xs">
-          Published: {formatDate(currentArticle.published_at)}
+          {/* Article title */}
+          <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{currentArticle.news_title}</h3>
+
+
+      {/* For short articles: Image at top */}
+          {isShortArticle && currentArticle.imageUrl && (
+            <div className="mb-4">
+              <ArticleImageDisplay
+                imageUrl={currentArticle.imageUrl}
+                alt={currentArticle.news_title}
+                onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+               
+                editable={true}
+              />
+            </div>
+          )}
+          {/* Article content */}
+          <div className="text-gray-700 mb-4 print:text-sm">
+            {formatBoldText(currentArticle.news_summary)}
+          </div>
+
+          {/* For long articles: Image at bottom */}
+          {!isShortArticle && currentArticle.imageUrl && (
+            <div className="mt-4">
+              <ArticleImageDisplay
+                imageUrl={currentArticle.imageUrl}
+                alt={currentArticle.news_title}
+                onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+               
+                editable={true}
+              />
+            </div>
+          )}
+
+          {/* Source Information */}
+          {currentArticle.source && currentArticle.source.length > 0 && (
+            <div className="mb-3 print:mb-2">
+              <div className="text-sm text-gray-600 print:text-xs">
+                <strong>Source:</strong>{' '}
+                {currentArticle.source[0].source_url ? (
+                  <a
+                    href={currentArticle.source[0].source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
+                  >
+                    {currentArticle.source[0].source_url || 'Original Source'}
+                  </a>
+                ) : (
+                  <span>{currentArticle.source[0].source_alias || 'Original Source'}</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Publication date */}
+          <div className="text-sm text-gray-500 print:text-xs">
+            Published: {formatDate(currentArticle.published_at)}
+          </div>
+
+          {/* Upload interface for articles without images */}
+          {!currentArticle.imageUrl && (
+            <div className="mt-4">
+              <ArticleImageDisplay
+                imageUrl={currentArticle.imageUrl}
+                alt={currentArticle.news_title}
+                onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+                onRemoveImage={() => handleRemoveArticleImage(currentArticle.news_id)}
+                editable={true}
+              />
+            </div>
+          )}
         </div>
       </div>
     )
@@ -1718,7 +1734,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         {sectionContent.trends && (
           <div className="mb-8 print:mb-6">
             <h3 className="text-2xl font-semibold mb-4 text-gray-800 print:text-xl print:mb-3">
-              {region.replace('Section', '')} Key Trends
+              {region.replace('Section', '').toUpperCase()} Key Trends
             </h3>
             <div className="bg-purple-50 p-6 rounded-lg border border-purple-200 print:p-4">
               {renderEditableText(
@@ -1889,7 +1905,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           {/* GREETING MESSAGE */}
           {editableContent.greetingMessage && (
             <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <div className="text-gray-700 text-lg text-justify leading-relaxed print:text-base">
+              <div className="text-gray-700 text-lg leading-relaxed print:text-base">
                 {renderEditableText(
                   editableContent.greetingMessage,
                   "greetingMessage",
@@ -2105,10 +2121,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               max-width: 100% !important;
               height: auto !important;
             }
-            
-            .text-justify {
-              text-align: justify !important;
-            }
+        
             
             .leading-relaxed {
               line-height: 1.6 !important;

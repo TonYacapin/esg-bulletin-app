@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ConfirmationModal } from "./confirmation-modal"
@@ -7,7 +9,7 @@ import { ArticleDetailModal } from "./article-detail-modal"
 import { ImageModal } from "./image-modal"
 import { BulletinConfigModal, type BulletinConfig } from "./bulletin-config-modal"
 import type { Article } from "./bulletin-generator"
-import { toast } from 'sonner'
+import { toast } from "sonner"
 
 interface ArticleSelectorProps {
   articles: Article[]
@@ -27,16 +29,16 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   const [imageUrl, setImageUrl] = useState("")
   const [articlesWithImages, setArticlesWithImages] = useState<Map<number, string>>(new Map())
   const [isGenerating, setIsGenerating] = useState(false)
-  
+
   const [customPrompts, setCustomPrompts] = useState<Map<number, string>>(new Map())
   const [customSummaries, setCustomSummaries] = useState<Map<number, string>>(new Map())
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<number | null>(null)
-  
+
   const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
     headerText: "ESG Bulletin",
     headerImage: "",
     issueNumber: "",
-    publicationDate: new Date().toISOString().split('T')[0],
+    publicationDate: new Date().toISOString().split("T")[0],
     publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
     footerImage: "",
     tableOfContents: true,
@@ -51,21 +53,21 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
       title: "",
       keyTrends: true,
       introduction: "",
-      trends: ""
+      trends: "",
     },
     usSection: {
       enabled: true,
       title: "",
       keyTrends: true,
       introduction: "",
-      trends: "" 
+      trends: "",
     },
     globalSection: {
       enabled: true,
       title: "",
       keyTrends: true,
       introduction: "",
-      trends: ""
+      trends: "",
     },
     calendarMinutes: true,
     keepAnEyeOn: true,
@@ -78,8 +80,8 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
       keyTakeaways: "",
       euTrends: "",
       usTrends: "",
-      globalTrends: ""
-    }
+      globalTrends: "",
+    },
   })
 
   const [isAutoGenerating, setIsAutoGenerating] = useState(false)
@@ -107,25 +109,27 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
 
   const hasUnsavedChanges = () => {
     const initialSelectedIds = new Set(articles.map((a) => a.news_id))
-    
-    if (selectedIds.size !== initialSelectedIds.size || 
-        !Array.from(selectedIds).every(id => initialSelectedIds.has(id))) {
+
+    if (
+      selectedIds.size !== initialSelectedIds.size ||
+      !Array.from(selectedIds).every((id) => initialSelectedIds.has(id))
+    ) {
       return true
     }
-    
+
     if (articlesWithImages.size > 0) {
       return true
     }
-    
+
     if (customSummaries.size > 0) {
       return true
     }
-    
+
     const defaultConfig = {
       headerText: "ESG BULLETIN",
       headerImage: "",
       issueNumber: "",
-      publicationDate: new Date().toISOString().split('T')[0],
+      publicationDate: new Date().toISOString().split("T")[0],
       publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
       footerImage: "",
       tableOfContents: true,
@@ -136,43 +140,51 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         enabled: true,
         title: "",
         keyTrends: true,
-        introduction: ""
+        introduction: "",
       },
       usSection: {
         enabled: true,
         title: "",
         keyTrends: true,
-        introduction: ""
+        introduction: "",
       },
       globalSection: {
         enabled: true,
         title: "",
         keyTrends: true,
-        introduction: ""
-      }
+        introduction: "",
+      },
     } as BulletinConfig
-    
-    return bulletinConfig.headerText !== defaultConfig.headerText ||
-           bulletinConfig.headerImage !== defaultConfig.headerImage ||
-           bulletinConfig.issueNumber !== defaultConfig.issueNumber ||
-           bulletinConfig.publicationDate !== defaultConfig.publicationDate ||
-           bulletinConfig.publisherLogo !== defaultConfig.publisherLogo ||
-           bulletinConfig.footerImage !== defaultConfig.footerImage
+
+    return (
+      bulletinConfig.headerText !== defaultConfig.headerText ||
+      bulletinConfig.headerImage !== defaultConfig.headerImage ||
+      bulletinConfig.issueNumber !== defaultConfig.issueNumber ||
+      bulletinConfig.publicationDate !== defaultConfig.publicationDate ||
+      bulletinConfig.publisherLogo !== defaultConfig.publisherLogo ||
+      bulletinConfig.footerImage !== defaultConfig.footerImage
+    )
   }
 
   useEffect(() => {
-    if (selectedArticle || imageModalOpen || configModalOpen || generateConfirmationModalOpen || backConfirmationModalOpen) {
+    if (
+      selectedArticle ||
+      imageModalOpen ||
+      configModalOpen ||
+      generateConfirmationModalOpen ||
+      backConfirmationModalOpen
+    ) {
       const scrollY = window.scrollY
-      document.body.style.position = 'fixed'
+      document.body.style.position = "fixed"
       document.body.style.top = `-${scrollY}px`
-      document.body.style.width = '100%'
-      document.body.style.overflow = 'hidden'
+      document.body.style.width = "100%"
+      document.body.style.overflow = "hidden"
 
       return () => {
-        document.body.style.position = ''
-        document.body.style.top = ''
-        document.body.style.width = ''
-        document.body.style.overflow = ''
+        document.body.style.position = ""
+        document.body.style.top = ""
+        document.body.style.width = ""
+        document.body.style.overflow = ""
         window.scrollTo(0, scrollY)
       }
     }
@@ -253,7 +265,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     }
   }
 
-  const setRandomConfigImage = (field: 'headerImage' | 'footerImage' | 'publisherLogo') => {
+  const setRandomConfigImage = (field: "headerImage" | "footerImage" | "publisherLogo") => {
     const randomUrl = getRandomImageUrl()
     handleConfigChange(field, randomUrl)
   }
@@ -279,9 +291,9 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   }
 
   const handleConfigChange = (field: keyof BulletinConfig, value: string) => {
-    setBulletinConfig(prev => ({
+    setBulletinConfig((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }))
   }
 
@@ -299,39 +311,40 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
 
   const generateSummary = async (articleId: number) => {
     if (!selectedArticle) return
-    
+
     setIsGeneratingSummary(articleId)
-    
-    const prompt = customPrompts.get(articleId) || 
+
+    const prompt =
+      customPrompts.get(articleId) ||
       `Please provide a concise summary of the following article for an ESG bulletin. Focus on key ESG-related aspects and main points.`
-    
+
     try {
-      const response = await fetch('/api/generate-summary', {
-        method: 'POST',
+      const response = await fetch("/api/generate-summary", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           prompt,
-          articleContent: selectedArticle.news_summary
+          articleContent: selectedArticle.news_summary,
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate summary')
+        throw new Error("Failed to generate summary")
       }
 
       const data = await response.json()
-      
+
       if (data.error) {
         throw new Error(data.error)
       }
 
       handleSummaryChange(articleId, data.summary)
     } catch (error) {
-      console.error('Error generating summary:', error)
+      console.error("Error generating summary:", error)
       handleSummaryChange(articleId, selectedArticle.news_summary)
-      toast.error('Failed to generate AI summary. Using original summary.')
+      toast.error("Failed to generate AI summary. Using original summary.")
     } finally {
       setIsGeneratingSummary(null)
     }
@@ -350,32 +363,49 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   // Generate greeting message function
   const generateGreetingMessage = async (selectedArticles: Article[]): Promise<string> => {
     try {
-      const response = await fetch('/api/generate-bulletin-content', {
-        method: 'POST',
+      if (!selectedArticles || selectedArticles.length === 0) {
+        console.log("[v0] No articles provided, using fallback greeting")
+        const currentDate = new Date(bulletinConfig.publicationDate)
+        const month = currentDate.toLocaleString("en-US", { month: "long" })
+        const year = currentDate.getFullYear()
+
+        return `Welcome to our ${month} ${year} ESG Regulatory Bulletin. We are pleased to present this comprehensive overview of the latest developments in environmental, social, and governance reporting requirements. This bulletin offers timely analysis and practical guidance to support your compliance efforts and strategic planning.`
+      }
+
+      const response = await fetch("/api/generate-bulletin-content", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: 'greeting_message',
+          type: "greeting_message",
           articles: selectedArticles,
-          currentDate: bulletinConfig.publicationDate
+          currentDate: bulletinConfig.publicationDate,
         }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        return data.content
-      } else {
-        throw new Error('Failed to generate greeting message')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error("[v0] API error response:", errorData)
+        throw new Error(`API returned ${response.status}: ${errorData.error || "Unknown error"}`)
       }
+
+      const data = await response.json()
+
+      if (!data.content) {
+        console.error("[v0] No content in response:", data)
+        throw new Error("API returned empty content")
+      }
+
+      console.log("[v0] Successfully generated greeting message")
+      return data.content
     } catch (error) {
-      console.error('Error generating greeting message:', error)
-      
-      // Enhanced fallback greeting
+      console.error("[v0] Error generating greeting message:", error)
+
       const currentDate = new Date(bulletinConfig.publicationDate)
-      const month = currentDate.toLocaleString('en-US', { month: 'long' })
+      const month = currentDate.toLocaleString("en-US", { month: "long" })
       const year = currentDate.getFullYear()
-      
+
       return `Welcome to our ${month} ${year} ESG Regulatory Bulletin. We are pleased to present this comprehensive overview of the latest developments in environmental, social, and governance reporting requirements. This edition features ${selectedArticles.length} significant regulatory updates from across global jurisdictions, providing you with essential insights to navigate the evolving compliance landscape.
 
 As regulatory frameworks continue to mature and expand, staying informed about disclosure requirements and reporting standards has never been more critical for organizations worldwide. This bulletin offers timely analysis and practical guidance to support your compliance efforts and strategic planning.
@@ -386,37 +416,44 @@ We remain committed to delivering high-quality, actionable intelligence to help 
 
   const autoGenerateBulletinContent = async (selectedArticles: Article[]) => {
     if (selectedArticles.length === 0) return
-    
+
     setIsAutoGenerating(true)
-    
+
     try {
       // Generate issue number based on current date
       const currentDate = new Date()
-      const month = currentDate.toLocaleString('en-US', { month: 'long' })
+      const month = currentDate.toLocaleString("en-US", { month: "long" })
       const year = currentDate.getFullYear()
       const issueNumber = `Issue #${Math.floor(Math.random() * 100) + 1} - ${month} ${year}`
-      
-      // Generate greeting message
-      const greetingMessage = await generateGreetingMessage(selectedArticles)
-      
+
+      let greetingMessage = ""
+      try {
+        greetingMessage = await generateGreetingMessage(selectedArticles)
+      } catch (greetingError) {
+        console.error("[v0] Greeting generation failed, using fallback:", greetingError)
+        const fallbackMonth = currentDate.toLocaleString("en-US", { month: "long" })
+        const fallbackYear = currentDate.getFullYear()
+        greetingMessage = `Welcome to our ${fallbackMonth} ${fallbackYear} ESG Regulatory Bulletin.`
+      }
+
       // Update basic configuration
-      setBulletinConfig(prev => ({
+      setBulletinConfig((prev) => ({
         ...prev,
         headerText: "ESG DISCLOSURE & REPORTING BULLETIN",
         issueNumber,
-        publicationDate: currentDate.toISOString().split('T')[0],
+        publicationDate: currentDate.toISOString().split("T")[0],
         headerImage: getRandomImageUrl(),
         footerImage: getRandomImageUrl(),
-        greetingMessage // Add the generated greeting
+        greetingMessage,
       }))
 
       // Generate AI content for the bulletin
       await generateAIContentForBulletin(selectedArticles)
-      
-      toast.success('Bulletin content auto-generated successfully!')
+
+      toast.success("Bulletin content auto-generated successfully!")
     } catch (error) {
-      console.error('Error auto-generating bulletin content:', error)
-      toast.error('Failed to auto-generate some content. You can generate it manually in the configuration.')
+      console.error("Error auto-generating bulletin content:", error)
+      toast.error("Failed to auto-generate some content. You can generate it manually in the configuration.")
     } finally {
       setIsAutoGenerating(false)
     }
@@ -425,178 +462,182 @@ We remain committed to delivering high-quality, actionable intelligence to help 
   const generateAIContentForBulletin = async (selectedArticles: Article[]) => {
     try {
       // Generate key trends
-      const keyTrendsResponse = await fetch('/api/generate-bulletin-content', {
-        method: 'POST',
+      const keyTrendsResponse = await fetch("/api/generate-bulletin-content", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: 'key_trends',
+          type: "key_trends",
           articles: selectedArticles,
-          currentDate: bulletinConfig.publicationDate
+          currentDate: bulletinConfig.publicationDate,
         }),
       })
 
       if (keyTrendsResponse.ok) {
         const keyTrendsData = await keyTrendsResponse.json()
-        setBulletinConfig(prev => ({
+        setBulletinConfig((prev) => ({
           ...prev,
           generatedContent: {
             ...prev.generatedContent,
-            keyTrends: keyTrendsData.content
-          }
+            keyTrends: keyTrendsData.content,
+          },
         }))
       }
 
       // Generate executive summary
-      const execSummaryResponse = await fetch('/api/generate-bulletin-content', {
-        method: 'POST',
+      const execSummaryResponse = await fetch("/api/generate-bulletin-content", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: 'executive_summary',
+          type: "executive_summary",
           articles: selectedArticles,
-          currentDate: bulletinConfig.publicationDate
+          currentDate: bulletinConfig.publicationDate,
         }),
       })
 
       if (execSummaryResponse.ok) {
         const execSummaryData = await execSummaryResponse.json()
-        setBulletinConfig(prev => ({
+        setBulletinConfig((prev) => ({
           ...prev,
           generatedContent: {
             ...prev.generatedContent,
-            executiveSummary: execSummaryData.content
-          }
+            executiveSummary: execSummaryData.content,
+          },
         }))
       }
 
       // Generate key takeaways
-      const keyTakeawaysResponse = await fetch('/api/generate-bulletin-content', {
-        method: 'POST',
+      const keyTakeawaysResponse = await fetch("/api/generate-bulletin-content", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: 'key_takeaways',
+          type: "key_takeaways",
           articles: selectedArticles,
-          currentDate: bulletinConfig.publicationDate
+          currentDate: bulletinConfig.publicationDate,
         }),
       })
 
       if (keyTakeawaysResponse.ok) {
         const keyTakeawaysData = await keyTakeawaysResponse.json()
-        setBulletinConfig(prev => ({
+        setBulletinConfig((prev) => ({
           ...prev,
           generatedContent: {
             ...prev.generatedContent,
-            keyTakeaways: keyTakeawaysData.content
-          }
+            keyTakeaways: keyTakeawaysData.content,
+          },
         }))
       }
 
       // Generate regional content for enabled sections
-      const regions = ['euSection', 'usSection', 'globalSection'] as const
-      
+      const regions = ["euSection", "usSection", "globalSection"] as const
+
       for (const region of regions) {
         if (bulletinConfig[region].enabled) {
           const regionalArticles = getRegionalArticles(selectedArticles, region)
-          
+
           if (regionalArticles.length > 0) {
             // Generate regional title
-            const titleResponse = await fetch('/api/generate-bulletin-content', {
-              method: 'POST',
+            const titleResponse = await fetch("/api/generate-bulletin-content", {
+              method: "POST",
               headers: {
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                type: 'section_title',
+                type: "section_title",
                 articles: regionalArticles,
-                region: region.replace('Section', '').toUpperCase(),
-                currentDate: bulletinConfig.publicationDate
+                region: region.replace("Section", "").toUpperCase(),
+                currentDate: bulletinConfig.publicationDate,
               }),
             })
 
             if (titleResponse.ok) {
               const titleData = await titleResponse.json()
-              setBulletinConfig(prev => ({
+              setBulletinConfig((prev) => ({
                 ...prev,
                 [region]: {
                   ...prev[region],
-                  title: titleData.content
-                }
+                  title: titleData.content,
+                },
               }))
             }
 
             // Generate regional trends if enabled
             if (bulletinConfig[region].keyTrends) {
-              const trendsResponse = await fetch('/api/generate-bulletin-content', {
-                method: 'POST',
+              const trendsResponse = await fetch("/api/generate-bulletin-content", {
+                method: "POST",
                 headers: {
-                  'Content-Type': 'application/json',
+                  "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  type: 'section_trends',
+                  type: "section_trends",
                   articles: regionalArticles,
-                  region: region.replace('Section', '').toUpperCase(),
-                  currentDate: bulletinConfig.publicationDate
+                  region: region.replace("Section", "").toUpperCase(),
+                  currentDate: bulletinConfig.publicationDate,
                 }),
               })
 
               if (trendsResponse.ok) {
                 const trendsData = await trendsResponse.json()
-                setBulletinConfig(prev => ({
+                setBulletinConfig((prev) => ({
                   ...prev,
                   [region]: {
                     ...prev[region],
-                    trends: trendsData.content
-                  }
+                    trends: trendsData.content,
+                  },
                 }))
               }
             }
           }
         }
       }
-
     } catch (error) {
-      console.error('Error generating AI content:', error)
+      console.error("Error generating AI content:", error)
       throw error
     }
   }
 
-  const getRegionalArticles = (articles: Article[], region: 'euSection' | 'usSection' | 'globalSection') => {
-    return articles.filter(article => {
-      const jurisdiction = article.jurisdictions?.[0]?.name?.toLowerCase() || ''
+  const getRegionalArticles = (articles: Article[], region: "euSection" | "usSection" | "globalSection") => {
+    return articles.filter((article) => {
+      const jurisdiction = article.jurisdictions?.[0]?.name?.toLowerCase() || ""
 
       switch (region) {
-        case 'euSection':
-          return jurisdiction.includes('eu') ||
-            jurisdiction.includes('europe') ||
-            jurisdiction.includes('european') ||
-            article.jurisdictions?.some(j =>
-              j.name.toLowerCase().includes('eu') ||
-              j.name.toLowerCase().includes('europe')
+        case "euSection":
+          return (
+            jurisdiction.includes("eu") ||
+            jurisdiction.includes("europe") ||
+            jurisdiction.includes("european") ||
+            article.jurisdictions?.some(
+              (j) => j.name.toLowerCase().includes("eu") || j.name.toLowerCase().includes("europe"),
             )
-        case 'usSection':
-          return jurisdiction.includes('us') ||
-            jurisdiction.includes('united states') ||
-            jurisdiction.includes('america') ||
-            article.jurisdictions?.some(j =>
-              j.name.toLowerCase().includes('us') ||
-              j.name.toLowerCase().includes('united states')
+          )
+        case "usSection":
+          return (
+            jurisdiction.includes("us") ||
+            jurisdiction.includes("united states") ||
+            jurisdiction.includes("america") ||
+            article.jurisdictions?.some(
+              (j) => j.name.toLowerCase().includes("us") || j.name.toLowerCase().includes("united states"),
             )
-        case 'globalSection':
-          return !jurisdiction.includes('eu') &&
-            !jurisdiction.includes('europe') &&
-            !jurisdiction.includes('us') &&
-            !jurisdiction.includes('united states') &&
-            !article.jurisdictions?.some(j =>
-              j.name.toLowerCase().includes('eu') ||
-              j.name.toLowerCase().includes('europe') ||
-              j.name.toLowerCase().includes('us') ||
-              j.name.toLowerCase().includes('united states')
+          )
+        case "globalSection":
+          return (
+            !jurisdiction.includes("eu") &&
+            !jurisdiction.includes("europe") &&
+            !jurisdiction.includes("us") &&
+            !jurisdiction.includes("united states") &&
+            !article.jurisdictions?.some(
+              (j) =>
+                j.name.toLowerCase().includes("eu") ||
+                j.name.toLowerCase().includes("europe") ||
+                j.name.toLowerCase().includes("us") ||
+                j.name.toLowerCase().includes("united states"),
             )
+          )
         default:
           return true
       }
@@ -608,51 +649,51 @@ We remain committed to delivering high-quality, actionable intelligence to help 
     setGenerationProgress({
       currentStep: "Preparing bulletin content...",
       progress: 0,
-      totalSteps: 7
+      totalSteps: 7,
     })
 
     try {
       const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id))
-      
+
       // Step 1: Generate greeting message
       setGenerationProgress({
         currentStep: "Generating greeting message...",
         progress: 1,
-        totalSteps: 7
+        totalSteps: 7,
       })
 
       const greetingMessage = await generateGreetingMessage(selectedArticles)
-      setBulletinConfig(prev => ({
+      setBulletinConfig((prev) => ({
         ...prev,
-        greetingMessage
+        greetingMessage,
       }))
-      
+
       // Step 2: Generate key trends
       setGenerationProgress({
         currentStep: "Generating key trends...",
         progress: 2,
-        totalSteps: 7
+        totalSteps: 7,
       })
-      
+
       if (bulletinConfig.keyTrends) {
-        const keyTrendsResponse = await fetch('/api/generate-bulletin-content', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const keyTrendsResponse = await fetch("/api/generate-bulletin-content", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: 'key_trends',
+            type: "key_trends",
             articles: selectedArticles,
-            currentDate: bulletinConfig.publicationDate
+            currentDate: bulletinConfig.publicationDate,
           }),
         })
 
         if (keyTrendsResponse.ok) {
           const keyTrendsData = await keyTrendsResponse.json()
-          setBulletinConfig(prev => ({
+          setBulletinConfig((prev) => ({
             ...prev,
             generatedContent: {
               ...prev.generatedContent,
-              keyTrends: keyTrendsData.content
-            }
+              keyTrends: keyTrendsData.content,
+            },
           }))
         }
       }
@@ -661,28 +702,28 @@ We remain committed to delivering high-quality, actionable intelligence to help 
       setGenerationProgress({
         currentStep: "Generating executive summary...",
         progress: 3,
-        totalSteps: 7
+        totalSteps: 7,
       })
 
       if (bulletinConfig.executiveSummary) {
-        const execSummaryResponse = await fetch('/api/generate-bulletin-content', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const execSummaryResponse = await fetch("/api/generate-bulletin-content", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: 'executive_summary',
+            type: "executive_summary",
             articles: selectedArticles,
-            currentDate: bulletinConfig.publicationDate
+            currentDate: bulletinConfig.publicationDate,
           }),
         })
 
         if (execSummaryResponse.ok) {
           const execSummaryData = await execSummaryResponse.json()
-          setBulletinConfig(prev => ({
+          setBulletinConfig((prev) => ({
             ...prev,
             generatedContent: {
               ...prev.generatedContent,
-              executiveSummary: execSummaryData.content
-            }
+              executiveSummary: execSummaryData.content,
+            },
           }))
         }
       }
@@ -691,28 +732,28 @@ We remain committed to delivering high-quality, actionable intelligence to help 
       setGenerationProgress({
         currentStep: "Generating key takeaways...",
         progress: 4,
-        totalSteps: 7
+        totalSteps: 7,
       })
 
       if (bulletinConfig.keyTakeaways) {
-        const keyTakeawaysResponse = await fetch('/api/generate-bulletin-content', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const keyTakeawaysResponse = await fetch("/api/generate-bulletin-content", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: 'key_takeaways',
+            type: "key_takeaways",
             articles: selectedArticles,
-            currentDate: bulletinConfig.publicationDate
+            currentDate: bulletinConfig.publicationDate,
           }),
         })
 
         if (keyTakeawaysResponse.ok) {
           const keyTakeawaysData = await keyTakeawaysResponse.json()
-          setBulletinConfig(prev => ({
+          setBulletinConfig((prev) => ({
             ...prev,
             generatedContent: {
               ...prev.generatedContent,
-              keyTakeaways: keyTakeawaysData.content
-            }
+              keyTakeaways: keyTakeawaysData.content,
+            },
           }))
         }
       }
@@ -721,34 +762,34 @@ We remain committed to delivering high-quality, actionable intelligence to help 
       setGenerationProgress({
         currentStep: "Generating regional content...",
         progress: 5,
-        totalSteps: 7
+        totalSteps: 7,
       })
 
-      const regions = ['euSection', 'usSection', 'globalSection'] as const
+      const regions = ["euSection", "usSection", "globalSection"] as const
       for (const region of regions) {
         if (bulletinConfig[region].enabled) {
           const regionalArticles = getRegionalArticles(selectedArticles, region)
-          
+
           if (regionalArticles.length > 0 && bulletinConfig[region].keyTrends) {
-            const trendsResponse = await fetch('/api/generate-bulletin-content', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+            const trendsResponse = await fetch("/api/generate-bulletin-content", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                type: 'section_trends',
+                type: "section_trends",
                 articles: regionalArticles,
-                region: region.replace('Section', '').toUpperCase(),
-                currentDate: bulletinConfig.publicationDate
+                region: region.replace("Section", "").toUpperCase(),
+                currentDate: bulletinConfig.publicationDate,
               }),
             })
 
             if (trendsResponse.ok) {
               const trendsData = await trendsResponse.json()
-              setBulletinConfig(prev => ({
+              setBulletinConfig((prev) => ({
                 ...prev,
                 generatedContent: {
                   ...prev.generatedContent,
-                  [`${region.replace('Section', '').toLowerCase()}Trends`]: trendsData.content
-                }
+                  [`${region.replace("Section", "").toLowerCase()}Trends`]: trendsData.content,
+                },
               }))
             }
           }
@@ -759,41 +800,42 @@ We remain committed to delivering high-quality, actionable intelligence to help 
       setGenerationProgress({
         currentStep: "Finalizing bulletin...",
         progress: 6,
-        totalSteps: 7
+        totalSteps: 7,
       })
 
       // Step 7: Complete
       setGenerationProgress({
         currentStep: "Bulletin ready!",
         progress: 7,
-        totalSteps: 7
+        totalSteps: 7,
       })
 
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
       // Call the onConfirm callback with the generated content
-      const finalSelectedArticles = selectedArticles.map(article => ({
+      const finalSelectedArticles = selectedArticles.map((article) => ({
         ...article,
         imageUrl: articlesWithImages.get(article.news_id),
-        news_summary: customSummaries.get(article.news_id) || article.news_summary
+        news_summary: customSummaries.get(article.news_id) || article.news_summary,
       }))
 
       onConfirm(finalSelectedArticles, bulletinConfig)
-      
     } catch (error) {
-      console.error('Error generating bulletin with AI:', error)
-      toast.error('Failed to generate AI content. Please try again.')
+      console.error("Error generating bulletin with AI:", error)
+      toast.error("Failed to generate AI content. Please try again.")
     } finally {
       setIsGenerating(false)
       setGenerationProgress(null)
     }
   }
 
-  const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id)).map(article => ({
-    ...article,
-    imageUrl: articlesWithImages.get(article.news_id),
-    news_summary: customSummaries.get(article.news_id) || article.news_summary
-  }))
+  const selectedArticles = articles
+    .filter((a) => selectedIds.has(a.news_id))
+    .map((article) => ({
+      ...article,
+      imageUrl: articlesWithImages.get(article.news_id),
+      news_summary: customSummaries.get(article.news_id) || article.news_summary,
+    }))
 
   const handleGenerateConfirm = async () => {
     closeGenerateConfirmationModal()
@@ -877,10 +919,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
                 className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer group"
                 onClick={() => openArticleModal(article)}
               >
-                <div 
-                  className="flex items-start gap-4 flex-1 min-w-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="flex items-start gap-4 flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={selectedIds.has(article.news_id)}
@@ -927,7 +966,11 @@ We remain committed to delivering high-quality, actionable intelligence to help 
                       {articlesWithImages.has(article.news_id) && (
                         <span className="bg-green-100 text-green-700 px-2 py-1 rounded flex items-center gap-1">
                           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                           Image Attached
                         </span>
@@ -935,7 +978,11 @@ We remain committed to delivering high-quality, actionable intelligence to help 
                       {customSummaries.has(article.news_id) && (
                         <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded flex items-center gap-1">
                           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                           Custom Summary
                         </span>
@@ -945,10 +992,10 @@ We remain committed to delivering high-quality, actionable intelligence to help 
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-400 group-hover:text-gray-600 transition-colors shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">view full article</span>
-                  <svg 
-                    className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <svg
+                    className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -960,8 +1007,8 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         </div>
 
         <div className="flex justify-center gap-4 mt-8">
-          <Button 
-            onClick={handleBackClick} 
+          <Button
+            onClick={handleBackClick}
             className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg"
           >
             Back
@@ -1040,10 +1087,10 @@ We remain committed to delivering high-quality, actionable intelligence to help 
                 <span className="font-medium text-gray-700">{generationProgress.currentStep}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ 
-                    width: `${(generationProgress.progress / generationProgress.totalSteps) * 100}%` 
+                  style={{
+                    width: `${(generationProgress.progress / generationProgress.totalSteps) * 100}%`,
                   }}
                 />
               </div>
@@ -1052,7 +1099,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
               </p>
             </div>
           ) : (
-            `You are about to generate a bulletin with ${selectedArticles.length} article${selectedArticles.length !== 1 ? 's' : ''}. This will create a professional PDF document. Do you want to proceed?`
+            `You are about to generate a bulletin with ${selectedArticles.length} article${selectedArticles.length !== 1 ? "s" : ""}. This will create a professional PDF document. Do you want to proceed?`
           )
         }
         confirmText={generationProgress ? "Generating..." : "Generate Bulletin"}

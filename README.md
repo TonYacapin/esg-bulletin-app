@@ -46,21 +46,21 @@ To run the ESG Bulletin Generator locally, follow these steps.
 ### Installation
 
 1.  **Clone the repository:**
-    ```bash
+    \`\`\`bash
     git clone https://github.com/tonyacapin/esg-bulletin-app.git
     cd esg-bulletin-app
-    ```
+    \`\`\`
 
 2.  **Install dependencies:**
-    ```bash
+    \`\`\`bash
     pnpm install
-    ```
+    \`\`\`
 
 3.  **Set up environment variables:**
 
     Create a `.env.local` file in the root of the project and add the following variables. These are required for the application to connect to the backend news API and the OpenAI API.
 
-    ```bash
+    \`\`\`bash
     # OpenAI API Key for generating summaries and other content
     OPENAI_API_KEY="your_openai_api_key"
 
@@ -68,12 +68,12 @@ To run the ESG Bulletin Generator locally, follow these steps.
     BACKEND_API_URL="https://your-backend-api-url.com"
     BACKEND_API_TOKEN="your_backend_api_bearer_token"
     BACKEND_API_KEY="your_backend_x_api_key"
-    ```
+    \`\`\`
 
 4.  **Run the development server:**
-    ```bash
+    \`\`\`bash
     pnpm dev
-    ```
+    \`\`\`
 
     Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 

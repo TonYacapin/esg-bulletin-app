@@ -168,6 +168,8 @@ const THEME_SHADES = {
 
 // Fallback coordinates for all major countries
 const FALLBACK_COORDINATES: Record<string, [number, number]> = {
+  "Ghana": [-1.0232, 7.9465],
+  
   "Africa": [21.0932, -1.2921],
   "Netherlands (Kingdom of the)": [5.2913, 52.1326],
   "New Zealand": [174.8860, -40.9006],
