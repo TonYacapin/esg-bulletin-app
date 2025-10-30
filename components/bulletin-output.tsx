@@ -1351,51 +1351,31 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   }
 
   const formatBoldText = (text: string) => {
-    if (!text) return "";
+  if (!text) return "";
 
-    const sentences = text.split(/(?<=[.!?])\s+/);
-
-    return (
-      <div className="text-justify leading-relaxed">
-        {sentences.map((sentence, index) => {
-          const formattedSentence = sentence.split(/(\*\*.*?\*\*|\*.*?\*)/g).map((part, partIndex) => {
-            if (part.startsWith("**") && part.endsWith("**")) {
-              const boldText = part.slice(2, -2);
-              return (
-                <strong key={partIndex} className="font-bold">
-                  {boldText}
-                </strong>
-              );
-            } else if (part.startsWith("*") && part.endsWith("*") && part.length > 1) {
-              const italicText = part.slice(1, -1);
-              return (
-                <em key={partIndex} className="italic">
-                  {italicText}
-                </em>
-              );
-            }
-            return part;
-          });
-
-          if (index === 0) {
-            return (
-              <span key={index} className="inline-block">
-                <span className="inline-block w-8">{"\u00A0"}</span>
-                {formattedSentence}
-              </span>
-            );
-          }
-
+  return (
+    <div className="leading-relaxed">
+      {text.split(/(\*\*.*?\*\*|\*.*?\*)/g).map((part, index) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          const boldText = part.slice(2, -2);
           return (
-            <span key={index}>
-              {" "}{formattedSentence}
-            </span>
+            <strong key={index} className="font-bold">
+              {boldText}
+            </strong>
           );
-        })}
-      </div>
-    );
-  }
-
+        } else if (part.startsWith("*") && part.endsWith("*") && part.length > 1) {
+          const italicText = part.slice(1, -1);
+          return (
+            <em key={index} className="italic">
+              {italicText}
+            </em>
+          );
+        }
+        return part;
+      })}
+    </div>
+  );
+}
   const getArticlesByJurisdiction = (jurisdiction: string) => {
     return articles.filter(article => {
       if (!article.jurisdictions || article.jurisdictions.length === 0) {
@@ -1503,7 +1483,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
     return (
       <div className="group relative">
-        <div className="text-justify leading-relaxed whitespace-pre-wrap">
+        <div className="leading-relaxed whitespace-pre-wrap">
           {formatBoldText(content)}
         </div>
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
@@ -1889,7 +1869,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           {/* GREETING MESSAGE */}
           {editableContent.greetingMessage && (
             <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <div className="text-gray-700 text-lg text-justify leading-relaxed print:text-base">
+              <div className="text-gray-700 text-lg leading-relaxed print:text-base">
                 {renderEditableText(
                   editableContent.greetingMessage,
                   "greetingMessage",
@@ -2105,10 +2085,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               max-width: 100% !important;
               height: auto !important;
             }
-            
-            .text-justify {
-              text-align: justify !important;
-            }
+        
             
             .leading-relaxed {
               line-height: 1.6 !important;
