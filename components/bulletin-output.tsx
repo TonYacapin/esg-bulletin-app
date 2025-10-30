@@ -1734,7 +1734,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         {sectionContent.trends && (
           <div className="mb-8 print:mb-6">
             <h3 className="text-2xl font-semibold mb-4 text-gray-800 print:text-xl print:mb-3">
-              {region.replace('Section', '')} Key Trends
+              {region.replace('Section', '').toUpperCase()} Key Trends
             </h3>
             <div className="bg-purple-50 p-6 rounded-lg border border-purple-200 print:p-4">
               {renderEditableText(
