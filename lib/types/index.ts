@@ -9,6 +9,10 @@ import type React from "react"
 // ============================================================================
 
 /**
+ * Date filter options for news fetching
+ */
+export type DateFilterOption = "last_week" | "last_2_weeks" | "last_month" | "custom"
+/**
  * Supported bulletin themes with semantic meaning
  */
 export enum BulletinTheme {

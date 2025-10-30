@@ -11,7 +11,6 @@ import type { BulletinFormData, ValidationError } from "@/lib/types"
 // ============================================================================
 
 const VALIDATION_RULES = {
-  QUERY_MIN_LENGTH: 1,
   QUERY_MAX_LENGTH: 500,
   PAGE_MIN: 1,
   PAGE_MAX: 1000,
@@ -39,20 +38,17 @@ export function validateTheme(theme: string | null | undefined): ValidationError
 }
 
 /**
- * Validates search query
+ * Validates search query (optional)
  * @param query - Search query string
  * @returns Validation error if invalid, null if valid
  */
-export function validateQuery(query: string): ValidationError | null {
+export function validateQuery(query: string | undefined): ValidationError | null {
+  // Query is optional, so if undefined or empty, it's valid
+  if (!query) return null
+
   const trimmed = query.trim()
 
-  if (trimmed.length < VALIDATION_RULES.QUERY_MIN_LENGTH) {
-    return {
-      field: "query",
-      message: "Search query is required",
-    }
-  }
-
+  // If query is provided, validate length
   if (trimmed.length > VALIDATION_RULES.QUERY_MAX_LENGTH) {
     return {
       field: "query",
@@ -110,13 +106,37 @@ export function validateLimit(limit: number): ValidationError | null {
 }
 
 /**
+ * Validates type_id
+ * @param type_id - Type ID number
+ * @returns Validation error if invalid, null if valid
+ */
+export function validateTypeId(type_id: number | undefined): ValidationError | null {
+  if (!type_id) {
+    return {
+      field: "type_id",
+      message: "Content type is required",
+    }
+  }
+
+  const validTypeIds = [1, 2, 3, 4, 5] // Generic, Disclosure, Regulatory, Litigation, Enforcement Action
+  if (!validTypeIds.includes(type_id)) {
+    return {
+      field: "type_id",
+      message: "Please select a valid content type",
+    }
+  }
+
+  return null
+}
+
+/**
  * Validates date range
  * @param fromDate - From date string
  * @param toDate - To date string
  * @param fieldPrefix - Field name prefix for error messages
  * @returns Validation error if invalid, null if valid
  */
-export function validateDateRange(fromDate: string, toDate: string, fieldPrefix: string): ValidationError | null {
+export function validateDateRange(fromDate: string | undefined, toDate: string | undefined, fieldPrefix: string): ValidationError | null {
   if (!fromDate || !toDate) return null
 
   const from = new Date(fromDate)
@@ -152,7 +172,7 @@ export function validateDateRange(fromDate: string, toDate: string, fieldPrefix:
  * @param fieldName - Field name for error messages
  * @returns Validation error if invalid, null if valid
  */
-export function validateNotFutureDate(dateString: string, fieldName: string): ValidationError | null {
+export function validateNotFutureDate(dateString: string | undefined, fieldName: string): ValidationError | null {
   if (!dateString) return null
 
   const date = new Date(dateString)
@@ -208,7 +228,7 @@ export function validateBulletinForm(data: BulletinFormData): ValidationError[] 
   const themeError = validateTheme(data.theme)
   if (themeError) errors.push(themeError)
 
-  // Query validation
+  // Query validation (now optional - only validate length if provided)
   const queryError = validateQuery(data.query)
   if (queryError) errors.push(queryError)
 
@@ -219,6 +239,10 @@ export function validateBulletinForm(data: BulletinFormData): ValidationError[] 
   // Limit validation
   const limitError = validateLimit(data.limit)
   if (limitError) errors.push(limitError)
+
+  // Type ID validation (now required)
+  const typeIdError = validateTypeId(data.type_id)
+  if (typeIdError) errors.push(typeIdError)
 
   // Date range validations
   if (data.published_at_from && data.published_at_to) {
@@ -246,12 +270,7 @@ export function validateBulletinForm(data: BulletinFormData): ValidationError[] 
     }
   }
 
-  // ID validations
-  if (data.type_id) {
-    const typeError = validateSelectId(data.type_id.toString(), "type_id")
-    if (typeError) errors.push(typeError)
-  }
-
+  // Jurisdiction ID validation (optional)
   if (data.jurisdiction_id) {
     const jurisdictionError = validateSelectId(data.jurisdiction_id.toString(), "jurisdiction_id")
     if (jurisdictionError) errors.push(jurisdictionError)

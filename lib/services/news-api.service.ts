@@ -35,10 +35,12 @@ function buildSearchParams(params: FetchNewsParams): URLSearchParams {
   const urlParams = new URLSearchParams({
     page: params.page.toString(),
     limit: params.limit.toString(),
-    query: params.query,
   })
 
-  // Add optional parameters if provided
+  // Add optional parameters only if they have values
+  if (params.query && params.query.trim()) {
+    urlParams.append("query", params.query.trim())
+  }
   if (params.type_id) urlParams.append("type_id", params.type_id.toString())
   if (params.jurisdiction_id) urlParams.append("jurisdiction_id", params.jurisdiction_id.toString())
   if (params.published_at_from) urlParams.append("published_at_from", params.published_at_from)
@@ -60,7 +62,12 @@ export async function fetchNewsFromAPI(params: FetchNewsParams): Promise<NewsLis
     const { url, token, key } = validateApiCredentials()
     const searchParams = buildSearchParams(params)
 
-    console.log(`[NewsAPIService] Fetching news with query: "${params.query}"`)
+    console.log(`[NewsAPIService] Fetching news with params:`, {
+      page: params.page,
+      limit: params.limit,
+      type_id: params.type_id,
+      query: params.query || '(not provided)'
+    })
 
     const response = await fetch(`${url}/api/internal/news/list?${searchParams}`, {
       headers: {
