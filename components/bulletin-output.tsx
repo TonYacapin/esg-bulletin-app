@@ -254,11 +254,11 @@ function DragDropImageUpload({
   if (previewUrl && !showUploadInterface) {
     return (
       <div className={`relative ${className}`}>
-        <div className="w-full aspect-square max-w-xs mx-auto">
+        <div className="w-full aspect-square max-w-xs mx-auto article-image-container">
           <img
             src={previewUrl}
             alt="Article"
-            className="w-full h-full object-cover rounded-lg border shadow-sm"
+            className="w-full h-full object-cover rounded-lg border shadow-sm print:border print:rounded print:max-h-[200px] print:object-cover"
           />
         </div>
         {showRemoveButton && onRemoveImage && (
@@ -282,11 +282,11 @@ function DragDropImageUpload({
       <div className={`border-2 border-dashed border-gray-300 rounded-lg p-4 ${className}`}>
         {previewUrl ? (
           <div className="relative">
-            <div className="w-full aspect-square max-w-xs mx-auto">
+            <div className="w-full aspect-square max-w-xs mx-auto article-image-container">
               <img
                 src={previewUrl}
                 alt="Preview"
-                className="w-full h-full object-cover rounded-lg border shadow-sm"
+                className="w-full h-full object-cover rounded-lg border shadow-sm print:border print:rounded print:max-h-[200px] print:object-cover"
               />
             </div>
             {showRemoveButton && onRemoveImage && (
@@ -333,11 +333,11 @@ function DragDropImageUpload({
 
       {previewUrl ? (
         <div className="space-y-2 relative">
-          <div className="w-full aspect-square max-w-xs mx-auto">
+          <div className="w-full aspect-square max-w-xs mx-auto article-image-container">
             <img
               src={previewUrl}
               alt="Preview"
-              className="w-full h-full object-cover rounded-lg border shadow-sm"
+              className="w-full h-full object-cover rounded-lg border shadow-sm print:border print:rounded print:max-h-[200px] print:object-cover"
             />
           </div>
           <div className="flex justify-center gap-2">
@@ -397,12 +397,12 @@ function ArticleImageDisplay({
   // If image exists and loaded successfully, show it in 4:3 format with remove button
   if (imageUrl && !imageError) {
     return (
-      <div className={`relative ${className}`}>
-        <div className="w-full aspect-[4/3]">
+      <div className={`relative article-image-container ${className}`}>
+        <div className="w-full aspect-[4/3] print:min-h-[200px]">
           <img
             src={imageUrl}
             alt={alt}
-            className="w-full h-full object-cover rounded-lg border shadow-lg"
+            className="w-full h-full object-cover rounded-lg border shadow-lg print:border print:rounded print:max-h-[250px] print:object-cover"
             onError={() => setImageError(true)}
           />
           {/* Remove button - only show when editable and onRemoveImage is provided */}
@@ -1005,6 +1005,9 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [isRegenerating, setIsRegenerating] = useState<string | null>(null)
 
+  // Add this ref to track if we've already regenerated on load
+  const hasRegeneratedOnLoad = useRef(false)
+
   const countries = Object.keys(articlesByCountry)
 
   const themeColors = {
@@ -1054,6 +1057,39 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
     if (articles.length > 0) {
       fetchMissingSources();
+    }
+  }, [articles.length]);
+
+  // Automatically regenerate greeting and articles on page load - ALWAYS regenerate
+  useEffect(() => {
+    const regenerateAllContent = async () => {
+      console.log('Starting automatic regeneration of ALL content...');
+      
+      // ALWAYS regenerate greeting message
+      console.log('Regenerating greeting message...');
+      await handleRegenerate('greetingMessage');
+
+      // ALWAYS regenerate all articles
+      console.log(`Regenerating ALL ${articles.length} articles...`);
+
+      for (const article of articles) {
+        console.log(`Regenerating article: ${article.news_title}`);
+        await handleRegenerateArticle(article.news_id);
+        // Add a small delay between requests to avoid overwhelming the API
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      console.log('Automatic regeneration of ALL content completed');
+    };
+
+    // Only run on initial load when articles are available and we haven't already regenerated
+    if (articles.length > 0 && !hasRegeneratedOnLoad.current) {
+      hasRegeneratedOnLoad.current = true;
+      
+      // Add a small delay to ensure the component is fully mounted
+      setTimeout(() => {
+        regenerateAllContent();
+      }, 1000);
     }
   }, [articles.length]);
 
@@ -1530,7 +1566,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             <Button
               onClick={() => setIsEditing(null)}
               variant="outline"
-              className="text-sm"
+            className="text-sm"
             >
               Cancel
             </Button>
@@ -1566,121 +1602,108 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     );
   };
 
-  const renderArticle = (article: any) => {
+  const renderArticle = (article: any, index: number) => {
     const currentArticle = articles.find(a => a.news_id === article.news_id) || article;
 
-    // Determine if article is short or long based on summary length
-    const articleContent = currentArticle.news_summary || "";
-    const isShortArticle = articleContent.length <= 1000;
-
     return (
-      <div key={currentArticle.news_id} className="border-l-4 pl-6 py-2 group relative" style={{ borderColor: themeColors[theme] }}>
-        {/* Edit/Regenerate buttons - shown on hover */}
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 print:hidden">
-          <Button
-            onClick={() => {
-              setEditingArticle(currentArticle)
-              setShowArticleEditModal(true)
-            }}
-            variant="outline"
-            size="sm"
-            className="bg-white/90 hover:bg-white"
-          >
-            Edit
-          </Button>
-          <Button
-            onClick={() => handleRegenerateArticle(currentArticle.news_id)}
-            disabled={regeneratingArticle === currentArticle.news_id}
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {regeneratingArticle === currentArticle.news_id ? 'Regenerating...' : 'Regenerate'}
-          </Button>
-        </div>
-
-        {/* Content container with proper spacing */}
-        <div className="space-y-4">
-    
-
-          {/* Article header and jurisdiction */}
-          <div className="flex items-start gap-3 mb-2 print:mb-1">
-            <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
-              {currentArticle.jurisdictions?.[0]?.code || 'GLOBAL'}
-            </span>
+      <div
+        key={currentArticle.news_id}
+        className="article-container mb-8 print:mb-6 break-inside-avoid-page"
+      >
+        <div className="border-l-4 pl-6 py-2 group relative" style={{ borderColor: themeColors[theme] }}>
+          {/* Edit/Regenerate buttons - shown on hover */}
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 print:hidden">
+            <Button
+              onClick={() => {
+                setEditingArticle(currentArticle)
+                setShowArticleEditModal(true)
+              }}
+              variant="outline"
+              size="sm"
+              className="bg-white/90 hover:bg-white"
+            >
+              Edit
+            </Button>
+            <Button
+              onClick={() => handleRegenerateArticle(currentArticle.news_id)}
+              disabled={regeneratingArticle === currentArticle.news_id}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {regeneratingArticle === currentArticle.news_id ? 'Regenerating...' : 'Regenerate'}
+            </Button>
           </div>
 
-          {/* Article title */}
-          <h3 className="text-xl font-bold mb-3 text-gray-800 print:text-lg print:mb-2">{currentArticle.news_title}</h3>
+          {/* Content container with proper spacing */}
+          <div className="space-y-4">
 
-
-      {/* For short articles: Image at top */}
-          {isShortArticle && currentArticle.imageUrl && (
-            <div className="mb-4">
-              <ArticleImageDisplay
-                imageUrl={currentArticle.imageUrl}
-                alt={currentArticle.news_title}
-                onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
-               
-                editable={true}
-              />
+            {/* Article header and jurisdiction */}
+            <div className="flex items-start gap-3 mb-2 print:mb-1">
+              <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-1 rounded print:text-2xs">
+                {currentArticle.jurisdictions?.[0]?.code || 'GLOBAL'}
+              </span>
             </div>
-          )}
-          {/* Article content */}
-          <div className="text-gray-700 mb-4 print:text-sm">
-            {formatBoldText(currentArticle.news_summary)}
-          </div>
 
-          {/* For long articles: Image at bottom */}
-          {!isShortArticle && currentArticle.imageUrl && (
-            <div className="mt-4">
-              <ArticleImageDisplay
-                imageUrl={currentArticle.imageUrl}
-                alt={currentArticle.news_title}
-                onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
-               
-                editable={true}
-              />
-            </div>
-          )}
+            {/* Article title */}
+            <h3 className="text-xl font-bold text-gray-800 print:text-lg print:mb-2">{currentArticle.news_title}</h3>
 
-          {/* Source Information */}
-          {currentArticle.source && currentArticle.source.length > 0 && (
-            <div className="mb-3 print:mb-2">
-              <div className="text-sm text-gray-600 print:text-xs">
-                <strong>Source:</strong>{' '}
-                {currentArticle.source[0].source_url ? (
-                  <a
-                    href={currentArticle.source[0].source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
-                  >
-                    {currentArticle.source[0].source_url || 'Original Source'}
-                  </a>
-                ) : (
-                  <span>{currentArticle.source[0].source_alias || 'Original Source'}</span>
-                )}
+            {/* Article image - positioned at top */}
+            {currentArticle.imageUrl && (
+              <div className="mb-3">
+                <ArticleImageDisplay
+                  imageUrl={currentArticle.imageUrl}
+                  alt={currentArticle.news_title}
+                  onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+                  onRemoveImage={() => handleRemoveArticleImage(currentArticle.news_id)}
+                  editable={true}
+                />
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Publication date */}
-          <div className="text-sm text-gray-500 print:text-xs">
-            Published: {formatDate(currentArticle.published_at)}
+            {/* Article content */}
+            <div className="text-gray-700 mb-4 print:text-sm">
+              {formatBoldText(currentArticle.news_summary)}
+            </div>
+
+            {/* Source Information */}
+            {currentArticle.source && currentArticle.source.length > 0 && (
+              <div className="mb-3 print:mb-2">
+                <div className="text-sm text-gray-600 print:text-xs">
+                  <strong>Source:</strong>{' '}
+                  {currentArticle.source[0].source_url ? (
+                    <a
+                      href={currentArticle.source[0].source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
+                    >
+                      {currentArticle.source[0].source_url || 'Original Source'}
+                    </a>
+                  ) : (
+                    <span>{currentArticle.source[0].source_alias || 'Original Source'}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Publication date */}
+            <div className="text-sm text-gray-500 print:text-xs">
+              Published: {formatDate(currentArticle.published_at)}
+            </div>
+
+            {/* Upload interface for articles without images */}
+            {!currentArticle.imageUrl && (
+              <div className="mt-4">
+                <ArticleImageDisplay
+                  imageUrl={currentArticle.imageUrl}
+                  alt={currentArticle.news_title}
+                  onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+                  onRemoveImage={() => handleRemoveArticleImage(currentArticle.news_id)}
+                  editable={true}
+                />
+              </div>
+            )}
           </div>
-
-          {/* Upload interface for articles without images */}
-          {!currentArticle.imageUrl && (
-            <div className="mt-4">
-              <ArticleImageDisplay
-                imageUrl={currentArticle.imageUrl}
-                alt={currentArticle.news_title}
-                onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
-                onRemoveImage={() => handleRemoveArticleImage(currentArticle.news_id)}
-                editable={true}
-              />
-            </div>
-          )}
         </div>
       </div>
     )
@@ -1713,7 +1736,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     if (!hasContent) return null;
 
     return (
-      <section className="print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
+      <section className="print:break-after-page">
         {(sectionContent.title || regionalArticles.length > 0) && renderEditableTitle(
           sectionContent.title,
           `${region}-title`,
@@ -1721,7 +1744,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         )}
 
         {sectionContent.introduction && (
-          <div className="bg-gray-50 p-6 rounded-lg mb-8 print:p-4 print:mb-6">
+          <div className="bg-gray-50 p-6 rounded-lg mb-8 print:p-4 print:mb-6 print:bg-gray-100 print:border">
             {renderEditableText(
               sectionContent.introduction,
               `${region}-introduction`,
@@ -1736,7 +1759,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             <h3 className="text-2xl font-semibold mb-4 text-gray-800 print:text-xl print:mb-3">
               {region.replace('Section', '').toUpperCase()} Key Trends
             </h3>
-            <div className="bg-purple-50 p-6 rounded-lg border border-purple-200 print:p-4">
+            <div className="bg-purple-50 p-6 rounded-lg border border-purple-200 print:p-4 print:bg-purple-100 print:border">
               {renderEditableText(
                 sectionContent.trends,
                 `${region}-trends`,
@@ -1748,8 +1771,8 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         )}
 
         {regionalArticles.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:gap-6">
-            {regionalArticles.map(renderArticle)}
+          <div className="columns-1 lg:columns-2 gap-8 print:gap-6 print:columns-2 space-y-0">
+            {regionalArticles.map((article, index) => renderArticle(article, index))}
           </div>
         )}
       </section>
@@ -1790,7 +1813,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         article={editingArticle}
       />
 
-      <div className={`container mx-auto p-8 max-w-6xl bg-white ${showMappingModal ? 'overflow-hidden' : ''}`}>
+      <div className={`container mx-auto p-8 max-w-7xl bg-white ${showMappingModal ? 'overflow-hidden' : ''}`}>
 
         <div className="flex justify-center gap-4 mb-8 print:hidden">
           <Button
@@ -1814,22 +1837,23 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           </Button>
         </div>
 
-        {/* Loading indicator for sources */}
-        {loadingSources && (
+        {/* Loading indicator for sources and regeneration */}
+        {(loadingSources || isRegenerating || regeneratingArticle) && (
           <div className="text-center py-4 mb-8 bg-blue-50 rounded-lg">
-            <p className="text-blue-600">Loading article sources...</p>
+            <p className="text-blue-600">
+              {loadingSources && "Loading article sources..."}
+              {(isRegenerating || regeneratingArticle) && "Generating AI content..."}
+            </p>
           </div>
         )}
 
         <div className="print:block print:bg-white print:p-0 print:max-w-none">
-
           {/* HEADER SECTION */}
-          <div className="relative mb-12 border-b pb-8 overflow-hidden print:mb-8 print:pb-6 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-
-            {/* Header Image Container */}
-            <div className="absolute inset-0 z-0 print:relative print:inset-auto print:h-64">
+          <div className="relative mb-8 border-b pb-6 overflow-hidden print:mb-4 print:pb-4">
+            {/* Header Background Image Container */}
+            <div className="absolute inset-0 z-0 print:absolute print:inset-0 print:z-0 h-48">
+              {/* Dark overlay */}
               <div className="absolute inset-0 bg-black/50 print:bg-black/30 z-10"></div>
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-white/60 print:hidden z-20"></div>
 
               {/* Header Background Image */}
               <div className="relative w-full h-full z-0">
@@ -1837,27 +1861,27 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                   <img
                     src={editableContent.headerImage}
                     alt="Header Background"
-                    className="w-full h-full object-cover print:h-64 print:object-cover"
+                    className="w-full h-full object-cover print:h-48 print:object-cover print:rounded-none"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
                 ) : (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                    <span className="text-gray-500">No header image</span>
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center print:bg-gray-300 h-48">
+                    <span className="text-gray-500 print:text-gray-700">No header image</span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Header Content */}
-            <div className="relative z-30 text-center flex flex-col items-center print:relative print:z-auto">
-              <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-5xl mx-auto px-6 print:px-0 print:max-w-full">
+            {/* Header Content Container */}
+            <div className="relative z-50 text-center flex flex-col items-center print:relative print:z-[100] print:w-full">
+              <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-6xl mx-auto px-6 print:px-0 print:max-w-full print:items-center print:relative print:z-[100]">
 
                 {/* Header Title */}
-                <div className="relative">
+                <div className="relative print:relative print:z-[100] print:flex-1">
                   <h1
-                    className="text-5xl font-bold mb-6 text-white tracking-tight leading-tight text-center sm:text-left break-words print:text-4xl print:text-black print:mb-4"
+                    className="text-4xl font-bold mb-4 text-white tracking-tight leading-tight text-center sm:text-left break-words print:text-3xl print:mb-2 print:relative print:z-[100]"
                     dangerouslySetInnerHTML={{
                       __html: (() => {
                         const header = editableContent.headerText || "ESG DISCLOSURE & REPORTING BULLETIN";
@@ -1874,27 +1898,33 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 </div>
 
                 {/* Publisher Logo */}
-                <div className="relative">
+                <div className="relative print:relative print:z-[100] print:ml-0 print:flex-shrink-0 h-16">
                   {editableContent.publisherLogo ? (
-                    <img
-                      src={editableContent.publisherLogo}
-                      alt="Publisher Logo"
-                      className="h-20 w-auto object-contain mt-4 sm:mt-0 sm:ml-8 print:h-16 print:mt-2"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
+                    <div className="print:min-w-[100px] print:no-margins print:no-frame h-16">
+                      <img
+                        src={editableContent.publisherLogo}
+                        alt="Publisher Logo"
+                        className="h-16 w-auto object-contain mt-2 sm:mt-0 sm:ml-4 print:h-20 print:mt-0 print:ml-0 print:max-h-[80px] print:w-auto print:block print:relative print:z-[100] print:no-margins print:no-frame"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        style={{
+                          mixBlendMode: 'normal',
+                          filter: 'none'
+                        }}
+                      />
+                    </div>
                   ) : (
-                    <div className="h-20 w-32 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center mt-4 sm:mt-0 sm:ml-8 print:h-16">
-                      <span className="text-gray-500 text-sm text-center">No logo</span>
+                    <div className="h-16 w-28 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center mt-2 sm:mt-0 sm:ml-4 print:h-20 print:w-28 print:mt-0 print:ml-0 print:bg-white print:border-0 print:relative print:z-[100] print:no-margins print:no-frame">
+                      <span className="text-gray-500 text-xs text-center print:text-gray-700">No logo</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Issue Info */}
-              <div className="relative mt-6 flex justify-start w-full max-w-5xl mx-auto px-6 text-lg font-semibold text-white print:px-0 print:max-w-full print:mt-4 print:text-base">
-                <span className="px-4 py-2 rounded-lg print:bg-transparent print:px-0">
+              <div className="relative mt-4 flex justify-start w-full max-w-6xl mx-auto px-6 text-base font-semibold text-white print:px-0 print:max-w-full print:mt-2 print:text-sm print:relative print:z-[100] print:w-full">
+                <span className="px-3 py-1 rounded-lg print:bg-transparent print:px-0">
                   {editableContent.issueNumber || "Issue #10"} |{" "}
                   {formatConfigDate(editableContent.publicationDate)}
                 </span>
@@ -1904,13 +1934,13 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
           {/* GREETING MESSAGE */}
           {editableContent.greetingMessage && (
-            <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <div className="text-gray-700 text-lg leading-relaxed print:text-base">
+            <div className="mb-8 bg-gradient-to-r from-blue-50 to-gray-50 p-6 rounded-lg border print:p-4 print:mb-6 print:bg-gray-100 print:border">
+              <div className="text-gray-700 leading-relaxed print:text-sm">
                 {renderEditableText(
                   editableContent.greetingMessage,
                   "greetingMessage",
                   "Greeting message...",
-                  6
+                  4
                 )}
               </div>
             </div>
@@ -1918,17 +1948,14 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
           {/* INTERACTIVE MAP */}
           {safeBulletinConfig.interactiveMap && (
-            <div className="mb-12 print:mb-8 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">
-                Global Coverage Map
-              </h2>
-              <div className="bg-white rounded-lg border border-gray-200 p-6 print:p-4">
+            <div className="mb-12 print:mb-8 print:break-after-page">
+              <div className="bg-white rounded-lg border border-gray-200 p-4 print:p-3 print:border">
                 <WorldMap
                   countries={mapCountries}
                   primaryColor={themeColors[theme]}
                   articlesByCountry={articlesByCountry}
                   mappedCountries={countryMappings}
-                  theme={theme} 
+                  theme={theme}
                   interactive={false}
                   showLegend={true}
                 />
@@ -1936,33 +1963,38 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           )}
 
-          {/* KEY TRENDS */}
-          {editableContent.keyTrends && (
-            <div className="mb-12 print:mb-8 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">5 Key Trends</h2>
-              <div className="bg-blue-50 p-6 rounded-lg border border-blue-200 print:p-4">
-                {renderEditableText(
-                  editableContent.keyTrends,
-                  "keyTrends",
-                  "Key trends will appear here...",
-                  8
-                )}
-              </div>
-            </div>
-          )}
+          {/* KEY TRENDS & EXECUTIVE SUMMARY CONTAINER */}
+          {(editableContent.keyTrends || editableContent.executiveSummary) && (
+            <div className="print:break-after-page">
+              {/* KEY TRENDS */}
+              {editableContent.keyTrends && (
+                <div className="mb-12 print:mb-8">
+                  <h2 className="text-3xl font-bold mb-6 text-gray-900 border-b pb-2 print:text-2xl print:mb-4">5 Key Trends</h2>
+                  <div className="bg-blue-50 p-6 rounded-lg border border-blue-200 print:p-4 print:bg-blue-100 print:border">
+                    {renderEditableText(
+                      editableContent.keyTrends,
+                      "keyTrends",
+                      "Key trends will appear here...",
+                      8
+                    )}
+                  </div>
+                </div>
+              )}
 
-          {/* EXECUTIVE SUMMARY */}
-          {editableContent.executiveSummary && (
-            <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <h2 className="text-2xl font-bold mb-4 text-gray-900 print:text-xl">Executive Summary</h2>
-              <div className="text-gray-700 text-lg print:text-base">
-                {renderEditableText(
-                  editableContent.executiveSummary,
-                  "executiveSummary",
-                  "Executive summary will appear here...",
-                  10
-                )}
-              </div>
+              {/* EXECUTIVE SUMMARY */}
+              {editableContent.executiveSummary && (
+                <div className="mb-12 bg-gradient-to-r from-blue-50 to-gray-50 p-8 rounded-lg border print:p-6 print:mb-8 print:bg-gray-100 print:border">
+                  <h2 className="text-2xl font-bold mb-4 text-gray-900 print:text-xl">Executive Summary</h2>
+                  <div className="text-gray-700 text-lg print:text-base">
+                    {renderEditableText(
+                      editableContent.executiveSummary,
+                      "executiveSummary",
+                      "Executive summary will appear here...",
+                      10
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1971,53 +2003,62 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           {renderRegionalSection('usSection')}
           {renderRegionalSection('globalSection')}
 
-          {/* KEY TAKEAWAYS */}
-          {editableContent.keyTakeaways && (
-            <div className="mt-16 bg-gradient-to-r from-gray-50 to-blue-50 p-8 rounded-lg border print:mt-12 print:p-6 print:bg-gray-50 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-              <h2 className="text-2xl font-bold mb-6 text-gray-900 print:text-xl print:mb-4">Conclusion & Key Takeaways</h2>
-              <div className="text-gray-700 text-lg space-y-4 print:text-base print:space-y-3">
-                {renderEditableText(
-                  editableContent.keyTakeaways,
-                  "keyTakeaways",
-                  "Key takeaways will appear here...",
-                  8
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* FOOTER */}
-          <div className="relative mt-12 pt-8 border-t overflow-hidden h-48 print:mt-8 print:h-40 print:min-h-[calc(29.7cm-2cm)] print:break-after-page">
-            <div className="absolute inset-0 z-0 print:relative print:inset-auto">
-              {editableContent.footerImage ? (
-                <img
-                  src={editableContent.footerImage}
-                  alt="Footer Background"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-200"></div>
-              )}
-              <div className="absolute inset-0 bg-black/50 print:bg-black/30"></div>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/60 print:hidden"></div>
-            </div>
-
-            <div className="relative z-10 h-full flex flex-col justify-center items-center text-center print:relative print:z-auto">
-              <div className="text-white print:text-black">
-                <div className="flex justify-center space-x-8 mb-4 text-lg print:text-base print:space-x-6">
-                  <span>info@example.com</span>
-                  <span>Subscribe</span>
-                  <span>About</span>
+          {/* KEY TAKEAWAYS & FOOTER CONTAINER */}
+          <div className="print:break-before-page">
+            {/* KEY TAKEAWAYS */}
+            {editableContent.keyTakeaways && (
+              <div className="mb-12 bg-gradient-to-r from-gray-50 to-blue-50 p-8 rounded-lg border print:p-6 print:bg-gray-100 print:border print:mb-8">
+                <h2 className="text-2xl font-bold mb-6 text-gray-900 print:text-xl print:mb-4">Conclusion & Key Takeaways</h2>
+                <div className="text-gray-700 text-lg space-y-4 print:text-base print:space-y-3">
+                  {renderEditableText(
+                    editableContent.keyTakeaways,
+                    "keyTakeaways",
+                    "Key takeaways will appear here...",
+                    8
+                  )}
                 </div>
-                <div className="text-sm print:text-xs">
-                  Generated on {new Date().toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
+              </div>
+            )}
+
+            {/* FOOTER */}
+            <div className="relative overflow-hidden h-48 print:h-40 footer-image-container">
+              {/* Footer Background Image Container */}
+              <div className="absolute inset-0 z-0 print:absolute print:inset-0 print:z-0">
+                {/* Dark overlay */}
+                <div className="absolute inset-0 bg-black/50 print:bg-black/30 z-10"></div>
+                
+                {/* Footer Background Image */}
+                <div className="relative w-full h-full z-0">
+                  {editableContent.footerImage ? (
+                    <img
+                      src={editableContent.footerImage}
+                      alt="Footer Background"
+                      className="w-full h-full object-cover print:h-40 print:object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200"></div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer Content Container - positioned in front of background */}
+              <div className="relative z-50 h-full flex flex-col justify-center items-center text-center print:relative print:z-[100]">
+                <div className="text-white print:text-white">
+                  <div className="flex justify-center space-x-8 mb-4 text-lg print:text-base print:space-x-6">
+                    <span>info@example.com</span>
+                    <span>Subscribe</span>
+                    <span>About</span>
+                  </div>
+                  <div className="text-sm print:text-xs">
+                    Generated on {new Date().toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2025,136 +2066,332 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         </div>
 
         <style jsx global>{`
-          @media print {
-            .print\\:hidden {
-              display: none !important;
-            }
-            
-            * {
-              -webkit-print-color-adjust: exact !important;
-              color-adjust: exact !important;
-              box-sizing: border-box;
-            }
-            
-            body {
-              margin: 0 !important;
-              padding: 0 !important;
-              background: white !important;
-              font-family: 'Times New Roman', Times, serif !important;
-              line-height: 1.4;
-            }
-            
-            button, .print\\:hidden {
-              display: none !important;
-            }
-            
-            .container {
-              max-width: none !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              width: 100% !important;
-            }
-            
-            @page {
-              size: A4;
-              margin: 1cm;
-              marks: crop cross;
-            }
-            
-            .print\\:break-after-page {
-              page-break-after: always !important;
-              break-after: page !important;
-            }
-            
-            .print\\:break-before-page {
-              page-break-before: always !important;
-              break-before: page !important;
-            }
-            
-            .print\\:min-h-\\[calc\\(29\\.7cm-2cm\\)\\] {
-              min-height: calc(29.7cm - 2cm) !important;
-            }
-            
-            .text-white {
-              color: black !important;
-            }
-            
-            .text-gray-700 {
-              color: #374151 !important;
-            }
-            
-            .text-gray-800 {
-              color: #1f2937 !important;
-            }
-            
-            .text-gray-900 {
-              color: #111827 !important;
-            }
-            
-            .bg-white {
-              background: white !important;
-            }
-            
-            .bg-gray-50, .bg-blue-50, .bg-purple-50 {
-              background: #f8f9fa !important;
-            }
-            
-            .shadow-lg, .shadow-md, .rounded-lg, .rounded {
-              box-shadow: none !important;
-              border-radius: 0 !important;
-            }
-            
-            .relative .absolute {
-              position: relative !important;
-            }
-            
-            h1 { font-size: 24pt !important; line-height: 1.2 !important; }
-            h2 { font-size: 18pt !important; line-height: 1.3 !important; }
-            h3 { font-size: 14pt !important; line-height: 1.3 !important; }
-            h4 { font-size: 12pt !important; line-height: 1.3 !important; }
-            p, li { font-size: 11pt !important; line-height: 1.4 !important; }
-            .text-sm { font-size: 10pt !important; }
-            .text-xs { font-size: 9pt !important; }
-            .text-2xs { font-size: 8pt !important; }
-            
-            img {
-              max-width: 100% !important;
-              height: auto !important;
-            }
-        
-            
-            .leading-relaxed {
-              line-height: 1.6 !important;
-            }
-            
-            .print\\:mb-8 { margin-bottom: 2rem !important; }
-            .print\\:mb-6 { margin-bottom: 1.5rem !important; }
-            .print\\:mb-4 { margin-bottom: 1rem !important; }
-            .print\\:mb-3 { margin-bottom: 0.75rem !important; }
-            .print\\:mb-2 { margin-bottom: 0.5rem !important; }
-            .print\\:mb-1 { margin-bottom: 0.25rem !important; }
-            
-            .print\\:mt-12 { margin-top: 3rem !important; }
-            .print\\:mt-8 { margin-top: 2rem !important; }
-            .print\\:mt-6 { margin-top: 1.5rem !important; }
-            .print\\:mt-4 { margin-top: 1rem !important; }
-            
-            .print\\:space-y-4 > * + * { margin-top: 1rem !important; }
-            .print\\:space-y-3 > * + * { margin-top: 0.75rem !important; }
-            
-            .print\\:gap-6 { gap: 1.5rem !important; }
-            .print\\:gap-4 { gap: 1rem !important; }
-            
-            .print\\:p-6 { padding: 1.5rem !important; }
-            .print\\:p-4 { padding: 1rem !important; }
-          }
-          
-          @media screen {
-            .print\\:min-h-\\[calc\\(29\\.7cm-2cm\\)\\] {
-              min-height: auto !important;
-            }
-          }
-        `}</style>
+  @media print {
+    .print\\:hidden {
+      display: none !important;
+    }
+    
+    * {
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      box-sizing: border-box;
+    }
+    
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+      line-height: 1.4;
+      font-size: 12pt;
+    }
+    
+    button, .print\\:hidden {
+      display: none !important;
+    }
+    
+    .container {
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+    }
+    
+    @page {
+      size: A4;
+      margin: 1.5cm;
+      marks: crop cross;
+    }
+    
+    .print\\:break-after-page {
+      page-break-after: always !important;
+      break-after: page !important;
+    }
+    
+    .print\\:break-before-page {
+      page-break-before: always !important;
+      break-before: page !important;
+    }
+    
+    /* Two-column layout for articles with proper page breaking */
+    .columns-1.lg\\:columns-2.print\\:columns-2 {
+      columns: 2 !important;
+      column-gap: 1.5cm !important;
+      column-fill: auto !important;
+    }
+    
+    /* CRITICAL: Ensure articles don't break across pages and have proper spacing */
+    .article-container {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      display: inline-block !important;
+      width: 100% !important;
+      margin-bottom: 1.5rem !important;
+    }
+    
+    .break-inside-avoid-page {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    
+    /* Remove any min-height constraints that might cause issues */
+    .print\\:min-h-0 {
+      min-height: 0 !important;
+    }
+    
+    /* CRITICAL: Force header content above background */
+    .relative.mb-12 {
+      position: relative !important;
+    }
+    
+    .relative.mb-12 > .absolute {
+      position: absolute !important;
+      z-index: 1 !important;
+    }
+    
+    .relative.mb-12 > .relative.z-50 {
+      position: relative !important;
+      z-index: 100 !important;
+    }
+    
+    /* FIXED: Keep header text white in print */
+    .relative.mb-12 .text-white {
+      color: white !important;
+      position: relative !important;
+      z-index: 101 !important;
+    }
+    
+    /* FIXED: Keep footer text white in print like header */
+    .footer-image-container .text-white {
+      color: white !important;
+      position: relative !important;
+      z-index: 101 !important;
+    }
+    
+    /* Ensure footer content appears above background */
+    .footer-image-container > .relative.z-50 {
+      position: relative !important;
+      z-index: 100 !important;
+    }
+    
+    .footer-image-container > .absolute {
+      position: absolute !important;
+      z-index: 1 !important;
+    }
+    
+    /* Remove all margins and frames from publisher logo in print */
+    .print\\:no-margins {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    .print\\:no-frame {
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+    
+    .relative.mb-12 .print\\:min-w-\\[120px\\],
+    .relative.mb-12 .print\\:min-w-\\[120px\\] img {
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+    
+    /* Specifically target the logo container and remove all spacing and borders */
+    .relative.mb-12 > .relative.z-50 > div > .print\\:ml-0 {
+      margin-left: 0 !important;
+      margin-top: 0 !important;
+      margin-right: 0 !important;
+      margin-bottom: 0 !important;
+      border: none !important;
+    }
+    
+    /* Remove any residual margins from flex/grid spacing */
+    .relative.mb-12 .flex-col.sm\\:flex-row {
+      gap: 0 !important;
+    }
+    
+    /* Text colors for regular content */
+    .text-gray-700 {
+      color: #374151 !important;
+    }
+    
+    .text-gray-800 {
+      color: #1f2937 !important;
+    }
+    
+    .text-gray-900 {
+      color: #111827 !important;
+    }
+    
+    .bg-white {
+      background: white !important;
+    }
+    
+    /* Print-appropriate background colors */
+    .bg-gray-50, .print\\:bg-gray-100 {
+      background: #f8f9fa !important;
+    }
+    
+    .bg-blue-50, .print\\:bg-blue-100 {
+      background: #f0f4f8 !important;
+    }
+    
+    .bg-purple-50, .print\\:bg-purple-100 {
+      background: #f3e8fd !important;
+    }
+    
+    /* Preserve image styling for print (except for publisher logo) */
+    img:not(.print\\:no-frame) {
+      max-width: 100% !important;
+      height: auto !important;
+      border-radius: 0.375rem !important;
+      border: 1px solid #e5e7eb !important;
+    }
+    
+    /* Specific image container styles */
+    .article-image-container img,
+    .footer-image-container img {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      object-fit: cover !important;
+    }
+    
+    .article-image-container img {
+      max-height: 200px !important;
+      margin: 0.5rem 0 !important;
+    }
+    
+    .footer-image-container img {
+      max-height: 160px !important;
+    }
+    
+    /* Preserve borders and spacing for other elements */
+    .shadow-lg, .shadow-md {
+      box-shadow: none !important;
+      border: 1px solid #d1d5db !important;
+    }
+    
+    .rounded-lg, .rounded {
+      border-radius: 0.375rem !important;
+    }
+    
+    .border {
+      border: 1px solid #e5e7eb !important;
+    }
+    
+    /* High z-index values for print */
+    .print\\:z-\\[100\\] {
+      z-index: 100 !important;
+    }
+    
+    .leading-relaxed {
+      line-height: 1.5 !important;
+    }
+    
+    /* Print spacing */
+    .print\\:mb-8 { margin-bottom: 2rem !important; }
+    .print\\:mb-6 { margin-bottom: 1.5rem !important; }
+    .print\\:mb-4 { margin-bottom: 1rem !important; }
+    .print\\:mb-3 { margin-bottom: 0.75rem !important; }
+    .print\\:mb-2 { margin-bottom: 0.5rem !important; }
+    .print\\:mb-1 { margin-bottom: 0.25rem !important; }
+    
+    .print\\:mt-12 { margin-top: 3rem !important; }
+    .print\\:mt-8 { margin-top: 2rem !important; }
+    .print\\:mt-6 { margin-top: 1.5rem !important; }
+    .print\\:mt-4 { margin-top: 1rem !important; }
+    
+    .print\\:space-y-4 > * + * { margin-top: 1rem !important; }
+    .print\\:space-y-3 > * + * { margin-top: 0.75rem !important; }
+    
+    .print\\:gap-6 { gap: 1.5rem !important; }
+    .print\\:gap-4 { gap: 1rem !important; }
+    
+    .print\\:p-6 { padding: 1.5rem !important; }
+    .print\\:p-4 { padding: 1rem !important; }
+    
+    /* Font sizes for print */
+    .print\\:text-3xl { font-size: 1.875rem !important; }
+    .print\\:text-2xl { font-size: 1.5rem !important; }
+    .print\\:text-xl { font-size: 1.25rem !important; }
+    .print\\:text-lg { font-size: 1.125rem !important; }
+    .print\\:text-base { font-size: 1rem !important; }
+    .print\\:text-sm { font-size: 0.875rem !important; }
+    .print\\:text-xs { font-size: 0.75rem !important; }
+    .print\\:text-2xs { font-size: 0.625rem !important; }
+  }
+  
+  @media screen {
+    .print\\:min-h-0 {
+      min-height: auto !important;
+    }
+    
+    .columns-1.lg\\:columns-2 {
+      columns: 1;
+    }
+    
+    @media (min-width: 1024px) {
+      .columns-1.lg\\:columns-2 {
+        columns: 2;
+        column-gap: 2rem;
+      }
+    }
+    
+    /* FIXED: Prevent article overlapping in screen view */
+    .article-container {
+      break-inside: avoid;
+      margin-bottom: 2rem;
+      display: inline-block;
+      width: 100%;
+    }
+    
+    .columns-1.lg\\:columns-2 {
+      column-fill: balance;
+    }
+  }
+
+  /* Page break controls */
+  .print\\:break-after-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  
+  .print\\:break-before-page {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+  
+  .print\\:break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Legend text sizes for print */
+  .print\\:text-sm { font-size: 0.875rem !important; }
+  .print\\:text-xs { font-size: 0.75rem !important; }
+  
+  /* Legend spacing for print */
+  .print\\:p-4 { padding: 1rem !important; }
+  .print\\:p-2 { padding: 0.5rem !important; }
+  .print\\:space-x-2 > * + * { margin-left: 0.5rem !important; }
+  .print\\:gap-3 { gap: 0.75rem !important; }
+  .print\\:mb-1 { margin-bottom: 0.25rem !important; }
+  .print\\:mt-1 { margin-top: 0.25rem !important; }
+  .print\\:mt-0 { margin-top: 0 !important; }
+  .print\\:space-y-0\\.5 > * + * { margin-top: 0.125rem !important; }
+  
+  /* Legend marker sizes for print */
+  .print\\:w-6 { width: 1.5rem !important; }
+  .print\\:h-6 { height: 1.5rem !important; }
+  
+  /* Font weight adjustment for print */
+  .print\\:font-normal { font-weight: 400 !important; }
+`}</style>
       </div>
     </>
   )

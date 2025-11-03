@@ -169,7 +169,7 @@ const THEME_SHADES = {
 // Fallback coordinates for all major countries
 const FALLBACK_COORDINATES: Record<string, [number, number]> = {
   "Ghana": [-1.0232, 7.9465],
-  
+
   "Africa": [21.0932, -1.2921],
   "Netherlands (Kingdom of the)": [5.2913, 52.1326],
   "New Zealand": [174.8860, -40.9006],
@@ -371,17 +371,17 @@ export function WorldMap({
 
   // Categorize countries into World, Region, and Country levels
   const { worldCountries, regionCountries, countryCountries } = useMemo(() => {
-    const worldCountries = countriesWithArticles.filter(country => 
+    const worldCountries = countriesWithArticles.filter(country =>
       SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] === "ALL"
     )
-    
-    const regionCountries = countriesWithArticles.filter(country => 
-      SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] && 
+
+    const regionCountries = countriesWithArticles.filter(country =>
+      SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] &&
       SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] !== "ALL" &&
       !worldCountries.includes(country)
     )
-    
-    const countryCountries = countriesWithArticles.filter(country => 
+
+    const countryCountries = countriesWithArticles.filter(country =>
       !worldCountries.includes(country) && !regionCountries.includes(country)
     )
 
@@ -391,7 +391,7 @@ export function WorldMap({
   // Get the appropriate color based on country type
   const getCountryColor = (country: string): string => {
     const shades = THEME_SHADES[theme]
-    
+
     if (worldCountries.includes(country)) {
       return shades.world
     } else if (regionCountries.includes(country)) {
@@ -445,7 +445,7 @@ export function WorldMap({
   const legendItems = useMemo(() => {
     // Sort countries by type: World first, then Regions, then Countries
     const sortedCountries = [...worldCountries, ...regionCountries, ...countryCountries]
-    
+
     return sortedCountries.map((country, index) => ({
       country,
       letter: String.fromCharCode(65 + index),
@@ -453,8 +453,8 @@ export function WorldMap({
       isMapped: true,
       isSpecialCase: !!SPECIAL_CASES[country as keyof typeof SPECIAL_CASES],
       color: getCountryColor(country),
-      type: worldCountries.includes(country) ? "world" : 
-            regionCountries.includes(country) ? "region" : "country"
+      type: worldCountries.includes(country) ? "world" :
+        regionCountries.includes(country) ? "region" : "country"
     }))
   }, [worldCountries, regionCountries, countryCountries, articlesByCountry, getCountryColor])
 
@@ -697,7 +697,7 @@ export function WorldMap({
                       rx={3}
                       opacity={0.9}
                     />
-                    
+
                     {/* Wrapped text lines */}
                     {wrappedLines.map((line, index) => (
                       <text
@@ -743,46 +743,44 @@ export function WorldMap({
           </div>
         )}
       </div>
-
       {/* Legend Section */}
       {showLegend && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 print:p-4 print:break-before-page print:break-inside-avoid">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 print:gap-3 print:break-inside-avoid">
             {legendItems.map((item) => (
               <div
                 key={item.country}
-                className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 border border-gray-200"
+                className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 border border-gray-200 print:p-2 print:space-x-2 print:break-inside-avoid"
                 style={{ borderLeft: `4px solid ${item.color}` }}
               >
                 {/* Legend Marker */}
                 <div
-                  className="w-8 h-8 rounded-full border-2 border-white shadow-sm flex-shrink-0 flex items-center justify-center mt-0.5"
+                  className="w-8 h-8 rounded-full border-2 border-white shadow-sm flex-shrink-0 flex items-center justify-center mt-0.5 print:w-6 print:h-6 print:mt-0"
                   style={{ backgroundColor: item.color }}
                 >
-                  <span className="text-white text-sm font-bold">{item.letter}</span>
+                  <span className="text-white text-sm font-bold print:text-xs">{item.letter}</span>
                 </div>
 
                 {/* Country and Headlines */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="flex-1 min-w-0 print:break-inside-avoid">
+                  <div className="flex items-center justify-between mb-2 print:mb-1">
                     <div className="flex items-center">
-                      <h4 className="font-medium text-gray-900 text-base">
+                      <h4 className="font-medium text-gray-900 text-base print:text-sm print:font-normal">
                         {item.letter}. {item.country}
                       </h4>
-             
                     </div>
                   </div>
 
                   {item.articles.length > 0 ? (
-                    <ul className="space-y-1 mt-2">
+                    <ul className="space-y-1 mt-2 print:mt-1 print:space-y-0.5 print:break-inside-avoid">
                       {item.articles.map((article, idx) => (
-                        <li key={article.news_id || idx} className="text-gray-600 text-sm">
+                        <li key={article.news_id || idx} className="text-gray-600 text-sm print:text-xs print:break-inside-avoid">
                           • {article.news_title}
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-gray-600 text-sm mt-2">
+                    <p className="text-gray-600 text-sm mt-2 print:text-xs print:mt-1 print:break-inside-avoid">
                       Latest developments in {item.country}
                     </p>
                   )}
