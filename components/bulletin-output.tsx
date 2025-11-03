@@ -2021,47 +2021,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             )}
 
             {/* FOOTER */}
-            <div className="relative overflow-hidden h-48 print:h-40 footer-image-container">
-              {/* Footer Background Image Container */}
-              <div className="absolute inset-0 z-0 print:absolute print:inset-0 print:z-0">
-                {/* Dark overlay */}
-                <div className="absolute inset-0 bg-black/50 print:bg-black/30 z-10"></div>
-                
-                {/* Footer Background Image */}
-                <div className="relative w-full h-full z-0">
-                  {editableContent.footerImage ? (
-                    <img
-                      src={editableContent.footerImage}
-                      alt="Footer Background"
-                      className="w-full h-full object-cover print:h-40 print:object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200"></div>
-                  )}
-                </div>
-              </div>
-
-              {/* Footer Content Container - positioned in front of background */}
-              <div className="relative z-50 h-full flex flex-col justify-center items-center text-center print:relative print:z-[100]">
-                <div className="text-white print:text-white">
-                  <div className="flex justify-center space-x-8 mb-4 text-lg print:text-base print:space-x-6">
-                    <span>info@example.com</span>
-                    <span>Subscribe</span>
-                    <span>About</span>
-                  </div>
-                  <div className="text-sm print:text-xs">
-                    Generated on {new Date().toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
+           
           </div>
         </div>
 
