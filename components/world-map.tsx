@@ -20,6 +20,8 @@ interface WorldMapProps {
   interactive?: boolean
   showLegend?: boolean
   theme?: "blue" | "green" | "red"
+  onLegendClick?: (country: string) => void
+  getArticleId?: (article: any, index: number) => string // Add this
 }
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
@@ -246,7 +248,6 @@ const FALLBACK_COORDINATES: Record<string, [number, number]> = {
   "Democratic Republic of the Congo": [21.7587, -4.0383],
   "Tanzania": [34.8888, -6.3690],
   "Uganda": [32.2903, 1.3733],
-  "Ghana": [-1.0232, 7.9465],
   "Ivory Coast": [-5.5471, 7.5400],
   "Cameroon": [12.3547, 7.3697],
   "Angola": [17.8739, -11.2027],
@@ -358,7 +359,9 @@ export function WorldMap({
   activeCountry = null,
   interactive = true,
   showLegend = true,
-  theme = "blue"
+  theme = "blue",
+  onLegendClick, // Add this prop
+  getArticleId = (article: any, index: number) => `article-${article?.news_id ?? index}`
 }: WorldMapProps) {
   const [autoMappedCountries, setAutoMappedCountries] = useState<Record<string, string[]>>({})
 
@@ -592,6 +595,13 @@ export function WorldMap({
 
   const visibleMarkers = getVisibleMarkers()
 
+  // Handle legend item click
+  const handleLegendClick = (country: string) => {
+    if (onLegendClick) {
+      onLegendClick(country)
+    }
+  }
+
   return (
     <div className="w-full">
       {/* Map Container */}
@@ -743,50 +753,88 @@ export function WorldMap({
           </div>
         )}
       </div>
-      {/* Legend Section */}
       {showLegend && (
         <div className="bg-white rounded-lg border border-gray-200 p-6 print:p-4 print:break-before-page print:break-inside-avoid">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 print:gap-3 print:break-inside-avoid">
-            {legendItems.map((item) => (
-              <div
-                key={item.country}
-                className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 border border-gray-200 print:p-2 print:space-x-2 print:break-inside-avoid"
-                style={{ borderLeft: `4px solid ${item.color}` }}
-              >
-                {/* Legend Marker */}
-                <div
-                  className="w-8 h-8 rounded-full border-2 border-white shadow-sm flex-shrink-0 flex items-center justify-center mt-0.5 print:w-6 print:h-6 print:mt-0"
-                  style={{ backgroundColor: item.color }}
-                >
-                  <span className="text-white text-sm font-bold print:text-xs">{item.letter}</span>
-                </div>
+            {legendItems.map((item) => {
+              const articles = articlesByCountry[item.country] || [];
+              const firstArticle = articles[0];
+          const articleId = firstArticle ? 
+  `article-${firstArticle.news_id || 0}` 
+  : null;
 
-                {/* Country and Headlines */}
-                <div className="flex-1 min-w-0 print:break-inside-avoid">
-                  <div className="flex items-center justify-between mb-2 print:mb-1">
-                    <div className="flex items-center">
-                      <h4 className="font-medium text-gray-900 text-base print:text-sm print:font-normal">
-                        {item.letter}. {item.country}
-                      </h4>
-                    </div>
+              return (
+                <div
+                  key={item.country}
+                  className={`flex items-start space-x-3 p-3 rounded-lg bg-gray-50 border border-gray-200 print:p-2 print:space-x-2 print:break-inside-avoid legend-item ${interactive ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''
+                    }`}
+                  style={{ borderLeft: `4px solid ${item.color}` }}
+                  onClick={() => interactive && handleLegendClick(item.country)}
+                >
+                  {/* Legend Marker */}
+                  <div
+                    className="w-8 h-8 rounded-full border-2 border-white shadow-sm flex-shrink-0 flex items-center justify-center mt-0.5 print:w-6 print:h-6 print:mt-0"
+                    style={{ backgroundColor: item.color }}
+                  >
+                    <span className="text-white text-sm font-bold print:text-xs">{item.letter}</span>
                   </div>
 
-                  {item.articles.length > 0 ? (
-                    <ul className="space-y-1 mt-2 print:mt-1 print:space-y-0.5 print:break-inside-avoid">
-                      {item.articles.map((article, idx) => (
-                        <li key={article.news_id || idx} className="text-gray-600 text-sm print:text-xs print:break-inside-avoid">
-                          • {article.news_title}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-600 text-sm mt-2 print:text-xs print:mt-1 print:break-inside-avoid">
-                      Latest developments in {item.country}
-                    </p>
-                  )}
+                  {/* Country and Headlines */}
+                  <div className="flex-1 min-w-0 print:break-inside-avoid">
+                    <div className="flex items-center justify-between mb-2 print:mb-1">
+                      <div className="flex items-center">
+                        {/* PDF-friendly anchor link */}
+                        {articleId ? (
+                          <a
+                            href={`#${articleId}`}
+                            className="font-medium text-gray-900 text-base print:text-sm print:font-normal hover:underline print:underline print:text-blue-600"
+                            onClick={(e) => {
+                              if (!interactive) {
+                                e.preventDefault();
+                              }
+                            }}
+                          >
+                            {item.letter}. {item.country}
+                          </a>
+                        ) : (
+                          <h4 className="font-medium text-gray-900 text-base print:text-sm print:font-normal">
+                            {item.letter}. {item.country}
+                          </h4>
+                        )}
+                      </div>
+                    </div>
+
+                    {item.articles.length > 0 ? (
+                      <ul className="space-y-1 mt-2 print:mt-1 print:space-y-0.5 print:break-inside-avoid">
+                        {item.articles.map((article, idx) => {
+                          const artId = getArticleId(article, idx);
+                          return (
+                            <li key={article.news_id || idx} className="text-gray-600 text-sm print:text-xs print:break-inside-avoid">
+                              {/* PDF-friendly article title links */}
+                              <a
+                                href={`#${artId}`}
+                                className="hover:underline print:underline print:text-blue-600"
+                                onClick={(e) => {
+                                  if (!interactive) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                              >
+                                • {article.news_title}
+                              </a>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-600 text-sm mt-2 print:text-xs print:mt-1 print:break-inside-avoid">
+                        Latest developments in {item.country}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
