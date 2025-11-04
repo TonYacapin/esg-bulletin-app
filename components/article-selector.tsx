@@ -34,11 +34,17 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   const [customSummaries, setCustomSummaries] = useState<Map<number, string>>(new Map())
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<number | null>(null)
 
+  // Helper function to get current month and year
+  const getCurrentMonthYear = () => {
+    const currentDate = new Date()
+    return `${currentDate.toLocaleString("en-US", { month: "long" })} ${currentDate.getFullYear()}`
+  }
+
   const [bulletinConfig, setBulletinConfig] = useState<BulletinConfig>({
     headerText: "ESG Bulletin",
     headerImage: "",
     issueNumber: "",
-    publicationDate: new Date().toISOString().split("T")[0],
+    publicationDate: getCurrentMonthYear(),
     publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
     footerImage: "",
     tableOfContents: true,
@@ -129,7 +135,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
       headerText: "ESG BULLETIN",
       headerImage: "",
       issueNumber: "",
-      publicationDate: new Date().toISOString().split("T")[0],
+      publicationDate: getCurrentMonthYear(),
       publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
       footerImage: "",
       tableOfContents: true,
@@ -365,7 +371,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     try {
       if (!selectedArticles || selectedArticles.length === 0) {
         console.log("[v0] No articles provided, using fallback greeting")
-        const currentDate = new Date(bulletinConfig.publicationDate)
+        const currentDate = new Date()
         const month = currentDate.toLocaleString("en-US", { month: "long" })
         const year = currentDate.getFullYear()
 
@@ -402,7 +408,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     } catch (error) {
       console.error("[v0] Error generating greeting message:", error)
 
-      const currentDate = new Date(bulletinConfig.publicationDate)
+      const currentDate = new Date()
       const month = currentDate.toLocaleString("en-US", { month: "long" })
       const year = currentDate.getFullYear()
 
@@ -424,7 +430,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
       const currentDate = new Date()
       const month = currentDate.toLocaleString("en-US", { month: "long" })
       const year = currentDate.getFullYear()
-      const issueNumber = `Issue #${Math.floor(Math.random() * 100) + 1} - ${month} ${year}`
+      const issueNumber = `Issue #${Math.floor(Math.random() * 100) + 1}`
 
       let greetingMessage = ""
       try {
@@ -441,7 +447,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         ...prev,
         headerText: "ESG DISCLOSURE & REPORTING BULLETIN",
         issueNumber,
-        publicationDate: currentDate.toISOString().split("T")[0],
+        publicationDate: getCurrentMonthYear(),
         headerImage: getRandomImageUrl(),
         footerImage: getRandomImageUrl(),
         greetingMessage,
