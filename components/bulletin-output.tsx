@@ -1241,6 +1241,20 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   // Add this ref to track if we've already regenerated on load
   const hasRegeneratedOnLoad = useRef(false)
 
+  // Create article IDs for linking
+  const articleIds = useRef(new Map())
+
+  // Generate unique IDs for articles
+  useEffect(() => {
+    articles.forEach((article, index) => {
+      if (article.news_id) {
+        articleIds.current.set(article.news_id, `article-${article.news_id}`)
+      } else {
+        articleIds.current.set(index, `article-${index}`)
+      }
+    })
+  }, [articles])
+
   const countries = Object.keys(articlesByCountry)
 
   const themeColors = {
@@ -1758,6 +1772,14 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     handleArticleUpdate(articleId, { imageUrl: "" })
   }
 
+  // Get article ID for linking
+  const getArticleId = (article: any, index: number) => {
+    if (article.news_id) {
+      return `article-${article.news_id}`
+    }
+    return `article-${index}`
+  }
+
   const renderEditableText = (content: string, sectionId: string, placeholder: string, rows: number = 4) => {
     if (isEditing === sectionId) {
       return (
@@ -1885,6 +1907,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
   const renderArticle = (article: any, index: number) => {
     const currentArticle = articles.find(a => a.news_id === article.news_id) || article;
+    const articleId = getArticleId(currentArticle, index);
 
     const handleAddSourceClick = () => {
       handleOpenSourceModal(currentArticle);
@@ -1892,6 +1915,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
     return (
       <div
+        id={articleId}
         key={currentArticle.news_id}
         className="article-container mb-8 print:mb-6 break-inside-avoid-page"
       >
@@ -2090,6 +2114,59 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     );
   };
 
+  // Custom WorldMap component with interactive legend
+ // Custom WorldMap component with interactive legend
+const InteractiveWorldMap = ({ 
+  countries, 
+  primaryColor, 
+  articlesByCountry, 
+  mappedCountries, 
+  theme,
+  interactive = false,
+  showLegend = true 
+}: any) => {
+  // Create a mapping of country names to article IDs
+  const countryToArticleMap = useRef(new Map());
+  
+  // Populate the mapping
+  useEffect(() => {
+    countries.forEach((country: string) => {
+      const articles = articlesByCountry[country] || [];
+      if (articles.length > 0) {
+        const firstArticle = articles[0];
+        const articleId = getArticleId(firstArticle, 0); // This uses the getArticleId from parent
+        countryToArticleMap.current.set(country, articleId);
+      }
+    });
+  }, [countries, articlesByCountry]);
+
+  const handleLegendClick = (country: string) => {
+    const articleId = countryToArticleMap.current.get(country);
+    if (articleId) {
+      const element = document.getElementById(articleId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4 print:p-3 print:border">
+      <WorldMap
+        countries={countries}
+        primaryColor={primaryColor}
+        articlesByCountry={articlesByCountry}
+        mappedCountries={mappedCountries}
+        theme={theme}
+        interactive={interactive}
+        showLegend={showLegend}
+        onLegendClick={handleLegendClick}
+        getArticleId={getArticleId} // Pass the function to WorldMap
+      />
+    </div>
+  );
+};
+
   return (
     <>
       {/* ALL MODALS AT THE SAME LEVEL */}
@@ -2274,17 +2351,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           {/* INTERACTIVE MAP */}
           {safeBulletinConfig.interactiveMap && (
             <div className="mb-12 print:mb-8 print:break-after-page">
-              <div className="bg-white rounded-lg border border-gray-200 p-4 print:p-3 print:border">
-                <WorldMap
-                  countries={mapCountries}
-                  primaryColor={themeColors[theme]}
-                  articlesByCountry={articlesByCountry}
-                  mappedCountries={countryMappings}
-                  theme={theme}
-                  interactive={false}
-                  showLegend={true}
-                />
-              </div>
+              <InteractiveWorldMap
+                countries={mapCountries}
+                primaryColor={themeColors[theme]}
+                articlesByCountry={articlesByCountry}
+                mappedCountries={countryMappings}
+                theme={theme}
+                interactive={false}
+                showLegend={true}
+              />
             </div>
           )}
 
@@ -2350,7 +2425,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           </div>
         </div>
 
-        <style jsx global>{`
+      <style jsx global>{`
   @media print {
     .print\\:hidden {
       display: none !important;
@@ -2609,6 +2684,45 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     .print\\:text-sm { font-size: 0.875rem !important; }
     .print\\:text-xs { font-size: 0.75rem !important; }
     .print\\:text-2xs { font-size: 0.625rem !important; }
+
+    /* Interactive links in PDF */
+    a {
+      color: #1976D2 !important;
+      text-decoration: underline !important;
+    }
+    
+    a[href^="#"] {
+      color: #1976D2 !important;
+      text-decoration: underline !important;
+    }
+    
+    /* Make legend items clickable in PDF */
+    .legend-item {
+      cursor: pointer !important;
+    }
+    
+    .legend-item a {
+      color: #1976D2 !important;
+      text-decoration: underline !important;
+    }
+    
+    /* Ensure article titles with links are properly styled */
+    .article-container h3 a {
+      color: #1f2937 !important;
+      text-decoration: none !important;
+    }
+    
+    /* Source links in PDF */
+    .article-container a[href^="http"] {
+      color: #1976D2 !important;
+      text-decoration: underline !important;
+    }
+    
+    /* Map legend links */
+    .bg-white.rounded-lg a {
+      color: #1976D2 !important;
+      text-decoration: underline !important;
+    }
   }
   
   @media screen {
@@ -2637,6 +2751,38 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     
     .columns-1.lg\\:columns-2 {
       column-fill: balance;
+    }
+
+    /* Interactive legend items */
+    .legend-item {
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .legend-item:hover {
+      background-color: #f3f4f6;
+    }
+    
+    /* Hide underline for screen view unless hovered */
+    .legend-item a {
+      text-decoration: none;
+      color: inherit;
+    }
+    
+    .legend-item a:hover {
+      text-decoration: underline;
+      color: #1976D2;
+    }
+    
+    /* Article title links in screen view */
+    .article-container h3 a {
+      text-decoration: none;
+      color: inherit;
+    }
+    
+    .article-container h3 a:hover {
+      text-decoration: underline;
+      color: #1976D2;
     }
   }
 
@@ -2675,7 +2821,39 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   .print\\:h-6 { height: 1.5rem !important; }
   
   /* Font weight adjustment for print */
-  .print\\:font-normal { font-weight: 400 !important;
+  .print\\:font-normal { font-weight: 400 !important; }
+  
+  /* Ensure proper link behavior in both screen and print */
+  a[href^="#"] {
+    cursor: pointer;
+  }
+  
+  /* Smooth scrolling for screen view */
+  @media screen {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+  
+  /* Print-specific link styles */
+  @media print {
+    /* Ensure links are visible and clickable in PDF */
+    a[href]::after {
+      content: "" !important;
+    }
+    
+    /* Prevent URL display for anchor links */
+    a[href^="#"]::after {
+      content: "" !important;
+    }
+    
+    /* Show URLs for external links */
+    a[href^="http"]::after {
+      content: " (" attr(href) ")" !important;
+      font-size: 0.75rem !important;
+      color: #6b7280 !important;
+      text-decoration: none !important;
+    }
   }
 `}</style>
       </div>
