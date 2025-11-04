@@ -19,6 +19,153 @@ interface CountryMappingModalProps {
   articlesByCountry: Record<string, any[]>
 }
 
+// Source data interface
+interface SourceData {
+  id?: string
+  source_alias: string
+  source_url: string
+  source_file_key?: string
+}
+
+// Source Edit Modal Component
+interface SourceEditModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSave: (sourceData: SourceData) => void
+  source?: SourceData | null
+  articleTitle?: string
+}
+
+function SourceEditModal({
+  isOpen,
+  onClose,
+  onSave,
+  source,
+  articleTitle
+}: SourceEditModalProps) {
+  const [formData, setFormData] = useState<SourceData>({
+    source_alias: '',
+    source_url: ''
+  })
+
+  useEffect(() => {
+    if (isOpen) {
+      if (source) {
+        setFormData({
+          source_alias: source.source_alias || '',
+          source_url: source.source_url || '',
+          source_file_key: source.source_file_key
+        })
+      } else {
+        setFormData({
+          source_alias: '',
+          source_url: ''
+        })
+      }
+    }
+  }, [isOpen, source])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Auto-generate a simple alias from the URL domain
+    let sourceAlias = formData.source_alias;
+    if (!sourceAlias.trim() && formData.source_url.trim()) {
+      try {
+        const url = new URL(formData.source_url);
+        sourceAlias = url.hostname.replace('www.', '');
+      } catch {
+        sourceAlias = 'Source';
+      }
+    }
+
+    if (!formData.source_url.trim()) {
+      alert('Please enter a source URL')
+      return
+    }
+
+    // Validate URL format
+    try {
+      new URL(formData.source_url)
+    } catch {
+      alert('Please enter a valid URL')
+      return
+    }
+
+    onSave({
+      ...formData,
+      source_alias: sourceAlias
+    })
+    onClose()
+  }
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={handleBackdropClick}
+    >
+      <div className="bg-white rounded-lg max-w-md w-full">
+        <div className="p-6 border-b">
+          <h2 className="text-xl font-bold text-gray-900">
+            {source ? 'Edit Source' : 'Add Source'}
+          </h2>
+          {articleTitle && (
+            <p className="text-sm text-gray-600 mt-1">
+              For: {articleTitle}
+            </p>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Source URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Source URL *
+            </label>
+            <input
+              type="url"
+              value={formData.source_url}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                source_url: e.target.value
+              }))}
+              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="https://example.com/article"
+              required
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 justify-end pt-4">
+            <Button
+              type="button"
+              onClick={onClose}
+              variant="outline"
+              className="px-4"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4"
+            >
+              {source ? 'Update Source' : 'Add Source'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function CountryMappingModal({
   isOpen,
   onClose,
@@ -609,33 +756,34 @@ interface ArticleEditModalProps {
   onClose: () => void
   onSave: (articleId: string, updatedArticle: any) => void
   article: any
+  onOpenSourceModal: (article: any, source?: SourceData | null) => void
 }
 
 function ArticleEditModal({
   isOpen,
   onClose,
   onSave,
-  article
+  article,
+  onOpenSourceModal
 }: ArticleEditModalProps) {
   const [editedArticle, setEditedArticle] = useState({
     news_title: article?.news_title || '',
     news_summary: article?.news_summary || '',
     imageUrl: article?.imageUrl || '',
-    source_alias: article?.source?.[0]?.source_alias || '',
-    source_url: article?.source?.[0]?.source_url || ''
+    source: article?.source || []
   })
 
   const [loadingSource, setLoadingSource] = useState(false)
   const [sourceError, setSourceError] = useState<string | null>(null)
 
+  // Sync with parent article state when modal opens or article changes
   useEffect(() => {
     if (isOpen && article) {
       setEditedArticle({
         news_title: article.news_title || '',
         news_summary: article.news_summary || '',
         imageUrl: article.imageUrl || '',
-        source_alias: article.source?.[0]?.source_alias || '',
-        source_url: article.source?.[0]?.source_url || ''
+        source: article.source || [] // This ensures we get the updated sources from parent
       })
 
       // Reset error state
@@ -646,7 +794,7 @@ function ArticleEditModal({
         fetchSourceData(article.news_id)
       }
     }
-  }, [isOpen, article])
+  }, [isOpen, article]) // Add article to dependencies
 
   const fetchSourceData = async (newsId: string) => {
     try {
@@ -666,8 +814,12 @@ function ArticleEditModal({
       if (data.data?.source?.[0]) {
         setEditedArticle(prev => ({
           ...prev,
-          source_alias: data.data.source[0].source_alias || '',
-          source_url: data.data.source[0].source_url || ''
+          source: [{
+            id: article.source?.[0]?.id,
+            source_alias: data.data.source[0].source_alias || '',
+            source_url: data.data.source[0].source_url || '',
+            source_file_key: article.source?.[0]?.source_file_key
+          }]
         }))
       } else {
         setSourceError('No source data found for this article')
@@ -693,22 +845,31 @@ function ArticleEditModal({
     setEditedArticle(prev => ({ ...prev, imageUrl: '' }))
   }
 
+  // Source management functions - use the passed handler
+  const handleAddSource = () => {
+    onOpenSourceModal(article)
+  }
+
+  const handleEditSource = (source: SourceData) => {
+    onOpenSourceModal(article, source)
+  }
+
+  const handleDeleteSource = (sourceIndex: number) => {
+    const updatedSources = editedArticle.source.filter((_, index) => index !== sourceIndex)
+    setEditedArticle(prev => ({
+      ...prev,
+      source: updatedSources
+    }))
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    // Prepare the updated source array
-    const updatedSource = [{
-      id: article.source?.[0]?.id,
-      source_alias: editedArticle.source_alias,
-      source_url: editedArticle.source_url,
-      source_file_key: article.source?.[0]?.source_file_key
-    }]
 
     onSave(article.news_id, {
       news_title: editedArticle.news_title,
       news_summary: editedArticle.news_summary,
       imageUrl: editedArticle.imageUrl,
-      source: updatedSource
+      source: editedArticle.source
     })
     onClose()
   }
@@ -832,60 +993,129 @@ function ArticleEditModal({
           </div>
 
           {/* Source Information */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Source Information
-              {loadingSource && (
-                <span className="ml-2 text-xs text-blue-600">Loading source data...</span>
-              )}
-            </label>
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Source Information
+                </label>
+                {loadingSource && (
+                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                    Loading source data...
+                  </span>
+                )}
+              </div>
+              <Button
+                type="button"
+                onClick={handleAddSource}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto justify-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Source
+              </Button>
+            </div>
 
             {sourceError && (
-              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-800">
-                  <strong>Error loading source:</strong> {sourceError}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => fetchSourceData(article.news_id)}
-                  className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-                >
-                  Try again
-                </button>
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800">
+                      Error loading source
+                    </p>
+                    <p className="text-sm text-red-700 mt-1">
+                      {sourceError}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => fetchSourceData(article.news_id)}
+                      className="mt-2 text-sm text-red-600 hover:text-red-800 font-medium underline transition-colors"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Source Name
-                </label>
-                <input
-                  type="text"
-                  value={editedArticle.source_alias}
-                  onChange={(e) => setEditedArticle(prev => ({ ...prev, source_alias: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Source name"
-                />
+            {editedArticle.source?.map((source, index) => (
+              <div
+                key={source.id || index}
+                className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <div className="text-sm text-gray-600 truncate font-medium">
+                      {source.source_url}
+                    </div>
+                  </div>
+                  {source.source_alias && source.source_alias !== 'Source' && (
+                    <div className="text-xs text-gray-500 ml-6">
+                      {source.source_alias}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 self-end sm:self-center">
+                  <Button
+                    type="button"
+                    onClick={() => handleEditSource(source)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => handleDeleteSource(index)}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400 flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
+                  </Button>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Source URL
-                </label>
-                <input
-                  type="url"
-                  value={editedArticle.source_url}
-                  onChange={(e) => setEditedArticle(prev => ({ ...prev, source_url: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://example.com/article"
-                />
-              </div>
-            </div>
+            ))}
 
-            {!editedArticle.source_alias && !editedArticle.source_url && !loadingSource && (
-              <p className="mt-2 text-xs text-gray-500">
-                Source information will be automatically loaded if available.
-              </p>
+            {(!editedArticle.source || editedArticle.source.length === 0) && (
+              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50/50">
+                <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                <p className="text-gray-500 text-sm mb-2">No sources added yet</p>
+                <p className="text-gray-400 text-xs mb-4 max-w-sm mx-auto">
+                  Add source URLs to provide references for this article
+                </p>
+                <Button
+                  type="button"
+                  onClick={handleAddSource}
+                  variant="outline"
+                  size="sm"
+                  className="border-gray-300 hover:border-gray-400"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add First Source
+                </Button>
+              </div>
             )}
           </div>
 
@@ -965,8 +1195,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const [showMappingModal, setShowMappingModal] = useState(true)
   const [showHeaderEditModal, setShowHeaderEditModal] = useState(false)
   const [showArticleEditModal, setShowArticleEditModal] = useState(false)
+  const [showSourceModal, setShowSourceModal] = useState(false)
   const [countryMappings, setCountryMappings] = useState<Record<string, string>>({})
   const [editingArticle, setEditingArticle] = useState<any>(null)
+  const [editingSource, setEditingSource] = useState<SourceData | null>(null)
+  const [sourceModalArticle, setSourceModalArticle] = useState<any>(null)
   const [regeneratingArticle, setRegeneratingArticle] = useState<string | null>(null)
   const [articles, setArticles] = useState(initialArticles)
   const [loadingSources, setLoadingSources] = useState(false)
@@ -1064,7 +1297,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   useEffect(() => {
     const regenerateAllContent = async () => {
       console.log('Starting automatic regeneration of ALL content...');
-      
+
       // ALWAYS regenerate greeting message
       console.log('Regenerating greeting message...');
       await handleRegenerate('greetingMessage');
@@ -1085,13 +1318,61 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     // Only run on initial load when articles are available and we haven't already regenerated
     if (articles.length > 0 && !hasRegeneratedOnLoad.current) {
       hasRegeneratedOnLoad.current = true;
-      
+
       // Add a small delay to ensure the component is fully mounted
       setTimeout(() => {
         regenerateAllContent();
       }, 1000);
     }
   }, [articles.length]);
+
+  // Source modal handlers
+  const handleOpenSourceModal = (article: any, source: SourceData | null = null) => {
+    setSourceModalArticle(article)
+    setEditingSource(source)
+    setShowSourceModal(true)
+  }
+
+  const handleSaveSource = (sourceData: SourceData) => {
+    if (!sourceModalArticle) return
+
+    const articleId = sourceModalArticle.news_id
+    const article = articles.find(a => a.news_id === articleId)
+    if (!article) return
+
+    let updatedSources: SourceData[]
+
+    if (editingSource) {
+      // Update existing source
+      updatedSources = article.source.map(source =>
+        source === editingSource ? { ...source, ...sourceData } : source
+      )
+    } else {
+      // Add new source
+      const newSource = {
+        ...sourceData,
+        id: `temp-${Date.now()}`
+      }
+      updatedSources = [...(article.source || []), newSource]
+    }
+
+    // Update the articles state
+    handleArticleUpdate(articleId, {
+      source: updatedSources
+    })
+
+    // If we're editing the same article in the article modal, update that too
+    if (editingArticle && editingArticle.news_id === articleId) {
+      setEditingArticle(prev => ({
+        ...prev,
+        source: updatedSources
+      }))
+    }
+
+    setShowSourceModal(false)
+    setEditingSource(null)
+    setSourceModalArticle(null)
+  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -1566,7 +1847,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             <Button
               onClick={() => setIsEditing(null)}
               variant="outline"
-            className="text-sm"
+              className="text-sm"
             >
               Cancel
             </Button>
@@ -1604,6 +1885,10 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
   const renderArticle = (article: any, index: number) => {
     const currentArticle = articles.find(a => a.news_id === article.news_id) || article;
+
+    const handleAddSourceClick = () => {
+      handleOpenSourceModal(currentArticle);
+    };
 
     return (
       <div
@@ -1668,21 +1953,47 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             {/* Source Information */}
             {currentArticle.source && currentArticle.source.length > 0 && (
               <div className="mb-3 print:mb-2">
-                <div className="text-sm text-gray-600 print:text-xs">
-                  <strong>Source:</strong>{' '}
-                  {currentArticle.source[0].source_url ? (
-                    <a
-                      href={currentArticle.source[0].source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
-                    >
-                      {currentArticle.source[0].source_url || 'Original Source'}
-                    </a>
-                  ) : (
-                    <span>{currentArticle.source[0].source_alias || 'Original Source'}</span>
-                  )}
+                <div className="flex items-center gap-2 mb-1">
+                  <strong className="text-sm text-gray-600 print:text-xs">Source:</strong>
+                  <Button
+                    onClick={() => handleOpenSourceModal(currentArticle)}
+                    variant="outline"
+                    size="sm"
+                    className="print:hidden"
+                  >
+                    Manage Sources
+                  </Button>
                 </div>
+                {currentArticle.source.map((source: SourceData, index: number) => (
+                  <div key={source.id || index} className="text-sm text-gray-600 print:text-xs ml-2">
+                    {source.source_url ? (
+                      <a
+                        href={source.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline"
+                      >
+                        {source.source_url}
+                      </a>
+                    ) : (
+                      <span>Original Source</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add Source button for articles without sources */}
+            {(!currentArticle.source || currentArticle.source.length === 0) && (
+              <div className="mb-3">
+                <Button
+                  onClick={handleAddSourceClick}
+                  variant="outline"
+                  size="sm"
+                  className="print:hidden"
+                >
+                  Add Source
+                </Button>
               </div>
             )}
 
@@ -1781,6 +2092,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
   return (
     <>
+      {/* ALL MODALS AT THE SAME LEVEL */}
       <CountryMappingModal
         isOpen={showMappingModal}
         onClose={() => setShowMappingModal(false)}
@@ -1811,6 +2123,19 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         }}
         onSave={handleArticleUpdate}
         article={editingArticle}
+        onOpenSourceModal={handleOpenSourceModal}
+      />
+
+      <SourceEditModal
+        isOpen={showSourceModal}
+        onClose={() => {
+          setShowSourceModal(false)
+          setEditingSource(null)
+          setSourceModalArticle(null)
+        }}
+        onSave={handleSaveSource}
+        source={editingSource}
+        articleTitle={sourceModalArticle?.news_title}
       />
 
       <div className={`container mx-auto p-8 max-w-7xl bg-white ${showMappingModal ? 'overflow-hidden' : ''}`}>
@@ -2021,7 +2346,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             )}
 
             {/* FOOTER */}
-           
+
           </div>
         </div>
 
@@ -2350,7 +2675,8 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   .print\\:h-6 { height: 1.5rem !important; }
   
   /* Font weight adjustment for print */
-  .print\\:font-normal { font-weight: 400 !important; }
+  .print\\:font-normal { font-weight: 400 !important;
+  }
 `}</style>
       </div>
     </>
