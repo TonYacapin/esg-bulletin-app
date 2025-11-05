@@ -678,7 +678,7 @@ function HeaderEditModal({
               value={formData.headerText}
               onChange={(e) => setFormData(prev => ({ ...prev, headerText: e.target.value }))}
               className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="ESG DISCLOSURE & REPORTING BULLETIN"
+              placeholder="ESG BULLETIN"
             />
           </div>
 
@@ -1178,7 +1178,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
   // Create a safe bulletin config with fallbacks
   const safeBulletinConfig = bulletinConfig || {
-    headerText: "ESG DISCLOSURE & REPORTING BULLETIN",
+    headerText: "ESG BULLETIN",
     issueNumber: "",
     publicationDate: new Date().toISOString().split('T')[0],
     headerImage: "",
@@ -2292,7 +2292,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                     className="text-3xl font-bold mb-3 text-white tracking-tight leading-tight text-center sm:text-left break-words print:text-2xl print:mb-1 print:relative print:z-[100]"
                     dangerouslySetInnerHTML={{
                       __html: (() => {
-                        const header = editableContent.headerText || "ESG DISCLOSURE & REPORTING BULLETIN";
+                        const header = editableContent.headerText || "ESG BULLETIN";
                         const words = header.split(" ");
                         const mid = Math.ceil(words.length / 2);
                         return (

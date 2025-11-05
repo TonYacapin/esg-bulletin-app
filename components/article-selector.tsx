@@ -445,7 +445,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
       // Update basic configuration
       setBulletinConfig((prev) => ({
         ...prev,
-        headerText: "ESG DISCLOSURE & REPORTING BULLETIN",
+        headerText: "ESG BULLETIN",
         issueNumber,
         publicationDate: getCurrentMonthYear(),
         headerImage: getRandomImageUrl(),
