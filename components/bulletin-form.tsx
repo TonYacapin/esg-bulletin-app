@@ -226,7 +226,7 @@ export function BulletinForm({ onGenerate, loading, error }: BulletinFormProps) 
   const [theme, setTheme] = useState<BulletinTheme>("blue")
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(50)
+  const [limit, setLimit] = useState(10)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [dateFilter, setDateFilter] = useState<DateFilterOption>("custom")
   const [filters, setFilters] = useState<BulletinFormFilters>({
