@@ -41,6 +41,21 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMor
   const [customSummaries, setCustomSummaries] = useState<Map<number, string>>(new Map())
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<number | null>(null)
 
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState<{
+    currentStep: string
+    progress: number
+    totalSteps: number
+  } | null>(null)
+
+  const freeImageApis = [
+    "https://picsum.photos/800/400",
+    "https://picsum.photos/800/600",
+    "https://picsum.photos/600/400",
+    "https://picsum.photos/700/500",
+    "https://picsum.photos/900/600",
+  ]
+
   // Helper function to get current month and year
   const getCurrentMonthYear = () => {
     const currentDate = new Date()
@@ -97,25 +112,9 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMor
     },
   })
 
-  const [isAutoGenerating, setIsAutoGenerating] = useState(false)
-  const [generationProgress, setGenerationProgress] = useState<{
-    currentStep: string
-    progress: number
-    totalSteps: number
-  } | null>(null)
-
-  const freeImageApis = [
-    "https://picsum.photos/800/400",
-    "https://picsum.photos/800/600",
-    "https://picsum.photos/600/400",
-    "https://picsum.photos/700/500",
-    "https://picsum.photos/900/600",
-  ]
-
   // Initialize articles when component mounts or articles prop changes
   useEffect(() => {
     setAllArticles(prev => {
-      // Merge new articles with existing ones, avoiding duplicates
       const existingIds = new Set(prev.map(a => a.news_id))
       const newUniqueArticles = articles.filter(a => !existingIds.has(a.news_id))
       return [...prev, ...newUniqueArticles]
@@ -126,6 +125,14 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMor
   useEffect(() => {
     applyFiltersToArticles()
   }, [allArticles, currentFilters])
+
+  // Auto-generate bulletin content when articles are selected (SILENTLY - no loading states)
+  useEffect(() => {
+    const selectedArticles = allArticles.filter((a) => selectedIds.has(a.news_id))
+    if (selectedArticles.length > 0) {
+      autoGenerateBulletinContent(selectedArticles)
+    }
+  }, [selectedIds, allArticles])
 
   const applyFiltersToArticles = () => {
     let filtered = [...allArticles]
@@ -165,7 +172,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMor
 
     if (currentFilters.dateTo) {
       const toDate = new Date(currentFilters.dateTo)
-      toDate.setHours(23, 59, 59, 999) // End of the day
+      toDate.setHours(23, 59, 59, 999)
       filtered = filtered.filter(article =>
         new Date(article.published_at) <= toDate
       )
@@ -174,31 +181,19 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMor
     setCurrentFilteredArticles(filtered)
   }
 
-  // Auto-generate bulletin content when articles are selected
-  useEffect(() => {
-    const selectedArticles = allArticles.filter((a) => selectedIds.has(a.news_id))
-    if (selectedArticles.length > 0 && !isAutoGenerating) {
-      autoGenerateBulletinContent(selectedArticles)
-    }
-  }, [selectedIds, allArticles])
-
   const hasUnsavedChanges = () => {
-    // Check if any articles are selected
     if (selectedIds.size > 0) {
       return true
     }
 
-    // Check if any custom images are set
     if (articlesWithImages.size > 0) {
       return true
     }
 
-    // Check if any custom summaries are set
     if (customSummaries.size > 0) {
       return true
     }
 
-    // Check if bulletin config has been modified from defaults
     const defaultConfig = {
       headerText: "ESG BULLETIN",
       headerImage: "",
@@ -277,14 +272,12 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMor
 
   const toggleAll = () => {
     if (selectedIds.size === currentFilteredArticles.length) {
-      // Deselect all currently filtered articles
       const newSelected = new Set(selectedIds)
       currentFilteredArticles.forEach(article => {
         newSelected.delete(article.news_id)
       })
       setSelectedIds(newSelected)
     } else {
-      // Select all currently filtered articles
       const newSelected = new Set(selectedIds)
       currentFilteredArticles.forEach(article => {
         newSelected.add(article.news_id)
@@ -453,7 +446,6 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMor
     }
   }
 
-  // Handle applying filters and fetching more articles
   const handleApplyFilters = async (filters: ArticleFilters) => {
     setCurrentFilters(filters)
     setIsLoadingMore(true)
@@ -462,7 +454,6 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMor
       const newArticles = await onFetchMore(filters)
       
       if (newArticles && newArticles.length > 0) {
-        // Merge new articles with existing ones, avoiding duplicates
         const existingIds = new Set(allArticles.map(a => a.news_id))
         const uniqueNewArticles = newArticles.filter(a => !existingIds.has(a.news_id))
         
@@ -488,10 +479,8 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMor
     toast.info("Filters cleared")
   }
 
-  // Check if any filters are active
   const hasActiveFilters = Object.keys(currentFilters).length > 0
 
-  // Generate greeting message function
   const generateGreetingMessage = async (selectedArticles: Article[]): Promise<string> => {
     try {
       if (!selectedArticles || selectedArticles.length === 0) {
@@ -545,49 +534,47 @@ We remain committed to delivering high-quality, actionable intelligence to help 
     }
   }
 
-  const autoGenerateBulletinContent = async (selectedArticles: Article[]) => {
-    if (selectedArticles.length === 0) return
+  const getRegionalArticles = (articles: Article[], region: "euSection" | "usSection" | "globalSection") => {
+    return articles.filter((article) => {
+      const jurisdiction = article.jurisdictions?.[0]?.name?.toLowerCase() || ""
 
-    setIsAutoGenerating(true)
-
-    try {
-      // Generate issue number based on current date
-      const currentDate = new Date()
-      const month = currentDate.toLocaleString("en-US", { month: "long" })
-      const year = currentDate.getFullYear()
-      const issueNumber = `Issue #${Math.floor(Math.random() * 100) + 1}`
-
-      let greetingMessage = ""
-      try {
-        greetingMessage = await generateGreetingMessage(selectedArticles)
-      } catch (greetingError) {
-        console.error("[v0] Greeting generation failed, using fallback:", greetingError)
-        const fallbackMonth = currentDate.toLocaleString("en-US", { month: "long" })
-        const fallbackYear = currentDate.getFullYear()
-        greetingMessage = `Welcome to our ${fallbackMonth} ${fallbackYear} ESG Regulatory Bulletin.`
+      switch (region) {
+        case "euSection":
+          return (
+            jurisdiction.includes("eu") ||
+            jurisdiction.includes("europe") ||
+            jurisdiction.includes("european") ||
+            article.jurisdictions?.some(
+              (j) => j.name.toLowerCase().includes("eu") || j.name.toLowerCase().includes("europe"),
+            )
+          )
+        case "usSection":
+          return (
+            jurisdiction.includes("us") ||
+            jurisdiction.includes("united states") ||
+            jurisdiction.includes("america") ||
+            article.jurisdictions?.some(
+              (j) => j.name.toLowerCase().includes("us") || j.name.toLowerCase().includes("united states"),
+            )
+          )
+        case "globalSection":
+          return (
+            !jurisdiction.includes("eu") &&
+            !jurisdiction.includes("europe") &&
+            !jurisdiction.includes("us") &&
+            !jurisdiction.includes("united states") &&
+            !article.jurisdictions?.some(
+              (j) =>
+                j.name.toLowerCase().includes("eu") ||
+                j.name.toLowerCase().includes("europe") ||
+                j.name.toLowerCase().includes("us") ||
+                j.name.toLowerCase().includes("united states"),
+            )
+          )
+        default:
+          return true
       }
-
-      // Update basic configuration
-      setBulletinConfig((prev) => ({
-        ...prev,
-        headerText: "ESG BULLETIN",
-        issueNumber,
-        publicationDate: getCurrentMonthYear(),
-        headerImage: getRandomImageUrl(),
-        footerImage: getRandomImageUrl(),
-        greetingMessage,
-      }))
-
-      // Generate AI content for the bulletin
-      await generateAIContentForBulletin(selectedArticles)
-
-      toast.success("Bulletin content auto-generated successfully!")
-    } catch (error) {
-      console.error("Error auto-generating bulletin content:", error)
-      toast.error("Failed to auto-generate some content. You can generate it manually in the configuration.")
-    } finally {
-      setIsAutoGenerating(false)
-    }
+    })
   }
 
   const generateAIContentForBulletin = async (selectedArticles: Article[]) => {
@@ -732,51 +719,50 @@ We remain committed to delivering high-quality, actionable intelligence to help 
     }
   }
 
-  const getRegionalArticles = (articles: Article[], region: "euSection" | "usSection" | "globalSection") => {
-    return articles.filter((article) => {
-      const jurisdiction = article.jurisdictions?.[0]?.name?.toLowerCase() || ""
+  // This runs SILENTLY when articles are selected (no loading states)
+  const autoGenerateBulletinContent = async (selectedArticles: Article[]) => {
+    if (selectedArticles.length === 0) return
 
-      switch (region) {
-        case "euSection":
-          return (
-            jurisdiction.includes("eu") ||
-            jurisdiction.includes("europe") ||
-            jurisdiction.includes("european") ||
-            article.jurisdictions?.some(
-              (j) => j.name.toLowerCase().includes("eu") || j.name.toLowerCase().includes("europe"),
-            )
-          )
-        case "usSection":
-          return (
-            jurisdiction.includes("us") ||
-            jurisdiction.includes("united states") ||
-            jurisdiction.includes("america") ||
-            article.jurisdictions?.some(
-              (j) => j.name.toLowerCase().includes("us") || j.name.toLowerCase().includes("united states"),
-            )
-          )
-        case "globalSection":
-          return (
-            !jurisdiction.includes("eu") &&
-            !jurisdiction.includes("europe") &&
-            !jurisdiction.includes("us") &&
-            !jurisdiction.includes("united states") &&
-            !article.jurisdictions?.some(
-              (j) =>
-                j.name.toLowerCase().includes("eu") ||
-                j.name.toLowerCase().includes("europe") ||
-                j.name.toLowerCase().includes("us") ||
-                j.name.toLowerCase().includes("united states"),
-            )
-          )
-        default:
-          return true
+    try {
+      // Generate issue number based on current date
+      const currentDate = new Date()
+      const month = currentDate.toLocaleString("en-US", { month: "long" })
+      const year = currentDate.getFullYear()
+      const issueNumber = `Issue #${Math.floor(Math.random() * 100) + 1}`
+
+      let greetingMessage = ""
+      try {
+        greetingMessage = await generateGreetingMessage(selectedArticles)
+      } catch (greetingError) {
+        console.error("[v0] Greeting generation failed, using fallback:", greetingError)
+        const fallbackMonth = currentDate.toLocaleString("en-US", { month: "long" })
+        const fallbackYear = currentDate.getFullYear()
+        greetingMessage = `Welcome to our ${fallbackMonth} ${fallbackYear} ESG Regulatory Bulletin.`
       }
-    })
+
+      // Update basic configuration
+      setBulletinConfig((prev) => ({
+        ...prev,
+        headerText: "ESG BULLETIN",
+        issueNumber,
+        publicationDate: getCurrentMonthYear(),
+        headerImage: prev.headerImage || getRandomImageUrl(),
+        footerImage: prev.footerImage || getRandomImageUrl(),
+        greetingMessage,
+      }))
+
+      // Generate AI content for the bulletin
+      await generateAIContentForBulletin(selectedArticles)
+
+    } catch (error) {
+      console.error("Error auto-generating bulletin content:", error)
+      // Don't show toast here - this is silent auto-generation
+    }
   }
 
   const generateBulletinWithAI = async () => {
     setIsGenerating(true)
+    setIsAutoGenerating(true) // Only set this to true when user clicks Generate
     setGenerationProgress({
       currentStep: "Preparing bulletin content...",
       progress: 0,
@@ -956,6 +942,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
       toast.error("Failed to generate AI content. Please try again.")
     } finally {
       setIsGenerating(false)
+      setIsAutoGenerating(false)
       setGenerationProgress(null)
     }
   }
@@ -1226,7 +1213,6 @@ We remain committed to delivering high-quality, actionable intelligence to help 
           )}
         </div>
 
-  
         <div className="flex justify-center gap-4 mt-8">
           <Button
             onClick={handleBackClick}
