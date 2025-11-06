@@ -1,13 +1,14 @@
+// components/article-selector.tsx
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ConfirmationModal } from "./confirmation-modal"
 import { ArticleDetailModal } from "./article-detail-modal"
 import { ImageModal } from "./image-modal"
 import { BulletinConfigModal, type BulletinConfig } from "./bulletin-config-modal"
+import { ArticleFilterModal, type ArticleFilters } from "./article-filter-modal"
 import type { Article } from "./bulletin-generator"
 import { toast } from "sonner"
 
@@ -16,19 +17,25 @@ interface ArticleSelectorProps {
   theme: "blue" | "green" | "red"
   onConfirm: (selectedArticles: Article[], bulletinConfig: BulletinConfig) => void
   onBack: () => void
+  onFetchMore: (filters: ArticleFilters) => Promise<Article[]>
 }
 
-export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleSelectorProps) {
+export function ArticleSelector({ articles, theme, onConfirm, onBack, onFetchMore }: ArticleSelectorProps) {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [allArticles, setAllArticles] = useState<Article[]>(articles)
+  const [currentFilteredArticles, setCurrentFilteredArticles] = useState<Article[]>(articles)
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [imageModalOpen, setImageModalOpen] = useState(false)
   const [configModalOpen, setConfigModalOpen] = useState(false)
+  const [filterModalOpen, setFilterModalOpen] = useState(false)
   const [generateConfirmationModalOpen, setGenerateConfirmationModalOpen] = useState(false)
   const [backConfirmationModalOpen, setBackConfirmationModalOpen] = useState(false)
   const [currentArticleId, setCurrentArticleId] = useState<number | null>(null)
   const [imageUrl, setImageUrl] = useState("")
   const [articlesWithImages, setArticlesWithImages] = useState<Map<number, string>>(new Map())
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [currentFilters, setCurrentFilters] = useState<ArticleFilters>({})
 
   const [customPrompts, setCustomPrompts] = useState<Map<number, string>>(new Map())
   const [customSummaries, setCustomSummaries] = useState<Map<number, string>>(new Map())
@@ -105,32 +112,93 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
     "https://picsum.photos/900/600",
   ]
 
+  // Initialize articles when component mounts or articles prop changes
+  useEffect(() => {
+    setAllArticles(prev => {
+      // Merge new articles with existing ones, avoiding duplicates
+      const existingIds = new Set(prev.map(a => a.news_id))
+      const newUniqueArticles = articles.filter(a => !existingIds.has(a.news_id))
+      return [...prev, ...newUniqueArticles]
+    })
+  }, [articles])
+
+  // Apply filters whenever allArticles or currentFilters change
+  useEffect(() => {
+    applyFiltersToArticles()
+  }, [allArticles, currentFilters])
+
+  const applyFiltersToArticles = () => {
+    let filtered = [...allArticles]
+
+    // Apply search query filter
+    if (currentFilters.searchQuery) {
+      const query = currentFilters.searchQuery.toLowerCase()
+      filtered = filtered.filter(article =>
+        article.news_title?.toLowerCase().includes(query) ||
+        article.news_summary?.toLowerCase().includes(query)
+      )
+    }
+
+    // Apply content type filter
+    if (currentFilters.type) {
+      filtered = filtered.filter(article =>
+        article.type_value?.toLowerCase().includes(currentFilters.type!.toLowerCase())
+      )
+    }
+
+    // Apply jurisdiction filter
+    if (currentFilters.jurisdiction) {
+      filtered = filtered.filter(article =>
+        article.jurisdictions?.some(jurisdiction =>
+          jurisdiction.name?.toLowerCase().includes(currentFilters.jurisdiction!.toLowerCase())
+        )
+      )
+    }
+
+    // Apply date range filter
+    if (currentFilters.dateFrom) {
+      const fromDate = new Date(currentFilters.dateFrom)
+      filtered = filtered.filter(article =>
+        new Date(article.published_at) >= fromDate
+      )
+    }
+
+    if (currentFilters.dateTo) {
+      const toDate = new Date(currentFilters.dateTo)
+      toDate.setHours(23, 59, 59, 999) // End of the day
+      filtered = filtered.filter(article =>
+        new Date(article.published_at) <= toDate
+      )
+    }
+
+    setCurrentFilteredArticles(filtered)
+  }
+
   // Auto-generate bulletin content when articles are selected
   useEffect(() => {
-    const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id))
+    const selectedArticles = allArticles.filter((a) => selectedIds.has(a.news_id))
     if (selectedArticles.length > 0 && !isAutoGenerating) {
       autoGenerateBulletinContent(selectedArticles)
     }
-  }, [selectedIds, articles])
+  }, [selectedIds, allArticles])
 
   const hasUnsavedChanges = () => {
-    const initialSelectedIds = new Set(articles.map((a) => a.news_id))
-
-    if (
-      selectedIds.size !== initialSelectedIds.size ||
-      !Array.from(selectedIds).every((id) => initialSelectedIds.has(id))
-    ) {
+    // Check if any articles are selected
+    if (selectedIds.size > 0) {
       return true
     }
 
+    // Check if any custom images are set
     if (articlesWithImages.size > 0) {
       return true
     }
 
+    // Check if any custom summaries are set
     if (customSummaries.size > 0) {
       return true
     }
 
+    // Check if bulletin config has been modified from defaults
     const defaultConfig = {
       headerText: "ESG BULLETIN",
       headerImage: "",
@@ -177,6 +245,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
       selectedArticle ||
       imageModalOpen ||
       configModalOpen ||
+      filterModalOpen ||
       generateConfirmationModalOpen ||
       backConfirmationModalOpen
     ) {
@@ -194,7 +263,7 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
         window.scrollTo(0, scrollY)
       }
     }
-  }, [selectedArticle, imageModalOpen, configModalOpen, generateConfirmationModalOpen, backConfirmationModalOpen])
+  }, [selectedArticle, imageModalOpen, configModalOpen, filterModalOpen, generateConfirmationModalOpen, backConfirmationModalOpen])
 
   const toggleArticle = (newsId: number) => {
     const newSelected = new Set(selectedIds)
@@ -207,10 +276,20 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
   }
 
   const toggleAll = () => {
-    if (selectedIds.size === articles.length) {
-      setSelectedIds(new Set())
+    if (selectedIds.size === currentFilteredArticles.length) {
+      // Deselect all currently filtered articles
+      const newSelected = new Set(selectedIds)
+      currentFilteredArticles.forEach(article => {
+        newSelected.delete(article.news_id)
+      })
+      setSelectedIds(newSelected)
     } else {
-      setSelectedIds(new Set(articles.map((a) => a.news_id)))
+      // Select all currently filtered articles
+      const newSelected = new Set(selectedIds)
+      currentFilteredArticles.forEach(article => {
+        newSelected.add(article.news_id)
+      })
+      setSelectedIds(newSelected)
     }
   }
 
@@ -241,6 +320,14 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
 
   const closeConfigModal = () => {
     setConfigModalOpen(false)
+  }
+
+  const openFilterModal = () => {
+    setFilterModalOpen(true)
+  }
+
+  const closeFilterModal = () => {
+    setFilterModalOpen(false)
   }
 
   const openGenerateConfirmationModal = () => {
@@ -365,6 +452,44 @@ export function ArticleSelector({ articles, theme, onConfirm, onBack }: ArticleS
       handleSummaryChange(articleId, selectedArticle.news_summary)
     }
   }
+
+  // Handle applying filters and fetching more articles
+  const handleApplyFilters = async (filters: ArticleFilters) => {
+    setCurrentFilters(filters)
+    setIsLoadingMore(true)
+
+    try {
+      const newArticles = await onFetchMore(filters)
+      
+      if (newArticles && newArticles.length > 0) {
+        // Merge new articles with existing ones, avoiding duplicates
+        const existingIds = new Set(allArticles.map(a => a.news_id))
+        const uniqueNewArticles = newArticles.filter(a => !existingIds.has(a.news_id))
+        
+        if (uniqueNewArticles.length > 0) {
+          setAllArticles(prev => [...prev, ...uniqueNewArticles])
+          toast.success(`Added ${uniqueNewArticles.length} new articles`)
+        } else {
+          toast.info("No new articles found with these filters")
+        }
+      } else {
+        toast.info("No articles found with these filters")
+      }
+    } catch (error) {
+      console.error("Error fetching articles:", error)
+      toast.error("Failed to fetch articles")
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }
+
+  const clearFilters = () => {
+    setCurrentFilters({})
+    toast.info("Filters cleared")
+  }
+
+  // Check if any filters are active
+  const hasActiveFilters = Object.keys(currentFilters).length > 0
 
   // Generate greeting message function
   const generateGreetingMessage = async (selectedArticles: Article[]): Promise<string> => {
@@ -659,7 +784,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
     })
 
     try {
-      const selectedArticles = articles.filter((a) => selectedIds.has(a.news_id))
+      const selectedArticles = allArticles.filter((a) => selectedIds.has(a.news_id))
 
       // Step 1: Generate greeting message
       setGenerationProgress({
@@ -835,7 +960,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
     }
   }
 
-  const selectedArticles = articles
+  const selectedArticles = allArticles
     .filter((a) => selectedIds.has(a.news_id))
     .map((article) => ({
       ...article,
@@ -881,7 +1006,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
                   Auto-generating bulletin content...
                 </span>
               ) : (
-                `Choose which articles to include in your bulletin (${selectedArticles.length} of ${articles.length} selected)`
+                `Choose which articles to include in your bulletin (${selectedArticles.length} of ${currentFilteredArticles.length} selected) - ${allArticles.length} total articles available`
               )}
             </p>
           </div>
@@ -898,28 +1023,117 @@ We remain committed to delivering high-quality, actionable intelligence to help 
               onClick={toggleAll}
               className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
             >
-              {selectedIds.size === articles.length ? "Deselect All" : "Select All"}
+              {selectedIds.size === currentFilteredArticles.length ? "Deselect All" : "Select All"}
             </Button>
             <span className="text-sm text-gray-600 self-center">
               {selectedIds.size} article{selectedIds.size !== 1 ? "s" : ""} selected
             </span>
           </div>
-          {/* <Button
-            onClick={openConfigModal}
-            className="text-white font-bold py-2 px-4 rounded-lg"
-            style={{
-              backgroundColor: selectedArticles.length === 0 ? "#ccc" : themeColors[theme],
-            }}
-          >
-            Configure Bulletin
-          </Button> */}
+          
+          <div className="flex gap-2">
+            {/* Filter Button */}
+            <Button
+              onClick={openFilterModal}
+              variant="outline"
+              className="border-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filter Articles
+              {hasActiveFilters && (
+                <span className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {Object.keys(currentFilters).length}
+                </span>
+              )}
+            </Button>
+
+            {/* Clear Filters Button (shown when filters are active) */}
+            {hasActiveFilters && (
+              <Button
+                onClick={clearFilters}
+                variant="outline"
+                className="border-red-300 text-red-600 font-bold py-2 px-4 rounded-lg"
+              >
+                Clear Filters
+              </Button>
+            )}
+
+            {/* Configure Bulletin Button */}
+            <Button
+              onClick={openConfigModal}
+              className="text-white font-bold py-2 px-4 rounded-lg"
+              style={{
+                backgroundColor: selectedArticles.length === 0 ? "#ccc" : themeColors[theme],
+              }}
+              disabled={selectedArticles.length === 0}
+            >
+              Configure Bulletin
+            </Button>
+          </div>
         </div>
 
+        {/* Loading indicator for new articles */}
+        {isLoadingMore && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <span className="text-blue-700">Loading more articles...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Active filters display */}
+        {hasActiveFilters && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium text-gray-700">Active Filters:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {currentFilters.searchQuery && (
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                  Search: "{currentFilters.searchQuery}"
+                </span>
+              )}
+              {currentFilters.type && (
+                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                  Type: {currentFilters.type}
+                </span>
+              )}
+              {currentFilters.jurisdiction && (
+                <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full">
+                  Jurisdiction: {currentFilters.jurisdiction}
+                </span>
+              )}
+              {currentFilters.dateFrom && (
+                <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+                  From: {currentFilters.dateFrom}
+                </span>
+              )}
+              {currentFilters.dateTo && (
+                <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+                  To: {currentFilters.dateTo}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Articles list */}
         <div className="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4">
-          {articles.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No articles found</p>
+          {currentFilteredArticles.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-2">No articles match your filters</p>
+              <Button
+                onClick={clearFilters}
+                variant="outline"
+                className="text-sm"
+              >
+                Clear filters to see all articles
+              </Button>
+            </div>
           ) : (
-            articles.map((article) => (
+            currentFilteredArticles.map((article) => (
               <div
                 key={article.news_id}
                 className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer group"
@@ -1012,6 +1226,7 @@ We remain committed to delivering high-quality, actionable intelligence to help 
           )}
         </div>
 
+  
         <div className="flex justify-center gap-4 mt-8">
           <Button
             onClick={handleBackClick}
@@ -1078,6 +1293,14 @@ We remain committed to delivering high-quality, actionable intelligence to help 
         selectedArticlesCount={selectedArticles.length}
         theme={theme}
         articles={selectedArticles}
+      />
+
+      <ArticleFilterModal
+        isOpen={filterModalOpen}
+        onClose={closeFilterModal}
+        onApplyFilters={handleApplyFilters}
+        currentFilters={currentFilters}
+        theme={theme}
       />
 
       <ConfirmationModal

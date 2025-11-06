@@ -5,7 +5,7 @@ import { fetchNewsAction } from "@/lib/actions"
 import { BulletinForm } from "./bulletin-form"
 import { BulletinOutput } from "./bulletin-output"
 import { ArticleSelector } from "./article-selector"
-import type { Article, BulletinConfig, BulletinData, BulletinFormData, BulletinTheme } from "@/lib/types"
+import type { Article, BulletinConfig, BulletinData, BulletinFormData, BulletinTheme, ArticleFilters } from "@/lib/types"
 
 type Step = "form" | "selector" | "output"
 
@@ -21,6 +21,7 @@ export default function BulletinGenerator() {
   const [error, setError] = useState<string | null>(null)
   const [fetchedArticles, setFetchedArticles] = useState<Article[]>([])
   const [selectedTheme, setSelectedTheme] = useState<BulletinTheme>("blue")
+  const [currentFormData, setCurrentFormData] = useState<BulletinFormData | null>(null)
 
   /**
    * Handles bulletin generation by fetching articles from API
@@ -29,6 +30,7 @@ export default function BulletinGenerator() {
     setLoading(true)
     setError(null)
     setSelectedTheme(filters.theme)
+    setCurrentFormData(filters)
 
     try {
       const data = await fetchNewsAction({
@@ -53,6 +55,83 @@ export default function BulletinGenerator() {
     } finally {
       setLoading(false)
     }
+  }
+
+  /**
+   * Handles fetching more articles with additional filters
+   */
+  const handleFetchMoreArticles = async (filters: ArticleFilters): Promise<Article[]> => {
+    if (!currentFormData) {
+      throw new Error("No form data available")
+    }
+
+    try {
+      // Merge the original form data with new filters
+      const mergedFilters: BulletinFormData = {
+        ...currentFormData,
+        // Override with new filter values
+        query: filters.searchQuery || currentFormData.query,
+        // Use filter type if provided, otherwise keep original
+        type_id: filters.type ? getTypeIdFromType(filters.type) : currentFormData.type_id,
+        // Use filter jurisdiction if provided, otherwise keep original
+        jurisdiction_id: filters.jurisdiction ? getJurisdictionIdFromName(filters.jurisdiction) : currentFormData.jurisdiction_id,
+        // Use date filters if provided
+        published_at_from: filters.dateFrom || currentFormData.published_at_from,
+        published_at_to: filters.dateTo || currentFormData.published_at_to,
+      }
+
+      const data = await fetchNewsAction({
+        query: mergedFilters.query,
+        page: 1, // Always fetch first page for new filters
+        limit: mergedFilters.limit,
+        type_id: mergedFilters.type_id,
+        jurisdiction_id: mergedFilters.jurisdiction_id,
+        published_at_from: mergedFilters.published_at_from,
+        published_at_to: mergedFilters.published_at_to,
+        updated_at_from: mergedFilters.updated_at_from,
+        updated_at_to: mergedFilters.updated_at_to,
+      })
+
+      const newArticles = data.data || []
+      return newArticles
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An error occurred while fetching more articles"
+      console.error("[BulletinGenerator] Error fetching more articles:", errorMessage)
+      throw new Error(errorMessage)
+    }
+  }
+
+  /**
+   * Helper function to convert type string to type_id
+   */
+  const getTypeIdFromType = (type: string): number => {
+    const typeMap: Record<string, number> = {
+      "Generic": 1,
+      "Disclosure": 2,
+      "Regulatory": 3,
+      "Litigation": 4,
+      "Enforcement Action": 5,
+    }
+    return typeMap[type] || 1 // Default to Generic
+  }
+
+  /**
+   * Helper function to convert jurisdiction name to jurisdiction_id
+   */
+  const getJurisdictionIdFromName = (jurisdiction: string): number => {
+    const jurisdictionMap: Record<string, number> = {
+      "Australia": 1,
+      "Singapore": 2,
+      "United States": 3,
+      "European Union": 4,
+      "World": 5,
+      "EU": 4,
+      "US": 3,
+      "UK": 6, // Assuming UK has ID 6
+      "Global": 5,
+    }
+    return jurisdictionMap[jurisdiction] || 5 // Default to World/Global
   }
 
   /**
@@ -83,7 +162,15 @@ export default function BulletinGenerator() {
     setBulletinData(null)
     setFetchedArticles([])
     setError(null)
+    setCurrentFormData(null)
     setStep("form")
+  }
+
+  /**
+   * Handles going back to selector with current articles preserved
+   */
+  const handleBackToSelector = () => {
+    setStep("selector")
   }
 
   // Render appropriate step
@@ -98,6 +185,7 @@ export default function BulletinGenerator() {
         theme={selectedTheme}
         onConfirm={handleArticlesSelected}
         onBack={handleStartOver}
+        onFetchMore={handleFetchMoreArticles}
       />
     )
   }
