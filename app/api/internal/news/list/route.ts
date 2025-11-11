@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const page = searchParams.get("page") || "1"
-    const limit = searchParams.get("limit") || "5"
+    const limit = searchParams.get("limit") || "5000"
     const query = searchParams.get("query") || ""
     const type_value = searchParams.get("type_value") || ""
 

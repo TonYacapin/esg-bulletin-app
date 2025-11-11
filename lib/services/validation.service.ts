@@ -15,7 +15,7 @@ const VALIDATION_RULES = {
   PAGE_MIN: 1,
   PAGE_MAX: 1000,
   LIMIT_MIN: 1,
-  LIMIT_MAX: 500,
+  LIMIT_MAX: 5000,
 } as const
 
 // ============================================================================
