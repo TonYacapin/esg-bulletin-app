@@ -22,6 +22,7 @@ import {
   Square,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react"
 import type React from "react"
 import { validateBulletinForm } from "@/lib/services/validation.service"
@@ -274,6 +275,65 @@ export default function BulletinGenerator() {
   }, [query, theme, page, limit, filters, toast, selectedIds, allArticles])
 
   /**
+   * Performs a search with default filter values
+   */
+  const searchArticlesWithDefaultFilters = useCallback(async () => {
+    const defaultTypeId = Number.parseInt(THEME_CONFIG.blue.type_id)
+    
+    const formData: BulletinFormData = {
+      theme: "blue",
+      page: 1,
+      limit,
+      type_id: defaultTypeId,
+      // No query, jurisdiction_id, or date filters
+    }
+
+    setLoading(true)
+    try {
+      const data = await fetchNewsAction({
+        page: formData.page,
+        limit: formData.limit,
+        type_id: formData.type_id,
+        // No other filters to keep it broad
+      })
+
+      const newArticles = data.data || []
+      
+      // Set current filtered articles
+      setArticles(newArticles)
+      
+      // Update allArticles by merging new articles, avoiding duplicates
+      setAllArticles(prev => {
+        const existingIds = new Set(prev.map(a => a.news_id))
+        const uniqueNewArticles = newArticles.filter(article => !existingIds.has(article.news_id))
+        return [...prev, ...uniqueNewArticles]
+      })
+      
+      if (newArticles.length === 0) {
+        toast({
+          title: "No articles found",
+          description: "Try adjusting your search criteria",
+        })
+      } else {
+        toast({
+          title: "Search completed",
+          description: `Found ${newArticles.length} articles, ${selectedIds.size} total articles selected`,
+        })
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An error occurred while fetching articles"
+      console.error("[BulletinGenerator] Error:", errorMessage)
+      toast({
+        title: "Error fetching articles",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [limit, toast, selectedIds])
+
+  /**
    * Auto-search when filters change
    */
   useEffect(() => {
@@ -384,6 +444,44 @@ export default function BulletinGenerator() {
   const handleQueryChange = (value: string) => {
     setQuery(value)
     clearFieldError("query")
+  }
+
+  /**
+   * Resets all search filters to their default values while preserving selected articles
+   */
+  const resetAllFilters = () => {
+    // Reset form state
+    setQuery("")
+    setPage(1)
+    setCurrentPage(1)
+    
+    // Reset filters to default values
+    setFilters({
+      type_id: "all",
+      jurisdiction_id: "all",
+      published_at_from: "",
+      published_at_to: "",
+    })
+    
+    // Reset theme to default
+    setTheme("blue")
+    
+    // Reset date filter to default
+    setDateFilter("custom")
+    
+    // Reset validation errors
+    setValidationErrors([])
+    
+    // Reset "Show Only Selected" view
+    setShowOnlySelected(false)
+    
+    // Trigger a new search with default filters
+    searchArticlesWithDefaultFilters()
+    
+    toast({
+      title: "Filters reset",
+      description: "All filters have been reset to default values",
+    })
   }
 
   // Article selection functions
@@ -521,21 +619,44 @@ export default function BulletinGenerator() {
     <div className="min-h-screen bg-gray-50 py-6 px-4">
       <div className="max-w-7xl mx-auto">
   
-
-        {/* Filters Section - Above the table */}
+        {/* Simplified Filters Section */}
         <Card className="shadow-sm mb-6">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Search Filters</CardTitle>
-            <CardDescription>
-              {loading ? "Searching..." : `Found ${articles.length} articles`}
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Search Articles</CardTitle>
+                <CardDescription>
+                  {loading ? "Searching..." : `Found ${articles.length} articles, ${selectedIds.size} selected`}
+                </CardDescription>
+              </div>
+              <Button
+                onClick={resetAllFilters}
+                variant="outline"
+                size="sm"
+                disabled={loading}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Reset
+              </Button>
+            </div>
           </CardHeader>
 
           <CardContent>
             <div className="space-y-4">
-              {/* Main Filters Row - Now 3 columns instead of 4 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Theme Selection */}
+              {/* Main Search Row */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Search Input - Wider */}
+                <div className="md:col-span-2 space-y-2">
+                  <Label>Search Articles</Label>
+                  <Input
+                    type="text"
+                    value={query}
+                    onChange={(e) => handleQueryChange(e.target.value)}
+                    placeholder="Search by title, summary, or content..."
+                  />
+                </div>
+
+                {/* Theme */}
                 <div className="space-y-2">
                   <Label>Theme</Label>
                   <Select value={theme} onValueChange={handleThemeChange}>
@@ -552,18 +673,7 @@ export default function BulletinGenerator() {
                   </Select>
                 </div>
 
-                {/* Search Input */}
-                <div className="space-y-2">
-                  <Label>Search</Label>
-                  <Input
-                    type="text"
-                    value={query}
-                    onChange={(e) => handleQueryChange(e.target.value)}
-                    placeholder="Search articles..."
-                  />
-                </div>
-
-                {/* Date Filter */}
+                {/* Date Range */}
                 <div className="space-y-2">
                   <Label>Date Range</Label>
                   <Select value={dateFilter} onValueChange={handleDateFilterChange}>
@@ -581,72 +691,71 @@ export default function BulletinGenerator() {
                 </div>
               </div>
 
-              {/* Always Visible Advanced Filters */}
-              <div className="border-t pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {/* Date Inputs */}
-                  <div className="space-y-2">
-                    <Label className="text-sm">Published From</Label>
-                    <Input
-                      type="date"
-                      value={filters.published_at_from}
-                      onChange={(e) => handleFilterChange("published_at_from", e.target.value)}
-                      disabled={dateFilter !== "custom"}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Published To</Label>
-                    <Input
-                      type="date"
-                      value={filters.published_at_to}
-                      onChange={(e) => handleFilterChange("published_at_to", e.target.value)}
-                      disabled={dateFilter !== "custom"}
-                    />
-                  </div>
-
-                  {/* Content Type */}
-                  <div className="space-y-2">
-                    <Label className="text-sm">Content Type</Label>
-                    <Select value={filters.type_id} onValueChange={(value) => handleFilterChange("type_id", value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All types</SelectItem>
-                        <SelectItem value="1">Generic</SelectItem>
-                        <SelectItem value="2">Disclosure</SelectItem>
-                        <SelectItem value="3">Regulatory</SelectItem>
-                        <SelectItem value="4">Litigation</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Jurisdiction */}
-                  <div className="space-y-2">
-                    <Label className="text-sm">Jurisdiction</Label>
-                    <Select
-                      value={filters.jurisdiction_id}
-                      onValueChange={(value) => handleFilterChange("jurisdiction_id", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All regions</SelectItem>
-                        <SelectItem value="1">Australia</SelectItem>
-                        <SelectItem value="2">Singapore</SelectItem>
-                        <SelectItem value="3">United States</SelectItem>
-                        <SelectItem value="4">European Union</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              {/* Quick Filters Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Content Type */}
+                <div className="space-y-2">
+                  <Label>Content Type</Label>
+                  <Select value={filters.type_id} onValueChange={(value) => handleFilterChange("type_id", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="1">Generic</SelectItem>
+                      <SelectItem value="2">Disclosure</SelectItem>
+                      <SelectItem value="3">Regulatory</SelectItem>
+                      <SelectItem value="4">Litigation</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {/* Jurisdiction */}
+                <div className="space-y-2">
+                  <Label>Jurisdiction</Label>
+                  <Select
+                    value={filters.jurisdiction_id}
+                    onValueChange={(value) => handleFilterChange("jurisdiction_id", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All regions" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All regions</SelectItem>
+                      <SelectItem value="1">Australia</SelectItem>
+                      <SelectItem value="2">Singapore</SelectItem>
+                      <SelectItem value="3">United States</SelectItem>
+                      <SelectItem value="4">European Union</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Custom Date Inputs - Only show when custom date range is selected */}
+                {dateFilter === "custom" && (
+                  <div className="space-y-2">
+                    <Label>Custom Dates</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="date"
+                        value={filters.published_at_from}
+                        onChange={(e) => handleFilterChange("published_at_from", e.target.value)}
+                        className="flex-1"
+                      />
+                      <Input
+                        type="date"
+                        value={filters.published_at_to}
+                        onChange={(e) => handleFilterChange("published_at_to", e.target.value)}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Articles Table - Below the filters */}
+        {/* Articles Table */}
         <Card className="shadow-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
