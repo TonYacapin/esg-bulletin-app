@@ -11,11 +11,14 @@ import type { FetchNewsParams, NewsListResponse } from "@/lib/types"
  * @returns News list response with articles
  * @throws Error if API call fails
  */
-export async function fetchNewsAction(params: FetchNewsParams): Promise<NewsListResponse> {
+export async function fetchNewsAction(params: FetchNewsParams) {
   try {
-    return await fetchNewsFromAPI(params)
+    console.log("🚀 fetchNewsAction called with params:", params)
+    const result = await fetchNewsFromAPI(params)
+    console.log("✅ fetchNewsAction result count:", result.data.length)
+    return result
   } catch (error) {
-    console.error("[fetchNewsAction] Error:", error)
-    throw error instanceof Error ? error : new Error("Failed to fetch news")
+    console.error("❌ fetchNewsAction error:", error)
+    throw error
   }
 }
