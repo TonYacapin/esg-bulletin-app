@@ -94,12 +94,8 @@ export default function BulletinGenerator() {
 
   // Modal states
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
-  const [imageModalOpen, setImageModalOpen] = useState(false)
   const [configModalOpen, setConfigModalOpen] = useState(false)
   const [generateConfirmationModalOpen, setGenerateConfirmationModalOpen] = useState(false)
-  const [currentArticleId, setCurrentArticleId] = useState<number | null>(null)
-  const [imageUrl, setImageUrl] = useState("")
-  const [articlesWithImages, setArticlesWithImages] = useState<Map<number, string>>(new Map())
   const [isGenerating, setIsGenerating] = useState(false)
 
   const { toast } = useToast()
@@ -253,16 +249,6 @@ export default function BulletinGenerator() {
         return [...prev, ...uniqueNewArticles]
       })
       
-      // PRESERVE IMAGES: Keep only images for articles that exist in allArticles
-      const preservedArticlesWithImages = new Map<number, string>()
-      allArticles.forEach((article: Article) => {
-        const existingImage = articlesWithImages.get(article.news_id)
-        if (existingImage) {
-          preservedArticlesWithImages.set(article.news_id, existingImage)
-        }
-      })
-      setArticlesWithImages(preservedArticlesWithImages)
-      
       if (newArticles.length === 0) {
         toast({
           title: "No articles found",
@@ -285,7 +271,7 @@ export default function BulletinGenerator() {
     } finally {
       setLoading(false)
     }
-  }, [query, theme, page, limit, filters, toast, selectedIds, articlesWithImages, allArticles])
+  }, [query, theme, page, limit, filters, toast, selectedIds, allArticles])
 
   /**
    * Auto-search when filters change
@@ -412,27 +398,6 @@ export default function BulletinGenerator() {
   }
 
   /**
-   * Toggle all currently displayed articles (not all search results)
-   */
-  const toggleAll = () => {
-    if (selectedIds.size === displayedArticles.length) {
-      // Deselect only currently displayed articles
-      const newSelected = new Set(selectedIds)
-      displayedArticles.forEach(article => {
-        newSelected.delete(article.news_id)
-      })
-      setSelectedIds(newSelected)
-    } else {
-      // Select all currently displayed articles
-      const newSelected = new Set(selectedIds)
-      displayedArticles.forEach(article => {
-        newSelected.add(article.news_id)
-      })
-      setSelectedIds(newSelected)
-    }
-  }
-
-  /**
    * Clear all selections across all pages
    */
   const clearAllSelections = () => {
@@ -478,19 +443,6 @@ export default function BulletinGenerator() {
     setSelectedArticle(null)
   }
 
-  const openImageModal = (articleId: number, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setCurrentArticleId(articleId)
-    setImageUrl(articlesWithImages.get(articleId) || "")
-    setImageModalOpen(true)
-  }
-
-  const closeImageModal = () => {
-    setImageModalOpen(false)
-    setCurrentArticleId(null)
-    setImageUrl("")
-  }
-
   const openConfigModal = () => {
     setConfigModalOpen(true)
   }
@@ -507,26 +459,6 @@ export default function BulletinGenerator() {
     setGenerateConfirmationModalOpen(false)
   }
 
-  const saveImageUrl = () => {
-    if (currentArticleId) {
-      const newArticlesWithImages = new Map(articlesWithImages)
-      if (imageUrl.trim()) {
-        newArticlesWithImages.set(currentArticleId, imageUrl.trim())
-      } else {
-        newArticlesWithImages.delete(currentArticleId)
-      }
-      setArticlesWithImages(newArticlesWithImages)
-    }
-    closeImageModal()
-  }
-
-  const removeImage = (articleId: number, e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newArticlesWithImages = new Map(articlesWithImages)
-    newArticlesWithImages.delete(articleId)
-    setArticlesWithImages(newArticlesWithImages)
-  }
-
   const handleConfigChange = (field: keyof BulletinConfig, value: any) => {
     setBulletinConfig((prev) => ({
       ...prev,
@@ -537,10 +469,6 @@ export default function BulletinGenerator() {
   // Bulletin generation functions
   const selectedArticles = allArticles
     .filter((a) => selectedIds.has(a.news_id))
-    .map((article) => ({
-      ...article,
-      imageUrl: articlesWithImages.get(article.news_id),
-    }))
 
   const handleGenerateConfirm = async () => {
     closeGenerateConfirmationModal()
@@ -770,23 +698,6 @@ export default function BulletinGenerator() {
                     </Button>
                   )}
                   <Button
-                    onClick={toggleAll}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {selectedIds.size === displayedArticles.length ? (
-                      <>
-                        <Square className="h-4 w-4 mr-2" />
-                        Deselect Page
-                      </>
-                    ) : (
-                      <>
-                        <CheckSquare className="h-4 w-4 mr-2" />
-                        Select Page
-                      </>
-                    )}
-                  </Button>
-                  <Button
                     onClick={openConfigModal}
                     disabled={selectedIds.size === 0}
                     size="sm"
@@ -834,24 +745,6 @@ export default function BulletinGenerator() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-1">
                           <h3 className="font-medium text-gray-900">{article.news_title}</h3>
-                          {selectedIds.has(article.news_id) && (
-                            <div className="flex gap-2 ml-2 shrink-0">
-                              {articlesWithImages.has(article.news_id) && (
-                                <div className="flex items-center gap-1 text-xs text-green-600">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                  Has Image
-                                </div>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => openImageModal(article.news_id, e)}
-                                className="text-xs"
-                              >
-                                {articlesWithImages.has(article.news_id) ? "Change Image" : "Add Image"}
-                              </Button>
-                            </div>
-                          )}
                         </div>
                         <p className="text-sm text-gray-600 mb-2 line-clamp-2">
                           {article.news_summary}
@@ -959,17 +852,6 @@ export default function BulletinGenerator() {
         onResetSummary={() => {}}
         onUseOriginalSummary={() => {}}
         isGeneratingSummary={null}
-      />
-
-      <ImageModal
-        isOpen={imageModalOpen}
-        onClose={closeImageModal}
-        onSave={saveImageUrl}
-        imageUrl={imageUrl}
-        onImageUrlChange={setImageUrl}
-        onRandomImage={() => {
-          setImageUrl("https://picsum.photos/600/400")
-        }}
       />
 
       <BulletinConfigModal
