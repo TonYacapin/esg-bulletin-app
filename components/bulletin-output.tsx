@@ -2341,14 +2341,14 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 {currentArticle.source.map((source: SourceData, index: number) => (
                   <div key={source.id || index} className="text-sm text-gray-600 print:text-xs ml-1">
                     {source.source_url ? (
-                      <a
+                        <a
                         href={source.source_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline print-source-link"
-                      >
+                        className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline print-source-link break-all"
+                        >
                         {source.source_url}
-                      </a>
+                        </a>
                     ) : (
                       <span>Original Source</span>
                     )}
