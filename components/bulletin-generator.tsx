@@ -37,6 +37,13 @@ import type {
   DateFilterOption,
 } from "@/lib/types"
 
+// Types for jurisdictions
+type Jurisdiction = {
+  id: number;
+  name: string;
+  code: string;
+}
+
 // Theme configuration
 const THEME_CONFIG = {
   blue: {
@@ -79,6 +86,10 @@ export default function BulletinGenerator() {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([])
   const [showOnlySelected, setShowOnlySelected] = useState(false)
   
+  // Jurisdictions state
+  const [jurisdictions, setJurisdictions] = useState<Jurisdiction[]>([])
+  const [loadingJurisdictions, setLoadingJurisdictions] = useState(false)
+
   // Form state
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
@@ -151,6 +162,78 @@ export default function BulletinGenerator() {
     },
   })
 
+  // Fetch jurisdictions on component mount
+  useEffect(() => {
+    const fetchJurisdictions = async () => {
+      setLoadingJurisdictions(true);
+      try {
+        const response = await fetch('/api/jurisdiction-filter');
+        const data = await response.json();
+        if (data.jurisdictions) {
+          setJurisdictions(data.jurisdictions);
+        }
+      } catch (error) {
+        console.error('Error fetching jurisdictions:', error);
+        toast({
+          title: "Error loading jurisdictions",
+          description: "Failed to load jurisdiction list",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingJurisdictions(false);
+      }
+    };
+
+    fetchJurisdictions();
+  }, [toast]);
+
+  // Group jurisdictions by region for better organization
+  const groupedJurisdictions = useMemo(() => {
+    const groups: { [key: string]: Jurisdiction[] } = {
+      "Popular": [],
+      "Americas": [],
+      "Europe": [],
+      "Asia Pacific": [],
+      "Middle East & Africa": [],
+      "International": []
+    };
+
+    jurisdictions.forEach(jurisdiction => {
+      // Define popular jurisdictions
+      const popularJurisdictions = [
+        "United States of America", 
+        "United Kingdom of Great Britain and Northern Ireland",
+        "European Union",
+        "Canada",
+        "Australia",
+        "Singapore",
+        "Japan",
+        "China"
+      ];
+
+      if (popularJurisdictions.includes(jurisdiction.name)) {
+        groups.Popular.push(jurisdiction);
+      } else if (jurisdiction.name === "European Union" || jurisdiction.name === "International" || jurisdiction.name === "World") {
+        groups.International.push(jurisdiction);
+      } else if (["US", "CA", "MX", "BR", "AR", "CL", "CO", "PE"].includes(jurisdiction.code)) {
+        groups.Americas.push(jurisdiction);
+      } else if (["GB", "FR", "DE", "IT", "ES", "NL", "BE", "CH", "SE", "NO", "DK", "FI", "IE", "AT", "PT", "GR"].includes(jurisdiction.code)) {
+        groups.Europe.push(jurisdiction);
+      } else if (["CN", "JP", "IN", "AU", "SG", "KR", "ID", "MY", "TH", "VN", "PH", "NZ"].includes(jurisdiction.code)) {
+        groups["Asia Pacific"].push(jurisdiction);
+      } else {
+        groups["Middle East & Africa"].push(jurisdiction);
+      }
+    });
+
+    // Sort each group alphabetically
+    Object.keys(groups).forEach(key => {
+      groups[key].sort((a, b) => a.name.localeCompare(b.name));
+    });
+
+    return groups;
+  }, [jurisdictions]);
+
   // Calculate displayed articles with filtering for "Show Only Selected"
   const displayedArticles = useMemo(() => {
     let filteredArticles = articles
@@ -208,13 +291,18 @@ export default function BulletinGenerator() {
       ? Number.parseInt(filters.type_id) 
       : Number.parseInt(THEME_CONFIG[theme].type_id)
 
+    // Handle jurisdiction_id conversion
+    const finalJurisdictionId = filters.jurisdiction_id !== "all" 
+      ? Number.parseInt(filters.jurisdiction_id) 
+      : undefined
+
     const formData: BulletinFormData = {
       theme,
       page,
       limit,
       type_id: finalTypeId,
       ...(finalQuery && { query: finalQuery }),
-      jurisdiction_id: filters.jurisdiction_id !== "all" ? Number.parseInt(filters.jurisdiction_id) : undefined,
+      jurisdiction_id: finalJurisdictionId,
       published_at_from: filters.published_at_from || undefined,
       published_at_to: filters.published_at_to || undefined,
     }
@@ -718,16 +806,36 @@ export default function BulletinGenerator() {
                   <Select
                     value={filters.jurisdiction_id}
                     onValueChange={(value) => handleFilterChange("jurisdiction_id", value)}
+                    disabled={loadingJurisdictions}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="All regions" />
+                      {loadingJurisdictions ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                          <span>Loading jurisdictions...</span>
+                        </div>
+                      ) : (
+                        <SelectValue placeholder="All regions" />
+                      )}
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[400px]">
                       <SelectItem value="all">All regions</SelectItem>
-                      <SelectItem value="1">Australia</SelectItem>
-                      <SelectItem value="2">Singapore</SelectItem>
-                      <SelectItem value="3">United States</SelectItem>
-                      <SelectItem value="4">European Union</SelectItem>
+                      
+                      {Object.entries(groupedJurisdictions).map(([groupName, groupJurisdictions]) => (
+                        groupJurisdictions.length > 0 && (
+                          <div key={groupName}>
+                         
+                            {groupJurisdictions.map((jurisdiction) => (
+                              <SelectItem 
+                                key={jurisdiction.id} 
+                                value={jurisdiction.id.toString()}
+                              >
+                                {jurisdiction.name}
+                              </SelectItem>
+                            ))}
+                          </div>
+                        )
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
