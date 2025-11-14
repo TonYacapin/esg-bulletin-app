@@ -285,6 +285,7 @@ export interface BulletinFormFilters {
   updated_at_to: string
 }
 
+
 /**
  * Bulletin form submission data
  */
