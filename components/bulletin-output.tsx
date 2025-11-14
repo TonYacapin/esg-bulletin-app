@@ -1504,7 +1504,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     issueNumber: safeBulletinConfig.issueNumber || "",
     publicationDate: safeBulletinConfig.publicationDate || "",
     headerImage: safeBulletinConfig.headerImage || "",
-    publisherLogo: safeBulletinConfig.publisherLogo || "",
+    publisherLogo: safeBulletinConfig.publisherLogo || "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
     footerImage: safeBulletinConfig.footerImage || "",
 
     // Main content
