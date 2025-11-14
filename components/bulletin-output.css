@@ -1,0 +1,380 @@
+/* bulletin-output.css */
+
+/* Print Styles */
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+  
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    line-height: 1.3;
+    font-size: 11pt;
+  }
+  
+  button, .print-hidden {
+    display: none !important;
+  }
+  
+  .container {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  
+  @page {
+    size: A4;
+    margin: 1.2cm;
+    marks: crop cross;
+  }
+  
+  .print-break-after-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  
+  .print-break-before-page {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+  
+  /* Two-column layout with better spacing */
+  .print-columns-2 {
+    columns: 2 !important;
+    column-gap: 0.8cm !important;
+    column-fill: auto !important;
+  }
+  
+  /* Optimized article spacing for PDF */
+  .article-container {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    display: inline-block !important;
+    width: 100% !important;
+    margin-bottom: 0.4rem !important;
+    min-height: 0 !important;
+  }
+  
+  .break-inside-avoid-page {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  
+  /* Remove any min-height constraints */
+  .print-min-h-0 {
+    min-height: 0 !important;
+  }
+  
+  /* Header content above background */
+  .bulletin-header {
+    position: relative !important;
+  }
+  
+  .bulletin-header > .header-background {
+    position: absolute !important;
+    z-index: 1 !important;
+  }
+  
+  .bulletin-header > .header-content {
+    position: relative !important;
+    z-index: 100 !important;
+  }
+  
+  /* Keep header text white in print */
+  .bulletin-header .header-text-white {
+    color: white !important;
+    position: relative !important;
+    z-index: 101 !important;
+  }
+  
+  /* Remove all margins and frames from publisher logo in print */
+  .print-no-margins {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .print-no-frame {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  
+  /* Text colors for regular content */
+  .print-text-gray-700 {
+    color: #374151 !important;
+  }
+  
+  .print-text-gray-800 {
+    color: #1f2937 !important;
+  }
+  
+  .print-text-gray-900 {
+    color: #111827 !important;
+  }
+  
+  .print-bg-white {
+    background: white !important;
+  }
+  
+  /* Print-appropriate background colors */
+  .print-bg-gray-100 {
+    background: #f8f9fa !important;
+  }
+  
+  .print-bg-blue-100 {
+    background: #f0f4f8 !important;
+  }
+  
+  .print-bg-purple-100 {
+    background: #f3e8fd !important;
+  }
+  
+  /* Prevent source link duplication in PDF */
+  .print-source-link::after {
+    content: "" !important;
+  }
+  
+  /* Better image sizing for articles */
+  .article-container img {
+    object-fit: cover !important;
+    max-height: 250px !important;
+    height: auto !important;
+    width: 100% !important;
+    margin: 0.2rem auto !important;
+    display: block;
+    aspect-ratio: 4/3 !important;
+  }
+  
+  /* Article image containers */
+  .article-container .article-image-container {
+    max-width: none !important;
+  }
+  
+  /* Preserve image styling for print */
+  .print-image {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 0.25rem !important;
+    border: 1px solid #e5e7eb !important;
+  }
+  
+  /* Preserve borders and spacing */
+  .print-border {
+    border: 1px solid #e5e7eb !important;
+  }
+  
+  .print-rounded {
+    border-radius: 0.25rem !important;
+  }
+  
+  /* High z-index values for print */
+  .print-z-100 {
+    z-index: 100 !important;
+  }
+  
+  .print-leading-relaxed {
+    line-height: 1.3 !important;
+  }
+  
+  /* Optimized print spacing */
+  .print-mb-8 { margin-bottom: 1.2rem !important; }
+  .print-mb-6 { margin-bottom: 0.8rem !important; }
+  .print-mb-4 { margin-bottom: 0.6rem !important; }
+  .print-mb-3 { margin-bottom: 0.4rem !important; }
+  .print-mb-2 { margin-bottom: 0.3rem !important; }
+  .print-mb-1 { margin-bottom: 0.2rem !important; }
+  .print-mb-05 { margin-bottom: 0.1rem !important; }
+  
+  .print-mt-12 { margin-top: 1.5rem !important; }
+  .print-mt-8 { margin-top: 1.2rem !important; }
+  .print-mt-6 { margin-top: 0.8rem !important; }
+  .print-mt-4 { margin-top: 0.6rem !important; }
+  .print-mt-2 { margin-top: 0.3rem !important; }
+  .print-mt-1 { margin-top: 0.2rem !important; }
+  .print-mt-05 { margin-top: 0.1rem !important; }
+  
+  .print-p-6 { padding: 0.8rem !important; }
+  .print-p-4 { padding: 0.6rem !important; }
+  .print-p-3 { padding: 0.4rem !important; }
+  
+  /* Optimized font sizes */
+  .print-text-3xl { font-size: 1.5rem !important; }
+  .print-text-2xl { font-size: 1.3rem !important; }
+  .print-text-xl { font-size: 1.1rem !important; }
+  .print-text-lg { font-size: 1rem !important; }
+  .print-text-base { font-size: 0.9rem !important; }
+  .print-text-sm { font-size: 0.8rem !important; }
+  .print-text-xs { font-size: 0.7rem !important; }
+  .print-text-2xs { font-size: 0.6rem !important; }
+
+  /* Better line heights */
+  .print-leading-tight { line-height: 1.1 !important; }
+  .print-leading-snug { line-height: 1.2 !important; }
+  .print-leading-normal { line-height: 1.3 !important; }
+
+  /* Interactive links in PDF */
+  .print-link {
+    color: #1976D2 !important;
+    text-decoration: underline !important;
+  }
+  
+  .print-link-internal {
+    color: #1976D2 !important;
+    text-decoration: underline !important;
+  }
+  
+  /* Make legend items clickable in PDF */
+  .legend-item {
+    cursor: pointer !important;
+  }
+  
+  .legend-item .print-link {
+    color: #1976D2 !important;
+    text-decoration: underline !important;
+  }
+  
+  /* Source links in PDF */
+  .article-container .print-link-external {
+    color: #1976D2 !important;
+    text-decoration: underline !important;
+  }
+  
+  /* Reduce spacing around articles */
+  .article-container > div {
+    padding-top: 0.2rem !important;
+    padding-bottom: 0.2rem !important;
+  }
+  
+  /* Reduce spacing between image and text */
+  .article-image-spacing {
+    margin-top: 0.2rem !important;
+    margin-bottom: 0.2rem !important;
+  }
+  
+  /* Page break controls */
+  .print-break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Legend styles */
+  .print-legend-text-sm { font-size: 0.8rem !important; }
+  .print-legend-text-xs { font-size: 0.7rem !important; }
+  
+  .print-legend-p-4 { padding: 0.6rem !important; }
+  .print-legend-p-3 { padding: 0.4rem !important; }
+  .print-legend-p-2 { padding: 0.3rem !important; }
+  
+  /* Legend marker sizes */
+  .print-legend-w-6 { width: 1.2rem !important; }
+  .print-legend-h-6 { height: 1.2rem !important; }
+  
+  /* Font weight adjustment */
+  .print-font-normal { font-weight: 400 !important; }
+  
+  /* Ensure proper link behavior */
+  .print-link-internal {
+    cursor: pointer;
+  }
+  
+  /* Prevent URL display for anchor links */
+  .print-link-internal::after {
+    content: "" !important;
+  }
+  
+  /* Show URLs for external links */
+  .print-link-external:not(.print-source-link)::after {
+    content: " (" attr(href) ")" !important;
+    font-size: 0.6rem !important;
+    color: #6b7280 !important;
+    text-decoration: none !important;
+  }
+}
+
+/* Screen Styles */
+@media screen {
+  .print-min-h-0 {
+    min-height: auto !important;
+  }
+  
+  .screen-columns-1 {
+    columns: 1;
+  }
+  
+  @media (min-width: 1024px) {
+    .screen-columns-2 {
+      columns: 2;
+      column-gap: 1.5rem;
+    }
+  }
+  
+  /* Prevent article overlapping in screen view */
+  .article-container {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+    display: inline-block;
+    width: 100%;
+  }
+  
+  .screen-columns-2 {
+    column-fill: balance;
+  }
+
+  /* Improve screen image sizing */
+  .article-container img {
+    max-height: 300px !important;
+    width: 100% !important;
+    object-fit: cover !important;
+  }
+  
+  .article-container .article-image-container {
+    max-width: 500px !important;
+  }
+
+  /* Interactive legend items */
+  .legend-item {
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .legend-item:hover {
+    background-color: #f3f4f6;
+  }
+  
+  /* Hide underline for screen view unless hovered */
+  .legend-item .screen-link {
+    text-decoration: none;
+    color: inherit;
+  }
+  
+  .legend-item .screen-link:hover {
+    text-decoration: underline;
+    color: #1976D2;
+  }
+  
+  /* Article title links in screen view */
+  .article-container h3 .screen-link {
+    text-decoration: none;
+    color: inherit;
+  }
+  
+  .article-container h3 .screen-link:hover {
+    text-decoration: underline;
+    color: #1976D2;
+  }
+  
+  /* Smooth scrolling for screen view */
+  html {
+    scroll-behavior: smooth;
+  }
+}

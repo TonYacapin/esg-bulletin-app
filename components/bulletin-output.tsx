@@ -3,7 +3,32 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { WorldMap } from "./world-map"
-import type { BulletinData } from "./bulletin-generator"
+import type BulletinData from "./bulletin-generator"
+import "./bulletin-output.css"
+
+// Pexels Types
+interface PexelsPhoto {
+  id: number;
+  width: number;
+  height: number;
+  url: string;
+  photographer: string;
+  photographer_url: string;
+  photographer_id: number;
+  avg_color: string;
+  src: {
+    original: string;
+    large2x: string;
+    large: string;
+    medium: string;
+    small: string;
+    portrait: string;
+    landscape: string;
+    tiny: string;
+  };
+  alt: string;
+  liked: boolean;
+}
 
 interface BulletinOutputProps {
   data: BulletinData
@@ -522,18 +547,30 @@ interface ArticleImageDisplayProps {
   imageUrl?: string
   alt: string
   onImageUpload?: (file: File) => void
+  onPexelsImageSelect?: (imageUrl: string) => void
   onRemoveImage?: () => void
   editable?: boolean
   className?: string
+  articleId?: string
+  isDragOver?: boolean
+  onDragOver?: (e: React.DragEvent) => void
+  onDragLeave?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
 }
 
 function ArticleImageDisplay({
   imageUrl,
   alt,
   onImageUpload,
+  onPexelsImageSelect,
   onRemoveImage,
   editable = true,
-  className = ""
+  className = "",
+  articleId,
+  isDragOver = false,
+  onDragOver,
+  onDragLeave,
+  onDrop
 }: ArticleImageDisplayProps) {
   const [imageError, setImageError] = useState(false)
 
@@ -578,18 +615,56 @@ function ArticleImageDisplay({
   }
 
   // If no image or image failed to load, and editing is allowed, show upload interface
-  if (editable && onImageUpload) {
+  if (editable && (onImageUpload || onPexelsImageSelect)) {
     return (
-      <div className={`print:hidden ${className}`}>
-        <DragDropImageUpload
-          onImageUpload={onImageUpload}
-          onRemoveImage={onRemoveImage}
-          currentImage={imageUrl}
-          placeholder="Drag & drop article image or click to browse"
-          className="h-40"
-          showUploadInterface={!imageUrl || imageError}
-          showRemoveButton={!!imageUrl && !imageError}
-        />
+      <div 
+        className={`
+          border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors mb-2
+          ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+          print:hidden ${className}
+        `}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
+        {onImageUpload && (
+          <div className="space-y-3">
+            <div className="text-gray-400 mb-2">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p className="text-gray-600">Drag & drop article image or click to browse</p>
+            <p className="text-sm text-gray-500">Supports JPG, PNG, GIF</p>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const files = e.target.files
+                if (files && files.length > 0) {
+                  onImageUpload(files[0])
+                }
+              }}
+              className="hidden"
+              id={`file-upload-${articleId}`}
+            />
+            <Button
+              onClick={() => document.getElementById(`file-upload-${articleId}`)?.click()}
+              variant="outline"
+              size="sm"
+              className="mt-2"
+            >
+              Browse Files
+            </Button>
+          </div>
+        )}
+        
+        {onPexelsImageSelect && (
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <p className="text-sm text-gray-600 mb-2">Or drag & drop from Stock image search</p>
+            <p className="text-xs text-gray-500">Search for stock images and drag them here</p>
+          </div>
+        )}
       </div>
     )
   }
@@ -764,6 +839,7 @@ interface ArticleEditModalProps {
   onSave: (articleId: string, updatedArticle: any) => void
   article: any
   onOpenSourceModal: (article: any, source?: SourceData | null) => void
+  onOpenPexelsSearch: (articleId: string) => void
 }
 
 function ArticleEditModal({
@@ -771,7 +847,8 @@ function ArticleEditModal({
   onClose,
   onSave,
   article,
-  onOpenSourceModal
+  onOpenSourceModal,
+  onOpenPexelsSearch
 }: ArticleEditModalProps) {
   const [editedArticle, setEditedArticle] = useState({
     news_title: article?.news_title || '',
@@ -1128,25 +1205,45 @@ function ArticleEditModal({
 
           {/* Article Image */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Article Image
-              {editedArticle.imageUrl && (
-                <button
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Article Image
+              </label>
+              <div className="flex gap-2">
+                <Button
                   type="button"
-                  onClick={handleRemoveImage}
-                  className="ml-2 text-xs text-red-600 hover:text-red-800 underline"
+                  onClick={() => onOpenPexelsSearch(article.news_id)}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
                 >
-                  Remove Image
-                </button>
-              )}
-            </label>
-            <DragDropImageUpload
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Search Stock Images
+                </Button>
+                {editedArticle.imageUrl && (
+                  <Button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+                  >
+                    Remove Image
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            <ArticleImageDisplay
+              imageUrl={editedArticle.imageUrl}
+              alt={editedArticle.news_title}
               onImageUpload={handleImageUpload}
-              onRemoveImage={editedArticle.imageUrl ? handleRemoveImage : undefined}
-              currentImage={editedArticle.imageUrl}
-              placeholder="Drag & drop article image or click to browse"
-              className="h-100"
-              showRemoveButton={!!editedArticle.imageUrl}
+              onPexelsImageSelect={(imageUrl) => setEditedArticle(prev => ({ ...prev, imageUrl }))}
+              onRemoveImage={handleRemoveImage}
+              editable={true}
+              className="h-120"
             />
           </div>
 
@@ -1172,6 +1269,193 @@ function ArticleEditModal({
     </div>
   )
 }
+
+// Updated Pexels Image Search Component with split-screen layout
+interface PexelsImageSearchProps {
+  onImageSelect: (image: PexelsPhoto) => void;
+  currentArticleId?: string;
+  onClose: () => void;
+  isOpen: boolean;
+  bulletinContent: React.ReactNode;
+}
+
+function PexelsImageSearch({ 
+  onImageSelect, 
+  currentArticleId,
+  onClose,
+  isOpen,
+  bulletinContent
+}: PexelsImageSearchProps) {
+  const [query, setQuery] = useState<string>('');
+  const [images, setImages] = useState<PexelsPhoto[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const dragItem = useRef<PexelsPhoto | null>(null);
+
+  const searchImages = async (searchQuery: string, page: number = 1): Promise<void> => {
+    if (!searchQuery.trim()) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(
+        `/api/pexels/search?query=${encodeURIComponent(searchQuery)}&page=${page}&per_page=15`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch images');
+      }
+
+      const data = await response.json();
+      setImages(data.photos || []);
+    } catch (err) {
+      setError('Error fetching images. Please try again.');
+      console.error('Search error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent): void => {
+    e.preventDefault();
+    searchImages(query);
+  };
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, image: PexelsPhoto): void => {
+    dragItem.current = image;
+    e.dataTransfer.setData('text/plain', JSON.stringify(image));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleDragEnd = (): void => {
+    dragItem.current = null;
+  };
+
+  const handleImageClick = (image: PexelsPhoto): void => {
+    onImageSelect(image);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex bg-white">
+      {/* Pexels Search Panel - Left Side */}
+      <div className="w-1/2 bg-white border-r border-gray-200 flex flex-col h-full">
+        {/* Header */}
+        <div className="p-4 border-b bg-white flex-shrink-0">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-900">
+              Search Images
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <form onSubmit={handleSearch} className="flex gap-3">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search for images (e.g., sustainability, renewable energy, ESG...)"
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Searching...' : 'Search'}
+            </button>
+          </form>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-red-800">{error}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {images.map((image) => (
+              <div
+                key={image.id}
+                className="group relative bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200"
+                draggable
+                onDragStart={(e) => handleDragStart(e, image)}
+                onDragEnd={handleDragEnd}
+                onClick={() => handleImageClick(image)}
+              >
+                <img
+                  src={image.src.medium}
+                  alt={image.alt || 'Pexels image'}
+                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-white text-center p-4">
+                    <p className="font-medium">Click to select</p>
+                    <p className="text-sm mt-1">or drag to article</p>
+                  </div>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+                  <p className="text-white text-sm truncate">
+                    by {image.photographer}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {images.length === 0 && !loading && query && (
+            <div className="text-center py-12 text-gray-500">
+              <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p className="text-lg">No images found</p>
+              <p className="text-sm mt-1">Try a different search term</p>
+            </div>
+          )}
+
+          {!query && !loading && (
+            <div className="text-center py-12 text-gray-500">
+              <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <p className="text-lg">Search for images</p>
+              <p className="text-sm mt-1">Enter keywords above to find relevant images</p>
+            </div>
+          )}
+        </div>
+
+       
+      </div>
+
+      {/* Bulletin Output Panel - Right Side */}
+      <div className="w-1/2 bg-gray-50 overflow-y-auto">
+        <div className="p-4">
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+            <h3 className="text-lg font-semibold mb-4">Bulletin Preview</h3>
+            <p className="text-gray-600 text-sm">
+              Drag and drop images from the left panel to any article image area in the bulletin.
+            </p>
+          </div>
+          
+          {/* Render the bulletin content passed from parent */}
+          {bulletinContent}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const { theme, articles: initialArticles, articlesByCountry, bulletinConfig } = data
@@ -1203,13 +1487,17 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const [showHeaderEditModal, setShowHeaderEditModal] = useState(false)
   const [showArticleEditModal, setShowArticleEditModal] = useState(false)
   const [showSourceModal, setShowSourceModal] = useState(false)
+  const [isPexelsSearchOpen, setIsPexelsSearchOpen] = useState(false)
   const [countryMappings, setCountryMappings] = useState<Record<string, string>>({})
   const [editingArticle, setEditingArticle] = useState<any>(null)
   const [editingSource, setEditingSource] = useState<SourceData | null>(null)
   const [sourceModalArticle, setSourceModalArticle] = useState<any>(null)
+  const [pexelsTargetArticle, setPexelsTargetArticle] = useState<string | null>(null)
   const [regeneratingArticle, setRegeneratingArticle] = useState<string | null>(null)
   const [articles, setArticles] = useState(initialArticles)
   const [loadingSources, setLoadingSources] = useState(false)
+  const [dragOverArticle, setDragOverArticle] = useState<string | null>(null)
+
   const [editableContent, setEditableContent] = useState({
     // Header content
     headerText: safeBulletinConfig.headerText || "",
@@ -1393,6 +1681,51 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     setShowSourceModal(false)
     setEditingSource(null)
     setSourceModalArticle(null)
+  }
+
+  // Updated Pexels handlers for split-screen
+  const handleOpenPexelsSearch = (articleId?: string) => {
+    setPexelsTargetArticle(articleId || null)
+    setIsPexelsSearchOpen(true)
+  }
+
+  const handlePexelsImageSelect = (image: PexelsPhoto) => {
+    if (pexelsTargetArticle) {
+      handleArticleUpdate(pexelsTargetArticle, { 
+        imageUrl: image.src.large2x || image.src.large 
+      })
+    }
+    // Keep Pexels search open for multiple image selections
+  }
+
+  const handleClosePexelsSearch = () => {
+    setIsPexelsSearchOpen(false)
+    setPexelsTargetArticle(null)
+  }
+
+  // Drag and drop handlers for articles
+  const handleArticleDragOver = (e: React.DragEvent, articleId: string) => {
+    e.preventDefault()
+    setDragOverArticle(articleId)
+  }
+
+  const handleArticleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOverArticle(null)
+  }
+
+  const handleArticleDrop = (e: React.DragEvent, articleId: string) => {
+    e.preventDefault()
+    setDragOverArticle(null)
+    
+    try {
+      const imageData: PexelsPhoto = JSON.parse(e.dataTransfer.getData('text/plain'))
+      handleArticleUpdate(articleId, {
+        imageUrl: imageData.src.large2x || imageData.src.large
+      })
+    } catch (error) {
+      console.error('Error parsing dropped Pexels image:', error)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -1948,6 +2281,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             >
               {regeneratingArticle === currentArticle.news_id ? 'Regenerating...' : 'Regenerate'}
             </Button>
+            {/* Updated Pexels button */}
+            <Button
+              onClick={() => handleOpenPexelsSearch(currentArticle.news_id)}
+              variant="outline"
+              size="sm"
+              className="bg-white/90 hover:bg-white text-xs"
+            >
+              Search Images
+            </Button>
           </div>
 
           {/* Content container with reduced spacing */}
@@ -1970,6 +2312,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                   imageUrl={currentArticle.imageUrl}
                   alt={currentArticle.news_title}
                   onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+                  onPexelsImageSelect={(imageUrl) => handleArticleUpdate(currentArticle.news_id, { imageUrl })}
                   onRemoveImage={() => handleRemoveArticleImage(currentArticle.news_id)}
                   editable={true}
                 />
@@ -2033,15 +2376,21 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               Published: {formatDate(currentArticle.published_at)}
             </div>
 
-            {/* Upload interface for articles without images */}
+            {/* Upload interface for articles without images - with drag and drop support */}
             {!currentArticle.imageUrl && (
               <div className="mt-2 print:hidden">
                 <ArticleImageDisplay
                   imageUrl={currentArticle.imageUrl}
                   alt={currentArticle.news_title}
                   onImageUpload={(file) => handleArticleImageUpload(currentArticle.news_id, file)}
+                  onPexelsImageSelect={(imageUrl) => handleArticleUpdate(currentArticle.news_id, { imageUrl })}
                   onRemoveImage={() => handleRemoveArticleImage(currentArticle.news_id)}
                   editable={true}
+                  articleId={currentArticle.news_id}
+                  isDragOver={dragOverArticle === currentArticle.news_id}
+                  onDragOver={(e) => handleArticleDragOver(e, currentArticle.news_id)}
+                  onDragLeave={handleArticleDragLeave}
+                  onDrop={(e) => handleArticleDrop(e, currentArticle.news_id)}
                 />
               </div>
             )}
@@ -2173,6 +2522,182 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     );
   };
 
+  // Main bulletin content renderer - used in both normal view and split-screen
+  const renderBulletinContent = () => (
+    <div className="print:block print:bg-white print:p-0 print:max-w-none">
+      {/* HEADER SECTION */}
+      <div className="relative mb-6 border-b pb-4 overflow-hidden print:mb-3 print:pb-2">
+        {/* Header Background Image Container */}
+        <div className="absolute inset-0 z-0 print:absolute print:inset-0 print:z-0 h-40">
+          {/* Dark overlay */}
+          <div className="absolute inset-0 bg-black/50 print:bg-black/30 z-10"></div>
+
+          {/* Header Background Image */}
+          <div className="relative w-full h-full z-0">
+            {editableContent.headerImage ? (
+              <img
+                src={editableContent.headerImage}
+                alt="Header Background"
+                className="w-full h-full object-cover print:h-40 print:object-cover print:rounded-none"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center print:bg-gray-300 h-40">
+                <span className="text-gray-500 print:text-gray-700">No header image</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Header Content Container */}
+        <div className="relative z-50 text-center flex flex-col items-center print:relative print:z-[100] print:w-full">
+          <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-6xl mx-auto px-6 print:px-0 print:max-w-full print:items-center print:relative print:z-[100]">
+
+            {/* Header Title */}
+            <div className="relative print:relative print:z-[100] print:flex-1">
+              <h1
+                className="text-3xl font-bold mb-3 text-white tracking-tight leading-tight text-center sm:text-left break-words print:text-2xl print:mb-1 print:relative print:z-[100]"
+                dangerouslySetInnerHTML={{
+                  __html: (() => {
+                    const header = editableContent.headerText || "ESG BULLETIN";
+                    const words = header.split(" ");
+                    const mid = Math.ceil(words.length / 2);
+                    return (
+                      words.slice(0, mid).join(" ") +
+                      "<br />" +
+                      words.slice(mid).join(" ")
+                    );
+                  })(),
+                }}
+              />
+            </div>
+
+            {/* Publisher Logo */}
+            <div className="relative print:relative print:z-[100] print:ml-0 print:flex-shrink-0 h-14">
+              {editableContent.publisherLogo ? (
+                <div className="print:min-w-[80px] print:no-margins print:no-frame h-14">
+                  <img
+                    src={editableContent.publisherLogo}
+                    alt="Publisher Logo"
+                    className="h-14 w-auto object-contain mt-1 sm:mt-0 sm:ml-3 print:h-16 print:mt-0 print:ml-0 print:max-h-[60px] print:w-auto print:block print:relative print:z-[100] print:no-margins print:no-frame"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    style={{
+                      mixBlendMode: 'normal',
+                      filter: 'none'
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="h-14 w-24 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center mt-1 sm:mt-0 sm:ml-3 print:h-16 print:w-24 print:mt-0 print:ml-0 print:bg-white print:border-0 print:relative print:z-[100] print:no-margins print:no-frame">
+                  <span className="text-gray-500 text-xs text-center print:text-gray-700">No logo</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Issue Info */}
+          <div className="relative mt-2 flex justify-start w-full max-w-6xl mx-auto px-6 text-sm font-semibold text-white print:px-0 print:max-w-full print:mt-1 print:text-xs print:relative print:z-[100] print:w-full">
+            <span className="px-2 py-0.5 rounded print:bg-transparent print:px-0">
+              {editableContent.issueNumber || "Issue #10"} |{" "}
+              {formatConfigDate(editableContent.publicationDate)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* GREETING MESSAGE */}
+      {editableContent.greetingMessage && (
+        <div className="mb-6 bg-gradient-to-r from-blue-50 to-gray-50 p-4 rounded-lg border print:p-3 print:mb-4 print:bg-gray-100 print:border">
+          <div className="text-gray-700 leading-relaxed print:text-sm">
+            {renderEditableText(
+              editableContent.greetingMessage,
+              "greetingMessage",
+              "Greeting message...",
+              3
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE MAP */}
+      {safeBulletinConfig.interactiveMap && (
+        <div className="mb-8 print:mb-6 print:break-after-page">
+          <InteractiveWorldMap
+            countries={mapCountries}
+            primaryColor={themeColors[theme]}
+            articlesByCountry={articlesByCountry}
+            mappedCountries={countryMappings}
+            theme={theme}
+            interactive={false}
+            showLegend={true}
+          />
+        </div>
+      )}
+
+      {/* KEY TRENDS & EXECUTIVE SUMMARY CONTAINER */}
+      {(editableContent.keyTrends || editableContent.executiveSummary) && (
+        <div className="print:break-after-page">
+          {/* KEY TRENDS */}
+          {editableContent.keyTrends && (
+            <div className="mb-8 print:mb-6">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-1 print:text-xl print:mb-3">5 Key Trends</h2>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 print:p-3 print:bg-blue-100 print:border">
+                {renderEditableText(
+                  editableContent.keyTrends,
+                  "keyTrends",
+                  "Key trends will appear here...",
+                  6
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* EXECUTIVE SUMMARY */}
+          {editableContent.executiveSummary && (
+            <div className="mb-8 bg-gradient-to-r from-blue-50 to-gray-50 p-6 rounded-lg border print:p-4 print:mb-6 print:bg-gray-100 print:border">
+              <h2 className="text-xl font-bold mb-3 text-gray-900 print:text-lg">Executive Summary</h2>
+              <div className="text-gray-700 print:text-sm">
+                {renderEditableText(
+                  editableContent.executiveSummary,
+                  "executiveSummary",
+                  "Executive summary will appear here...",
+                  8
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* REGIONAL SECTIONS */}
+      {renderRegionalSection('euSection')}
+      {renderRegionalSection('usSection')}
+      {renderRegionalSection('globalSection')}
+
+      {/* KEY TAKEAWAYS & FOOTER CONTAINER */}
+      <div className="print:break-before-page">
+        {/* KEY TAKEAWAYS */}
+        {editableContent.keyTakeaways && (
+          <div className="mb-8 bg-gradient-to-r from-gray-50 to-blue-50 p-6 rounded-lg border print:p-4 print:bg-gray-100 print:border print:mb-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-900 print:text-lg print:mb-3">Conclusion & Key Takeaways</h2>
+            <div className="text-gray-700 space-y-3 print:text-sm print:space-y-2">
+              {renderEditableText(
+                editableContent.keyTakeaways,
+                "keyTakeaways",
+                "Key takeaways will appear here...",
+                6
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* ALL MODALS AT THE SAME LEVEL */}
@@ -2207,6 +2732,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         onSave={handleArticleUpdate}
         article={editingArticle}
         onOpenSourceModal={handleOpenSourceModal}
+        onOpenPexelsSearch={handleOpenPexelsSearch}
       />
 
       <SourceEditModal
@@ -2221,677 +2747,63 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         articleTitle={sourceModalArticle?.news_title}
       />
 
-      <div className={`container mx-auto p-8 max-w-7xl bg-white ${showMappingModal ? 'overflow-hidden' : ''}`}>
+      {/* Single Pexels Search with Split Screen */}
+      <PexelsImageSearch
+        onImageSelect={handlePexelsImageSelect}
+        currentArticleId={pexelsTargetArticle}
+        onClose={handleClosePexelsSearch}
+        isOpen={isPexelsSearchOpen}
+        bulletinContent={renderBulletinContent()}
+      />
 
-        <div className="flex justify-center gap-4 mb-6 print:hidden">
-          <Button
-            onClick={onStartOver}
-            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg"
-          >
-            Create New Bulletin
-          </Button>
-          <Button
-            onClick={() => setShowHeaderEditModal(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg"
-          >
-            Edit Header
-          </Button>
-          <Button
-            onClick={handleDownloadPDF}
-            className="text-white font-bold py-2 px-6 rounded-lg"
-            style={{ backgroundColor: themeColors[theme] }}
-          >
-            Download PDF
-          </Button>
+      {/* Main Bulletin Content - Only show when Pexels is closed */}
+      {!isPexelsSearchOpen && (
+        <div className="container mx-auto p-8 max-w-7xl bg-white">
+          
+          {/* Action buttons */}
+          <div className="flex justify-center gap-4 mb-6 print:hidden">
+            <Button
+              onClick={onStartOver}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg"
+            >
+              Create New Bulletin
+            </Button>
+            <Button
+              onClick={() => setShowHeaderEditModal(true)}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg"
+            >
+              Edit Header
+            </Button>
+            {/* Global Pexels Search Button */}
+            <Button
+              onClick={() => handleOpenPexelsSearch()}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg"
+            >
+              Search Stock Images
+            </Button>
+            <Button
+              onClick={handleDownloadPDF}
+              className="text-white font-bold py-2 px-6 rounded-lg"
+              style={{ backgroundColor: themeColors[theme] }}
+            >
+              Download PDF
+            </Button>
+          </div>
+
+          {/* Loading indicator for sources and regeneration */}
+          {(loadingSources || isRegenerating || regeneratingArticle) && (
+            <div className="text-center py-3 mb-6 bg-blue-50 rounded-lg">
+              <p className="text-blue-600 text-sm">
+                {loadingSources && "Loading article sources..."}
+                {(isRegenerating || regeneratingArticle) && "Generating AI content..."}
+              </p>
+            </div>
+          )}
+
+          {/* Main bulletin content */}
+          {renderBulletinContent()}
         </div>
-
-        {/* Loading indicator for sources and regeneration */}
-        {(loadingSources || isRegenerating || regeneratingArticle) && (
-          <div className="text-center py-3 mb-6 bg-blue-50 rounded-lg">
-            <p className="text-blue-600 text-sm">
-              {loadingSources && "Loading article sources..."}
-              {(isRegenerating || regeneratingArticle) && "Generating AI content..."}
-            </p>
-          </div>
-        )}
-
-        <div className="print:block print:bg-white print:p-0 print:max-w-none">
-          {/* HEADER SECTION */}
-          <div className="relative mb-6 border-b pb-4 overflow-hidden print:mb-3 print:pb-2">
-            {/* Header Background Image Container */}
-            <div className="absolute inset-0 z-0 print:absolute print:inset-0 print:z-0 h-40">
-              {/* Dark overlay */}
-              <div className="absolute inset-0 bg-black/50 print:bg-black/30 z-10"></div>
-
-              {/* Header Background Image */}
-              <div className="relative w-full h-full z-0">
-                {editableContent.headerImage ? (
-                  <img
-                    src={editableContent.headerImage}
-                    alt="Header Background"
-                    className="w-full h-full object-cover print:h-40 print:object-cover print:rounded-none"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center print:bg-gray-300 h-40">
-                    <span className="text-gray-500 print:text-gray-700">No header image</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Header Content Container */}
-            <div className="relative z-50 text-center flex flex-col items-center print:relative print:z-[100] print:w-full">
-              <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-6xl mx-auto px-6 print:px-0 print:max-w-full print:items-center print:relative print:z-[100]">
-
-                {/* Header Title */}
-                <div className="relative print:relative print:z-[100] print:flex-1">
-                  <h1
-                    className="text-3xl font-bold mb-3 text-white tracking-tight leading-tight text-center sm:text-left break-words print:text-2xl print:mb-1 print:relative print:z-[100]"
-                    dangerouslySetInnerHTML={{
-                      __html: (() => {
-                        const header = editableContent.headerText || "ESG BULLETIN";
-                        const words = header.split(" ");
-                        const mid = Math.ceil(words.length / 2);
-                        return (
-                          words.slice(0, mid).join(" ") +
-                          "<br />" +
-                          words.slice(mid).join(" ")
-                        );
-                      })(),
-                    }}
-                  />
-                </div>
-
-                {/* Publisher Logo */}
-                <div className="relative print:relative print:z-[100] print:ml-0 print:flex-shrink-0 h-14">
-                  {editableContent.publisherLogo ? (
-                    <div className="print:min-w-[80px] print:no-margins print:no-frame h-14">
-                      <img
-                        src={editableContent.publisherLogo}
-                        alt="Publisher Logo"
-                        className="h-14 w-auto object-contain mt-1 sm:mt-0 sm:ml-3 print:h-16 print:mt-0 print:ml-0 print:max-h-[60px] print:w-auto print:block print:relative print:z-[100] print:no-margins print:no-frame"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                        style={{
-                          mixBlendMode: 'normal',
-                          filter: 'none'
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-14 w-24 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center mt-1 sm:mt-0 sm:ml-3 print:h-16 print:w-24 print:mt-0 print:ml-0 print:bg-white print:border-0 print:relative print:z-[100] print:no-margins print:no-frame">
-                      <span className="text-gray-500 text-xs text-center print:text-gray-700">No logo</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Issue Info */}
-              <div className="relative mt-2 flex justify-start w-full max-w-6xl mx-auto px-6 text-sm font-semibold text-white print:px-0 print:max-w-full print:mt-1 print:text-xs print:relative print:z-[100] print:w-full">
-                <span className="px-2 py-0.5 rounded print:bg-transparent print:px-0">
-                  {editableContent.issueNumber || "Issue #10"} |{" "}
-                  {formatConfigDate(editableContent.publicationDate)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* GREETING MESSAGE */}
-          {editableContent.greetingMessage && (
-            <div className="mb-6 bg-gradient-to-r from-blue-50 to-gray-50 p-4 rounded-lg border print:p-3 print:mb-4 print:bg-gray-100 print:border">
-              <div className="text-gray-700 leading-relaxed print:text-sm">
-                {renderEditableText(
-                  editableContent.greetingMessage,
-                  "greetingMessage",
-                  "Greeting message...",
-                  3
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* INTERACTIVE MAP */}
-          {safeBulletinConfig.interactiveMap && (
-            <div className="mb-8 print:mb-6 print:break-after-page">
-              <InteractiveWorldMap
-                countries={mapCountries}
-                primaryColor={themeColors[theme]}
-                articlesByCountry={articlesByCountry}
-                mappedCountries={countryMappings}
-                theme={theme}
-                interactive={false}
-                showLegend={true}
-              />
-            </div>
-          )}
-
-          {/* KEY TRENDS & EXECUTIVE SUMMARY CONTAINER */}
-          {(editableContent.keyTrends || editableContent.executiveSummary) && (
-            <div className="print:break-after-page">
-              {/* KEY TRENDS */}
-              {editableContent.keyTrends && (
-                <div className="mb-8 print:mb-6">
-                  <h2 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-1 print:text-xl print:mb-3">5 Key Trends</h2>
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 print:p-3 print:bg-blue-100 print:border">
-                    {renderEditableText(
-                      editableContent.keyTrends,
-                      "keyTrends",
-                      "Key trends will appear here...",
-                      6
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* EXECUTIVE SUMMARY */}
-              {editableContent.executiveSummary && (
-                <div className="mb-8 bg-gradient-to-r from-blue-50 to-gray-50 p-6 rounded-lg border print:p-4 print:mb-6 print:bg-gray-100 print:border">
-                  <h2 className="text-xl font-bold mb-3 text-gray-900 print:text-lg">Executive Summary</h2>
-                  <div className="text-gray-700 print:text-sm">
-                    {renderEditableText(
-                      editableContent.executiveSummary,
-                      "executiveSummary",
-                      "Executive summary will appear here...",
-                      8
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* REGIONAL SECTIONS */}
-          {renderRegionalSection('euSection')}
-          {renderRegionalSection('usSection')}
-          {renderRegionalSection('globalSection')}
-
-          {/* KEY TAKEAWAYS & FOOTER CONTAINER */}
-          <div className="print:break-before-page">
-            {/* KEY TAKEAWAYS */}
-            {editableContent.keyTakeaways && (
-              <div className="mb-8 bg-gradient-to-r from-gray-50 to-blue-50 p-6 rounded-lg border print:p-4 print:bg-gray-100 print:border print:mb-6">
-                <h2 className="text-xl font-bold mb-4 text-gray-900 print:text-lg print:mb-3">Conclusion & Key Takeaways</h2>
-                <div className="text-gray-700 space-y-3 print:text-sm print:space-y-2">
-                  {renderEditableText(
-                    editableContent.keyTakeaways,
-                    "keyTakeaways",
-                    "Key takeaways will appear here...",
-                    6
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <style jsx global>{`
-  @media print {
-    .print\\:hidden {
-      display: none !important;
-    }
-    
-    * {
-      -webkit-print-color-adjust: exact !important;
-      color-adjust: exact !important;
-      box-sizing: border-box;
-    }
-    
-    body {
-      margin: 0 !important;
-      padding: 0 !important;
-      background: white !important;
-      line-height: 1.3;
-      font-size: 11pt;
-    }
-    
-    button, .print\\:hidden {
-      display: none !important;
-    }
-    
-    .container {
-      max-width: none !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      width: 100% !important;
-    }
-    
-    @page {
-      size: A4;
-      margin: 1.2cm;
-      marks: crop cross;
-    }
-    
-    .print\\:break-after-page {
-      page-break-after: always !important;
-      break-after: page !important;
-    }
-    
-    .print\\:break-before-page {
-      page-break-before: always !important;
-      break-before: page !important;
-    }
-    
-    /* IMPROVED: Two-column layout with better spacing */
-    .columns-1.lg\\:columns-2.print\\:columns-2 {
-      columns: 2 !important;
-      column-gap: 0.8cm !important;
-      column-fill: auto !important;
-    }
-    
-    /* CRITICAL: Optimized article spacing for PDF */
-    .article-container {
-      break-inside: avoid !important;
-      page-break-inside: avoid !important;
-      display: inline-block !important;
-      width: 100% !important;
-      margin-bottom: 0.4rem !important;
-      min-height: 0 !important;
-    }
-    
-    .break-inside-avoid-page {
-      break-inside: avoid !important;
-      page-break-inside: avoid !important;
-    }
-    
-    /* Remove any min-height constraints that might cause issues */
-    .print\\:min-h-0 {
-      min-height: 0 !important;
-    }
-    
-    /* CRITICAL: Force header content above background */
-    .relative.mb-6 {
-      position: relative !important;
-    }
-    
-    .relative.mb-6 > .absolute {
-      position: absolute !important;
-      z-index: 1 !important;
-    }
-    
-    .relative.mb-6 > .relative.z-50 {
-      position: relative !important;
-      z-index: 100 !important;
-    }
-    
-    /* FIXED: Keep header text white in print */
-    .relative.mb-6 .text-white {
-      color: white !important;
-      position: relative !important;
-      z-index: 101 !important;
-    }
-    
-    /* Remove all margins and frames from publisher logo in print */
-    .print\\:no-margins {
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-    
-    .print\\:no-frame {
-      border: none !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
-      outline: none !important;
-    }
-    
-    .relative.mb-6 .print\\:min-w-\\[80px\\],
-    .relative.mb-6 .print\\:min-w-\\[80px\\] img {
-      margin: 0 !important;
-      padding: 0 !important;
-      border: none !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
-      outline: none !important;
-    }
-    
-    /* Specifically target the logo container and remove all spacing and borders */
-    .relative.mb-6 > .relative.z-50 > div > .print\\:ml-0 {
-      margin-left: 0 !important;
-      margin-top: 0 !important;
-      margin-right: 0 !important;
-      margin-bottom: 0 !important;
-      border: none !important;
-    }
-    
-    /* Remove any residual margins from flex/grid spacing */
-    .relative.mb-6 .flex-col.sm\\:flex-row {
-      gap: 0 !important;
-    }
-    
-    /* Text colors for regular content */
-    .text-gray-700 {
-      color: #374151 !important;
-    }
-    
-    .text-gray-800 {
-      color: #1f2937 !important;
-    }
-    
-    .text-gray-900 {
-      color: #111827 !important;
-    }
-    
-    .bg-white {
-      background: white !important;
-    }
-    
-    /* Print-appropriate background colors */
-    .bg-gray-50, .print\\:bg-gray-100 {
-      background: #f8f9fa !important;
-    }
-    
-    .bg-blue-50, .print\\:bg-blue-100 {
-      background: #f0f4f8 !important;
-    }
-    
-    .bg-purple-50, .print\\:bg-purple-100 {
-      background: #f3e8fd !important;
-    }
-    
-    /* FIXED: Prevent source link duplication in PDF */
-    .print-source-link::after {
-      content: "" !important;
-    }
-    
-    /* FIXED: Better image sizing for articles - REMOVE the old constraints */
-    .article-container img {
-      object-fit: cover !important;
-      max-height: 250px !important;
-      height: auto !important;
-      width: 100% !important;
-      margin: 0.2rem auto !important;
-      display: block;
-      aspect-ratio: 4/3 !important;
-    }
-    
-    /* Specifically target article images for better sizing */
-    .article-container .w-full img {
-      max-height: 250px !important;
-      width: 100% !important;
-      object-fit: cover !important;
-    }
-    
-    /* Make sure the image container doesn't constrain too much */
-    .article-container .w-full {
-      max-width: none !important;
-    }
-    
-    /* Preserve image styling for print */
-    img:not(.print\\:no-frame) {
-      max-width: 100% !important;
-      height: auto !important;
-      border-radius: 0.25rem !important;
-      border: 1px solid #e5e7eb !important;
-    }
-    
-    /* Preserve borders and spacing for other elements */
-    .shadow-lg, .shadow-md {
-      box-shadow: none !important;
-      border: 1px solid #d1d5db !important;
-    }
-    
-    .rounded-lg, .rounded {
-      border-radius: 0.25rem !important;
-    }
-    
-    .border {
-      border: 1px solid #e5e7eb !important;
-    }
-    
-    /* High z-index values for print */
-    .print\\:z-\\[100\\] {
-      z-index: 100 !important;
-    }
-    
-    .leading-relaxed {
-      line-height: 1.3 !important;
-    }
-    
-    /* IMPROVED: Optimized print spacing for better space utilization */
-    .print\\:mb-8 { margin-bottom: 1.2rem !important; }
-    .print\\:mb-6 { margin-bottom: 0.8rem !important; }
-    .print\\:mb-4 { margin-bottom: 0.6rem !important; }
-    .print\\:mb-3 { margin-bottom: 0.4rem !important; }
-    .print\\:mb-2 { margin-bottom: 0.3rem !important; }
-    .print\\:mb-1 { margin-bottom: 0.2rem !important; }
-    .print\\:mb-0\\.5 { margin-bottom: 0.1rem !important; }
-    
-    .print\\:mt-12 { margin-top: 1.5rem !important; }
-    .print\\:mt-8 { margin-top: 1.2rem !important; }
-    .print\\:mt-6 { margin-top: 0.8rem !important; }
-    .print\\:mt-4 { margin-top: 0.6rem !important; }
-    .print\\:mt-2 { margin-top: 0.3rem !important; }
-    .print\\:mt-1 { margin-top: 0.2rem !important; }
-    .print\\:mt-0\\.5 { margin-top: 0.1rem !important; }
-    
-    .print\\:space-y-4 > * + * { margin-top: 0.6rem !important; }
-    .print\\:space-y-3 > * + * { margin-top: 0.4rem !important; }
-    .print\\:space-y-2 > * + * { margin-top: 0.3rem !important; }
-    .print\\:space-y-1 > * + * { margin-top: 0.2rem !important; }
-    .print\\:space-y-0\\.5 > * + * { margin-top: 0.1rem !important; }
-    
-    .print\\:gap-6 { gap: 0.8rem !important; }
-    .print\\:gap-4 { gap: 0.6rem !important; }
-    .print\\:gap-3 { gap: 0.4rem !important; }
-    
-    .print\\:p-6 { padding: 0.8rem !important; }
-    .print\\:p-4 { padding: 0.6rem !important; }
-    .print\\:p-3 { padding: 0.4rem !important; }
-    
-    /* IMPROVED: Optimized font sizes for better space utilization */
-    .print\\:text-3xl { font-size: 1.5rem !important; }
-    .print\\:text-2xl { font-size: 1.3rem !important; }
-    .print\\:text-xl { font-size: 1.1rem !important; }
-    .print\\:text-lg { font-size: 1rem !important; }
-    .print\\:text-base { font-size: 0.9rem !important; }
-    .print\\:text-sm { font-size: 0.8rem !important; }
-    .print\\:text-xs { font-size: 0.7rem !important; }
-    .print\\:text-2xs { font-size: 0.6rem !important; }
-
-    /* IMPROVED: Better line heights for compact layout */
-    .print\\:leading-tight { line-height: 1.1 !important; }
-    .print\\:leading-snug { line-height: 1.2 !important; }
-    .print\\:leading-normal { line-height: 1.3 !important; }
-
-    /* Interactive links in PDF */
-    a {
-      color: #1976D2 !important;
-      text-decoration: underline !important;
-    }
-    
-    a[href^="#"] {
-      color: #1976D2 !important;
-      text-decoration: underline !important;
-    }
-    
-    /* Make legend items clickable in PDF */
-    .legend-item {
-      cursor: pointer !important;
-    }
-    
-    .legend-item a {
-      color: #1976D2 !important;
-      text-decoration: underline !important;
-    }
-    
-    /* Ensure article titles with links are properly styled */
-    .article-container h3 a {
-      color: #1f2937 !important;
-      text-decoration: none !important;
-    }
-    
-    /* Source links in PDF - FIXED: No duplication */
-    .article-container a[href^="http"] {
-      color: #1976D2 !important;
-      text-decoration: underline !important;
-    }
-    
-    /* Map legend links */
-    .bg-white.rounded-lg a {
-      color: #1976D2 !important;
-      text-decoration: underline !important;
-    }
-    
-    /* Reduce spacing around articles in print */
-    .article-container > div {
-      padding-top: 0.2rem !important;
-      padding-bottom: 0.2rem !important;
-    }
-    
-    /* Reduce spacing between image and text */
-    .article-container .my-1 {
-      margin-top: 0.2rem !important;
-      margin-bottom: 0.2rem !important;
-    }
-  }
-  
-  @media screen {
-    .print\\:min-h-0 {
-      min-height: auto !important;
-    }
-    
-    .columns-1.lg\\:columns-2 {
-      columns: 1;
-    }
-    
-    @media (min-width: 1024px) {
-      .columns-1.lg\\:columns-2 {
-        columns: 2;
-        column-gap: 1.5rem;
-      }
-    }
-    
-    /* FIXED: Prevent article overlapping in screen view */
-    .article-container {
-      break-inside: avoid;
-      margin-bottom: 1rem;
-      display: inline-block;
-      width: 100%;
-    }
-    
-    .columns-1.lg\\:columns-2 {
-      column-fill: balance;
-    }
-
-    /* Improve screen image sizing */
-    .article-container img {
-      max-height: 300px !important;
-      width: 100% !important;
-      object-fit: cover !important;
-    }
-    
-    .article-container .w-full {
-      max-width: 500px !important;
-    }
-
-    /* Interactive legend items */
-    .legend-item {
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    
-    .legend-item:hover {
-      background-color: #f3f4f6;
-    }
-    
-    /* Hide underline for screen view unless hovered */
-    .legend-item a {
-      text-decoration: none;
-      color: inherit;
-    }
-    
-    .legend-item a:hover {
-      text-decoration: underline;
-      color: #1976D2;
-    }
-    
-    /* Article title links in screen view */
-    .article-container h3 a {
-      text-decoration: none;
-      color: inherit;
-    }
-    
-    .article-container h3 a:hover {
-      text-decoration: underline;
-      color: #1976D2;
-    }
-  }
-
-  /* Page break controls */
-  .print\\:break-after-page {
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-  
-  .print\\:break-before-page {
-    page-break-before: always !important;
-    break-before: page !important;
-  }
-  
-  .print\\:break-inside-avoid {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-  
-  /* Legend text sizes for print */
-  .print\\:text-sm { font-size: 0.8rem !important; }
-  .print\\:text-xs { font-size: 0.7rem !important; }
-  
-  /* Legend spacing for print */
-  .print\\:p-4 { padding: 0.6rem !important; }
-  .print\\:p-3 { padding: 0.4rem !important; }
-  .print\\:p-2 { padding: 0.3rem !important; }
-  .print\\:space-x-2 > * + * { margin-left: 0.3rem !important; }
-  .print\\:gap-3 { gap: 0.4rem !important; }
-  .print\\:mb-1 { margin-bottom: 0.2rem !important; }
-  .print\\:mt-1 { margin-top: 0.2rem !important; }
-  .print\\:mt-0 { margin-top: 0 !important; }
-  .print\\:space-y-0\\.5 > * + * { margin-top: 0.1rem !important; }
-  
-  /* Legend marker sizes for print */
-  .print\\:w-6 { width: 1.2rem !important; }
-  .print\\:h-6 { height: 1.2rem !important; }
-  
-  /* Font weight adjustment for print */
-  .print\\:font-normal { font-weight: 400 !important; }
-  
-  /* Ensure proper link behavior in both screen and print */
-  a[href^="#"] {
-    cursor: pointer;
-  }
-  
-  /* Smooth scrolling for screen view */
-  @media screen {
-    html {
-      scroll-behavior: smooth;
-    }
-  }
-  
-  /* Print-specific link styles */
-  @media print {
-    /* Ensure links are visible and clickable in PDF */
-    a[href]::after {
-      content: "" !important;
-    }
-    
-    /* Prevent URL display for anchor links */
-    a[href^="#"]::after {
-      content: "" !important;
-    }
-    
-    /* Show URLs for external links - ONLY for non-source links */
-    a[href^="http"]:not(.print-source-link)::after {
-      content: " (" attr(href) ")" !important;
-      font-size: 0.6rem !important;
-      color: #6b7280 !important;
-      text-decoration: none !important;
-    }
-  }
-`}</style>
-      </div>
+      )}
     </>
   )
 }
