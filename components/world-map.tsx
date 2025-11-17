@@ -110,6 +110,8 @@ const SPECIAL_CASES = {
 
 // Manual coordinates for countries
 const MANUAL_COORDINATES: Record<string, [number, number]> = {
+  "Latin America and the Caribbean": [-60.0, -15.0],
+  "Republic of Korea": [127.7669, 35.9078],
   "Singapore": [103.8198, 1.3521],
   "Monaco": [7.4246, 43.7384],
   "Andorra": [1.6016, 42.5462],
