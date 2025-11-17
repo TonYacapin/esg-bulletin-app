@@ -2873,10 +2873,10 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 {/* Loading text with progress */}
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold text-gray-800">
-                    Generating Your Bulletin
+                      Summarizing Bulletin Articles
                   </h3>
                   <p className="text-gray-600 text-sm">
-                    Processing {pendingOperations.size} item{pendingOperations.size !== 1 ? 's' : ''}...
+                    Summarizing {pendingOperations.size} item{pendingOperations.size !== 1 ? 's' : ''}...
                   </p>
 
 
