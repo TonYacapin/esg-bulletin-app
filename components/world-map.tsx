@@ -21,14 +21,13 @@ interface WorldMapProps {
   showLegend?: boolean
   theme?: "blue" | "green" | "red"
   onLegendClick?: (country: string) => void
-  getArticleId?: (article: any, index: number) => string // Add this
+  getArticleId?: (article: any, index: number) => string
 }
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 
 // Comprehensive country name mapping based on the actual GeoJSON dataset
 const COUNTRY_NAME_MAP: Record<string, string> = {
-  // Standard mappings
   "United States of America": "United States",
   "United States": "United States",
   "United Kingdom": "United Kingdom",
@@ -45,8 +44,6 @@ const COUNTRY_NAME_MAP: Record<string, string> = {
   "USA": "United States",
   "UK": "United Kingdom",
   "US": "United States",
-
-  // Additional common mappings
   "W. Sahara": "Western Sahara",
   "Eq. Guinea": "Equatorial Guinea",
   "eSwatini": "Eswatini",
@@ -56,8 +53,6 @@ const COUNTRY_NAME_MAP: Record<string, string> = {
   "Solomon Is.": "Solomon Islands",
   "Fr. S. Antarctic Lands": "French Southern and Antarctic Lands",
   "Falkland Is.": "Falkland Islands",
-
-  // EU countries as they appear in the dataset
   "Austria": "Austria",
   "Belgium": "Belgium",
   "Bulgaria": "Bulgaria",
@@ -88,7 +83,7 @@ const COUNTRY_NAME_MAP: Record<string, string> = {
 }
 
 // Special cases that should cover multiple countries or the entire world
-const SPECIAL_CASES = {
+const SPECIAL_CASES: Record<string, string[] | "ALL"> = {
   "European Union": [
     "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic",
     "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary",
@@ -154,26 +149,25 @@ const SPECIAL_MARKER_POSITIONS: Record<string, [number, number]> = {
 // Three-color theme system
 const THEME_SHADES = {
   blue: {
-    world: "#90CAF9",    // Darker than before but lighter than region
-    region: "#64B5F6",   // Medium Blue
-    country: "#1565C0",  // Dark Blue
+    world: "#90CAF9",
+    region: "#64B5F6",
+    country: "#1565C0",
   },
   green: {
-    world: "#A5D6A7",    // Darker than before but lighter than region
-    region: "#66BB6A",   // Medium Green
-    country: "#1B5E20",  // Dark Green
+    world: "#A5D6A7",
+    region: "#66BB6A",
+    country: "#1B5E20",
   },
   red: {
-    world: "#EF9A9A",    // Darker than before but lighter than region
-    region: "#EF5350",   // Medium Red
-    country: "#B71C1C",  // Dark Red
+    world: "#EF9A9A",
+    region: "#EF5350",
+    country: "#B71C1C",
   }
 }
 
 // Fallback coordinates for all major countries
 const FALLBACK_COORDINATES: Record<string, [number, number]> = {
   "Ghana": [-1.0232, 7.9465],
-
   "Africa": [21.0932, -1.2921],
   "Netherlands (Kingdom of the)": [5.2913, 52.1326],
   "New Zealand": [174.8860, -40.9006],
@@ -319,7 +313,6 @@ const FALLBACK_COORDINATES: Record<string, [number, number]> = {
 
 // Function to calculate text width approximation
 const calculateTextWidth = (text: string, fontSize: number = 10): number => {
-  // Average character width approximation for the font
   const avgCharWidth = fontSize * 0.6
   return text.length * avgCharWidth
 }
@@ -348,8 +341,396 @@ const wrapCountryName = (countryName: string, maxWidth: number = 80): string[] =
     lines.push(currentLine)
   }
 
+  // If the name is still too long, use abbreviations
+  if (lines.length > 2) {
+    const abbreviations: Record<string, string> = {
+      'United States': 'USA',
+      'United Kingdom': 'UK',
+      'Democratic Republic of the Congo': 'DR Congo',
+      'Bosnia and Herzegovina': 'Bosnia & Herz.',
+      'Dominican Republic': 'Dominican Rep.',
+      'United Arab Emirates': 'UAE',
+      'Central African Republic': 'CAR',
+      'Equatorial Guinea': 'Eq. Guinea',
+      'Saudi Arabia': 'Saudi Arabia',
+      'South Africa': 'S. Africa',
+    };
+    
+    const abbreviated = abbreviations[countryName];
+    if (abbreviated) {
+      return wrapCountryName(abbreviated, maxWidth);
+    }
+    
+    // Fallback: take first two words or truncate
+    if (words.length > 2) {
+      return [words.slice(0, 2).join(' ')];
+    }
+  }
+
   return lines
 }
+
+// Enhanced collision avoidance system
+const optimizeMarkerPositions = (markers: any[]): any[] => {
+  if (markers.length <= 1) return markers;
+
+  const optimizedMarkers = [...markers];
+  const MIN_DISTANCE = 6; // Increased minimum distance
+  const MAX_ATTEMPTS = 200;
+
+  // Sort by importance (more articles = higher priority)
+  optimizedMarkers.sort((a, b) => (b.item.articles?.length || 0) - (a.item.articles?.length || 0));
+
+  // Create a grid for spatial partitioning
+  const grid: Record<string, any[]> = {};
+  const GRID_SIZE = 10; // Degrees
+
+  const getGridKey = (lon: number, lat: number): string => {
+    const gridLon = Math.floor(lon / GRID_SIZE);
+    const gridLat = Math.floor(lat / GRID_SIZE);
+    return `${gridLon},${gridLat}`;
+  };
+
+  const addToGrid = (marker: any) => {
+    const key = getGridKey(marker.coordinates[0], marker.coordinates[1]);
+    if (!grid[key]) grid[key] = [];
+    grid[key].push(marker);
+  };
+
+  const getNearbyMarkers = (marker: any): any[] => {
+    const nearby: any[] = [];
+    const baseLon = marker.coordinates[0];
+    const baseLat = marker.coordinates[1];
+    
+    for (let lonOffset = -1; lonOffset <= 1; lonOffset++) {
+      for (let latOffset = -1; latOffset <= 1; latOffset++) {
+        const key = getGridKey(baseLon + lonOffset * GRID_SIZE, baseLat + latOffset * GRID_SIZE);
+        if (grid[key]) {
+          nearby.push(...grid[key]);
+        }
+      }
+    }
+    return nearby;
+  };
+
+  // Initialize grid
+  optimizedMarkers.forEach(addToGrid);
+
+  for (let i = 0; i < optimizedMarkers.length; i++) {
+    const current = optimizedMarkers[i];
+    let attempts = 0;
+    let hasCollision = true;
+
+    // Remove from grid for repositioning
+    const currentKey = getGridKey(current.coordinates[0], current.coordinates[1]);
+    grid[currentKey] = grid[currentKey]?.filter(m => m !== current) || [];
+
+    while (hasCollision && attempts < MAX_ATTEMPTS) {
+      hasCollision = false;
+      const nearbyMarkers = getNearbyMarkers(current);
+
+      for (const other of nearbyMarkers) {
+        if (other === current) continue;
+        
+        const distance = calculateDistance(current.coordinates, other.coordinates);
+
+        if (distance < MIN_DISTANCE) {
+          hasCollision = true;
+          attempts++;
+
+          // Calculate direction vector
+          const dx = current.coordinates[0] - other.coordinates[0];
+          const dy = current.coordinates[1] - other.coordinates[1];
+          const angle = Math.atan2(dy, dx);
+          
+          // Adaptive movement based on collision severity and attempts
+          const severity = 1 - (distance / MIN_DISTANCE);
+          const baseMovement = MIN_DISTANCE * (1 + attempts / 20) * severity;
+          
+          // Add some randomness to break symmetry
+          const randomAngle = angle + (Math.random() - 0.5) * 0.5;
+          
+          const newLon = other.coordinates[0] + Math.cos(randomAngle) * baseMovement;
+          const newLat = other.coordinates[1] + Math.sin(randomAngle) * baseMovement;
+
+          // Clamp to reasonable geographic bounds
+          current.coordinates = [
+            Math.max(-170, Math.min(170, newLon)),
+            Math.max(-60, Math.min(80, newLat))
+          ];
+          break;
+        }
+      }
+    }
+
+    // Add back to grid with new position
+    addToGrid(current);
+
+    // If still colliding after max attempts, use more aggressive measures
+    if (hasCollision) {
+      current.hideLabel = true;
+      // Try one last aggressive move
+      current.coordinates = [
+        current.coordinates[0] + (Math.random() - 0.5) * 20,
+        current.coordinates[1] + (Math.random() - 0.5) * 15
+      ];
+    }
+  }
+
+  return optimizedMarkers;
+};
+
+
+const calculateDistance = (coord1: [number, number], coord2: [number, number]): number => {
+  return Math.sqrt(
+    Math.pow(coord1[0] - coord2[0], 2) + Math.pow(coord1[1] - coord2[1], 2)
+  );
+};
+
+// Enhanced label positioning with better collision detection
+const SmartMarker = ({ marker, allMarkers }: { marker: any; allMarkers: any[] }) => {
+  const { key, coordinates, item, hideLabel = false } = marker;
+  
+  // Calculate label bounds for collision detection
+  const calculateLabelBounds = (position: any) => {
+    const wrappedLines = wrapCountryName(item.country, 65);
+    const lineHeight = 8;
+    const totalTextHeight = wrappedLines.length * lineHeight;
+    const bgPadding = 4;
+    const bgWidth = Math.max(...wrappedLines.map(line => calculateTextWidth(line, 8))) + bgPadding * 2;
+    const bgHeight = totalTextHeight + bgPadding * 2;
+
+    const labelX = coordinates[0] + position.x / 50;
+    const labelY = coordinates[1] + position.y / 50;
+
+    return {
+      x: labelX,
+      y: labelY,
+      width: bgWidth / 50, // Convert to map coordinates
+      height: bgHeight / 50,
+      anchor: position.anchor
+    };
+  };
+
+  // Check if a label position collides with other markers or labels
+  const checkLabelCollision = (labelBounds: any, currentMarker: any): boolean => {
+    for (const other of allMarkers) {
+      if (other.key === currentMarker.key) continue;
+
+      // Check collision with other marker center
+      const markerDistance = calculateDistance(
+        [labelBounds.x, labelBounds.y],
+        other.coordinates
+      );
+      if (markerDistance < 3) return true;
+
+      // Check collision with other labels (approximate)
+      if (!other.hideLabel) {
+        // Assume other labels are typically placed to the right
+        const otherLabelX = other.coordinates[0] + 0.5;
+        const otherLabelY = other.coordinates[1];
+        const labelDistance = calculateDistance(
+          [labelBounds.x, labelBounds.y],
+          [otherLabelX, otherLabelY]
+        );
+        if (labelDistance < 4) return true;
+      }
+    }
+    return false;
+  };
+
+  const findOptimalLabelPosition = () => {
+    const positionCandidates = [
+      // Primary positions (right/left)
+      { x: 30, y: 0, anchor: 'start', priority: 1, score: 100 },
+      { x: -30, y: 0, anchor: 'end', priority: 1, score: 95 },
+      
+      // Secondary positions (top/bottom)
+      { x: 0, y: -30, anchor: 'middle', priority: 2, score: 80 },
+      { x: 0, y: 30, anchor: 'middle', priority: 2, score: 75 },
+      
+      // Diagonal positions
+      { x: 25, y: -25, anchor: 'start', priority: 3, score: 60 },
+      { x: -25, y: -25, anchor: 'end', priority: 3, score: 55 },
+      { x: 25, y: 25, anchor: 'start', priority: 3, score: 50 },
+      { x: -25, y: 25, anchor: 'end', priority: 3, score: 45 },
+    ];
+
+    // Add more positions in a spiral pattern
+    for (let distance = 35; distance <= 60; distance += 5) {
+      for (let angle = 0; angle < 360; angle += 30) {
+        const rad = angle * Math.PI / 180;
+        const x = Math.cos(rad) * distance;
+        const y = Math.sin(rad) * distance;
+        const anchor = x >= 0 ? 'start' : 'end';
+        positionCandidates.push({ 
+          x, y, anchor, 
+          priority: 4, 
+          score: 40 - (distance / 5) 
+        });
+      }
+    }
+
+    // Score and sort positions
+    const scoredPositions = positionCandidates.map(pos => {
+      let score = pos.score;
+      const labelBounds = calculateLabelBounds(pos);
+
+      // Penalize positions that cause collisions
+      if (checkLabelCollision(labelBounds, marker)) {
+        score -= 1000;
+      }
+
+      // Bonus for keeping labels on the same side based on hemisphere
+      if ((coordinates[0] > 0 && pos.anchor === 'start') || 
+          (coordinates[0] <= 0 && pos.anchor === 'end')) {
+        score += 20;
+      }
+
+      // Bonus for horizontal alignment
+      if (Math.abs(pos.y) < 15) {
+        score += 15;
+      }
+
+      // Penalize positions outside reasonable bounds
+      if (labelBounds.x < -160 || labelBounds.x > 160 || 
+          labelBounds.y < -50 || labelBounds.y > 75) {
+        score -= 500;
+      }
+
+      // Penalize very long leader lines
+      const leaderLength = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
+      if (leaderLength > 50) {
+        score -= (leaderLength - 50) * 2;
+      }
+
+      return { ...pos, score, leaderLength };
+    });
+
+    // Find the best position
+    const bestPosition = scoredPositions.reduce((best, current) => 
+      current.score > best.score ? current : best
+    );
+
+    // Hide label if no good position found
+    if (bestPosition.score < 0) {
+      return { ...bestPosition, hide: true };
+    }
+
+    return bestPosition;
+  };
+
+  const labelPos = findOptimalLabelPosition();
+  
+  // If we should hide the label, render minimal marker
+  if (hideLabel || labelPos.hide) {
+    return (
+      <Marker key={key} coordinates={coordinates}>
+        <circle
+          r={6}
+          fill={item.color}
+          stroke="#FFFFFF"
+          strokeWidth={1.5}
+          className="drop-shadow-sm"
+        />
+        <text
+          textAnchor="middle"
+          y={1}
+          style={{
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            fill: "#FFFFFF",
+            fontSize: "7px",
+            fontWeight: "700",
+            pointerEvents: "none",
+            textShadow: "0 1px 2px rgba(0,0,0,0.3)"
+          }}
+        >
+          {item.letter}
+        </text>
+      </Marker>
+    );
+  }
+
+  const wrappedLines = wrapCountryName(item.country, 65);
+  const lineHeight = 8;
+  const totalTextHeight = wrappedLines.length * lineHeight;
+  const bgPadding = 4;
+  const bgWidth = Math.max(...wrappedLines.map(line => calculateTextWidth(line, 8))) + bgPadding * 2;
+  const bgHeight = totalTextHeight + bgPadding * 2;
+
+  return (
+    <Marker key={key} coordinates={coordinates}>
+      {/* Marker circle */}
+      <circle
+        r={6}
+        fill={item.color}
+        stroke="#FFFFFF"
+        strokeWidth={1.5}
+        className="drop-shadow-sm"
+      />
+      <text
+        textAnchor="middle"
+        y={1}
+        style={{
+          fontFamily: "system-ui, -apple-system, sans-serif",
+          fill: "#FFFFFF",
+          fontSize: "7px",
+          fontWeight: "700",
+          pointerEvents: "none",
+          textShadow: "0 1px 2px rgba(0,0,0,0.3)"
+        }}
+      >
+        {item.letter}
+      </text>
+
+      {/* Leader line - only show for longer distances */}
+      {labelPos.leaderLength > 20 && (
+        <line
+          x1={0}
+          y1={0}
+          x2={labelPos.x}
+          y2={labelPos.y}
+          stroke="#666"
+          strokeWidth={0.7}
+          strokeDasharray="2,2"
+          opacity={0.6}
+        />
+      )}
+
+      {/* Label */}
+      <g transform={`translate(${labelPos.x}, ${labelPos.y})`}>
+        <rect
+          x={labelPos.anchor === 'start' ? 0 : -bgWidth}
+          y={-bgHeight / 2}
+          width={bgWidth}
+          height={bgHeight}
+          fill="#1F2937"
+          rx={3}
+          opacity={0.95}
+          className="drop-shadow-md"
+        />
+        {wrappedLines.map((line, index) => (
+          <text
+            key={index}
+            x={labelPos.anchor === 'start' ? bgPadding : -bgPadding}
+            y={-(totalTextHeight / 2) + (index * lineHeight) + lineHeight / 2}
+            textAnchor={labelPos.anchor}
+            style={{
+              fontFamily: "system-ui, -apple-system, sans-serif",
+              fill: "#FFFFFF",
+              fontSize: "7px",
+              fontWeight: "500",
+              pointerEvents: "none",
+              letterSpacing: "0.02em"
+            }}
+          >
+            {line}
+          </text>
+        ))}
+      </g>
+    </Marker>
+  );
+};
 
 export function WorldMap({
   countries = [],
@@ -362,94 +743,94 @@ export function WorldMap({
   interactive = true,
   showLegend = true,
   theme = "blue",
-  onLegendClick, // Add this prop
+  onLegendClick,
   getArticleId = (article: any, index: number) => `article-${article?.news_id ?? index}`
 }: WorldMapProps) {
-  const [autoMappedCountries, setAutoMappedCountries] = useState<Record<string, string[]>>({})
+  const [autoMappedCountries, setAutoMappedCountries] = useState<Record<string, string[]>>({});
 
   // Use useMemo to prevent recreation on every render
   const countriesWithArticles = useMemo(() => {
     return countries.filter(country =>
       articlesByCountry[country] && articlesByCountry[country].length > 0
-    )
-  }, [countries, articlesByCountry])
+    );
+  }, [countries, articlesByCountry]);
 
   // Categorize countries into World, Region, and Country levels
   const { worldCountries, regionCountries, countryCountries } = useMemo(() => {
     const worldCountries = countriesWithArticles.filter(country =>
       SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] === "ALL"
-    )
+    );
 
     const regionCountries = countriesWithArticles.filter(country =>
       SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] &&
       SPECIAL_CASES[country as keyof typeof SPECIAL_CASES] !== "ALL" &&
       !worldCountries.includes(country)
-    )
+    );
 
     const countryCountries = countriesWithArticles.filter(country =>
       !worldCountries.includes(country) && !regionCountries.includes(country)
-    )
+    );
 
-    return { worldCountries, regionCountries, countryCountries }
-  }, [countriesWithArticles])
+    return { worldCountries, regionCountries, countryCountries };
+  }, [countriesWithArticles]);
 
   // Get the appropriate color based on country type
   const getCountryColor = (country: string): string => {
-    const shades = THEME_SHADES[theme]
+    const shades = THEME_SHADES[theme];
 
     if (worldCountries.includes(country)) {
-      return shades.world
+      return shades.world;
     } else if (regionCountries.includes(country)) {
-      return shades.region
+      return shades.region;
     } else {
-      return shades.country
+      return shades.country;
     }
-  }
+  };
 
   // Auto-select countries on mount - ONLY countries with articles
   useEffect(() => {
-    if (countriesWithArticles.length === 0) return
+    if (countriesWithArticles.length === 0) return;
 
-    const newMappings: Record<string, string[]> = {}
+    const newMappings: Record<string, string[]> = {};
 
     countriesWithArticles.forEach(country => {
-      const normalizedCountry = country.trim()
+      const normalizedCountry = country.trim();
 
       // Handle special cases
       if (SPECIAL_CASES[normalizedCountry as keyof typeof SPECIAL_CASES]) {
-        const specialCase = SPECIAL_CASES[normalizedCountry as keyof typeof SPECIAL_CASES]
+        const specialCase = SPECIAL_CASES[normalizedCountry as keyof typeof SPECIAL_CASES];
         if (specialCase === "ALL") {
-          newMappings[normalizedCountry] = ["ALL"]
+          newMappings[normalizedCountry] = ["ALL"];
         } else if (Array.isArray(specialCase)) {
-          newMappings[normalizedCountry] = specialCase
+          newMappings[normalizedCountry] = specialCase;
         } else {
-          newMappings[normalizedCountry] = [specialCase]
+          newMappings[normalizedCountry] = [specialCase];
         }
       } else {
         // For regular countries, use the mapped name or original name
-        const geoCountryName = COUNTRY_NAME_MAP[normalizedCountry] || normalizedCountry
-        newMappings[normalizedCountry] = [geoCountryName]
+        const geoCountryName = COUNTRY_NAME_MAP[normalizedCountry] || normalizedCountry;
+        newMappings[normalizedCountry] = [geoCountryName];
       }
-    })
+    });
 
-    setAutoMappedCountries(newMappings)
+    setAutoMappedCountries(newMappings);
 
     // Auto-map only countries with articles
     if (onCountryMapping) {
       Object.entries(newMappings).forEach(([legendCountry, geoCountries]) => {
         if (geoCountries[0] !== "ALL") {
-          onCountryMapping(legendCountry, geoCountries[0])
+          onCountryMapping(legendCountry, geoCountries[0]);
         } else {
-          onCountryMapping(legendCountry, "United States")
+          onCountryMapping(legendCountry, "United States");
         }
-      })
+      });
     }
-  }, [countriesWithArticles, onCountryMapping])
+  }, [countriesWithArticles, onCountryMapping]);
 
   // Generate legend items with letters - ONLY for countries with articles
   const legendItems = useMemo(() => {
     // Sort countries by type: World first, then Regions, then Countries
-    const sortedCountries = [...worldCountries, ...regionCountries, ...countryCountries]
+    const sortedCountries = [...worldCountries, ...regionCountries, ...countryCountries];
 
     return sortedCountries.map((country, index) => ({
       country,
@@ -460,149 +841,146 @@ export function WorldMap({
       color: getCountryColor(country),
       type: worldCountries.includes(country) ? "world" :
         regionCountries.includes(country) ? "region" : "country"
-    }))
-  }, [worldCountries, regionCountries, countryCountries, articlesByCountry, getCountryColor])
+    }));
+  }, [worldCountries, regionCountries, countryCountries, articlesByCountry, getCountryColor]);
 
   // Get all mapped geographic countries for highlighting - use normalized names
   const mappedGeoCountries = useMemo(() => {
     return Object.values(mappedCountries).map(country =>
       COUNTRY_NAME_MAP[country] || country
-    )
-  }, [mappedCountries])
+    );
+  }, [mappedCountries]);
 
   // Get all auto-mapped countries for highlighting (flatten the arrays) - use normalized names
   const allAutoMappedGeoCountries = useMemo(() => {
     return Object.values(autoMappedCountries)
       .flat()
-      .map(country => COUNTRY_NAME_MAP[country] || country)
-  }, [autoMappedCountries])
+      .map(country => COUNTRY_NAME_MAP[country] || country);
+  }, [autoMappedCountries]);
 
   // Check if we have any "ALL" special cases
-  const hasGlobalCoverage = Object.values(autoMappedCountries).some(countries => countries[0] === "ALL")
+  const hasGlobalCoverage = Object.values(autoMappedCountries).some(countries => countries[0] === "ALL");
 
   // Function to get coordinates for a country - SIMPLIFIED VERSION
   const getCountryCoordinates = (countryName: string): [number, number] | null => {
     // Check manual coordinates first
     if (MANUAL_COORDINATES[countryName]) {
-      return MANUAL_COORDINATES[countryName]
+      return MANUAL_COORDINATES[countryName];
     }
 
     // Use fallback coordinates - no complex geo data processing
-    return FALLBACK_COORDINATES[countryName] || [0, 20]
-  }
+    return FALLBACK_COORDINATES[countryName] || [0, 20];
+  };
 
   // Function to normalize country name for comparison
   const normalizeCountryName = (countryName: string): string => {
-    return COUNTRY_NAME_MAP[countryName] || countryName
-  }
+    return COUNTRY_NAME_MAP[countryName] || countryName;
+  };
 
   // Function to get color for a specific geographic country
   const getColorForGeoCountry = (geoCountryName: string): string => {
-    const normalizedGeoName = normalizeCountryName(geoCountryName)
+    const normalizedGeoName = normalizeCountryName(geoCountryName);
 
     // Find which legend country this geographic country belongs to via explicit mapping
     const explicitLegendCountry = Object.entries(mappedCountries).find(
       ([_, geo]) => normalizeCountryName(geo) === normalizedGeoName
-    )?.[0]
+    )?.[0];
 
     if (explicitLegendCountry) {
-      return getCountryColor(explicitLegendCountry)
+      return getCountryColor(explicitLegendCountry);
     }
 
     // Check if this is part of a special case mapping (like EU)
     const specialCase = Object.entries(autoMappedCountries).find(([legendCountry, geoCountries]) =>
       geoCountries.some(geo => normalizeCountryName(geo) === normalizedGeoName)
-    )?.[0]
+    )?.[0];
 
     if (specialCase) {
-      return getCountryColor(specialCase)
+      return getCountryColor(specialCase);
     }
 
     // If we have global coverage and no specific mapping, use the world country's color
     if (hasGlobalCoverage) {
-      const worldCountry = worldCountries[0]
-      return worldCountry ? getCountryColor(worldCountry) : THEME_SHADES[theme].world
+      const worldCountry = worldCountries[0];
+      return worldCountry ? getCountryColor(worldCountry) : THEME_SHADES[theme].world;
     }
 
     // Default color for unmapped countries
-    return "#D6D6DA"
-  }
+    return "#D6D6DA";
+  };
 
   // Function to check if a geographic country should be colored
   const shouldColorCountry = (geoCountryName: string): boolean => {
-    const normalizedGeoName = normalizeCountryName(geoCountryName)
+    const normalizedGeoName = normalizeCountryName(geoCountryName);
 
     // If we have global coverage, color ALL countries
     if (hasGlobalCoverage) {
-      return true
+      return true;
     }
 
     // Check if this country is explicitly mapped
-    const isExplicitlyMapped = mappedGeoCountries.includes(normalizedGeoName)
+    const isExplicitlyMapped = mappedGeoCountries.includes(normalizedGeoName);
 
     // Check if this country is auto-mapped (like EU countries)
-    const isAutoMapped = allAutoMappedGeoCountries.includes(normalizedGeoName)
+    const isAutoMapped = allAutoMappedGeoCountries.includes(normalizedGeoName);
 
-    return isExplicitlyMapped || isAutoMapped
-  }
+    return isExplicitlyMapped || isAutoMapped;
+  };
 
   // Get all markers that should be displayed
   const getVisibleMarkers = () => {
-    const markers: { key: string; coordinates: [number, number]; item: any }[] = []
+    const markers: { key: string; coordinates: [number, number]; item: any }[] = [];
 
     legendItems.forEach((item) => {
       // For global special cases (World/International), use predefined positions
       if (autoMappedCountries[item.country]?.[0] === "ALL") {
-        const position = SPECIAL_MARKER_POSITIONS[item.country] || [0, 20]
+        const position = SPECIAL_MARKER_POSITIONS[item.country] || [0, 20];
         markers.push({
           key: item.country,
           coordinates: position,
           item: item
-        })
+        });
       }
       // For EU and other multi-country special cases, show marker on representative country
       else if (autoMappedCountries[item.country] && autoMappedCountries[item.country].length > 1) {
-        const representativeCountry = autoMappedCountries[item.country][0]
-        const coordinates = getCountryCoordinates(representativeCountry)
+        const representativeCountry = autoMappedCountries[item.country][0];
+        const coordinates = getCountryCoordinates(representativeCountry);
         if (coordinates) {
           markers.push({
             key: item.country,
             coordinates: coordinates,
             item: item
-          })
+          });
         }
       }
       // For regular countries, find their geographic position
       else {
-        const geoCountry = mappedCountries[item.country]
+        const geoCountry = mappedCountries[item.country];
         if (geoCountry) {
-          const coordinates = getCountryCoordinates(geoCountry)
+          const coordinates = getCountryCoordinates(geoCountry);
           if (coordinates) {
             markers.push({
               key: item.country,
               coordinates: coordinates,
               item: item
-            })
-          } else {
-            console.log(`No coordinates found for: ${geoCountry} (mapped from: ${item.country})`)
+            });
           }
-        } else {
-          console.log(`No geographic country mapped for: ${item.country}`)
         }
       }
-    })
+    });
 
-    return markers
-  }
+    return markers;
+  };
 
-  const visibleMarkers = getVisibleMarkers()
+  const rawMarkers = getVisibleMarkers();
+  const optimizedMarkers = useMemo(() => optimizeMarkerPositions(rawMarkers), [rawMarkers]);
 
   // Handle legend item click
   const handleLegendClick = (country: string) => {
     if (onLegendClick) {
-      onLegendClick(country)
+      onLegendClick(country);
     }
-  }
+  };
 
   return (
     <div className="w-full">
@@ -622,9 +1000,9 @@ export function WorldMap({
             <Geographies geography={geoUrl}>
               {({ geographies }: { geographies: any[] }) =>
                 geographies.map((geo) => {
-                  const geoName = geo.properties.name
-                  const shouldColor = shouldColorCountry(geoName)
-                  const countryColor = shouldColor ? getColorForGeoCountry(geoName) : "#D6D6DA"
+                  const geoName = geo.properties.name;
+                  const shouldColor = shouldColorCountry(geoName);
+                  const countryColor = shouldColor ? getColorForGeoCountry(geoName) : "#D6D6DA";
 
                   return (
                     <Geography
@@ -652,86 +1030,19 @@ export function WorldMap({
                         },
                       }}
                     />
-                  )
+                  );
                 })
               }
             </Geographies>
 
-            {/* Markers with Letters - show for ALL countries including special cases */}
-            {visibleMarkers.map(({ key, coordinates, item }) => {
-              // Wrap country name if it's too long
-              const wrappedLines = wrapCountryName(item.country, 80)
-              const lineHeight = 12
-              const totalTextHeight = wrappedLines.length * lineHeight
-              const bgPadding = 4
-              const bgHeight = totalTextHeight + bgPadding * 2
-              const bgWidth = Math.max(...wrappedLines.map(line => calculateTextWidth(line))) + bgPadding * 2
-
-              // Determine position based on longitude
-              const isRightSide = coordinates[0] > 0
-              const textX = isRightSide ? 20 : -20
-              const textAnchor = isRightSide ? "start" : "end"
-              const bgX = isRightSide ? 15 : -15 - bgWidth
-              const firstTextY = - (totalTextHeight / 2) + lineHeight / 2
-
-              return (
-                <Marker key={key} coordinates={coordinates}>
-                  {/* Circle and letter */}
-                  <circle
-                    r={12}
-                    fill={item.color}
-                    stroke="#FFFFFF"
-                    strokeWidth={2}
-                  />
-                  <text
-                    textAnchor="middle"
-                    y={3}
-                    style={{
-                      fontFamily: "system-ui",
-                      fill: "#FFFFFF",
-                      fontSize: "12px",
-                      fontWeight: "bold",
-                      pointerEvents: "none"
-                    }}
-                  >
-                    {item.letter}
-                  </text>
-
-                  {/* Country text with wrapped lines */}
-                  <g>
-                    {/* Background rectangle */}
-                    <rect
-                      x={bgX}
-                      y={-bgHeight / 2}
-                      width={bgWidth}
-                      height={bgHeight}
-                      fill="#000000"
-                      rx={3}
-                      opacity={0.9}
-                    />
-
-                    {/* Wrapped text lines */}
-                    {wrappedLines.map((line, index) => (
-                      <text
-                        key={index}
-                        x={textX}
-                        y={firstTextY + (index * lineHeight)}
-                        textAnchor={textAnchor}
-                        style={{
-                          fontFamily: "system-ui",
-                          fill: "#FFFFFF",
-                          fontSize: "10px",
-                          fontWeight: "bold",
-                          pointerEvents: "none"
-                        }}
-                      >
-                        {line}
-                      </text>
-                    ))}
-                  </g>
-                </Marker>
-              )
-            })}
+            {/* Optimized markers with enhanced collision avoidance */}
+            {optimizedMarkers.map((marker) => (
+              <SmartMarker 
+                key={marker.key} 
+                marker={marker} 
+                allMarkers={optimizedMarkers} 
+              />
+            ))}
           </g>
         </ComposableMap>
 
@@ -742,28 +1053,27 @@ export function WorldMap({
               Mapped {Object.keys(mappedCountries).length} of {countriesWithArticles.length} countries
             </p>
             <p className="text-xs mt-1">
-              {visibleMarkers.length} markers displayed
+              {optimizedMarkers.length} markers displayed ({optimizedMarkers.filter(m => !m.hideLabel).length} with labels)
             </p>
             {hasGlobalCoverage && (
               <p className="text-xs mt-1">
                 Global coverage - all countries highlighted
               </p>
             )}
-            <p className="text-xs mt-1">
-              World: {worldCountries.length}, Regions: {regionCountries.length}, Countries: {countryCountries.length}
-            </p>
           </div>
         )}
       </div>
+
+      {/* Legend */}
       {showLegend && (
         <div className="bg-white rounded-lg border border-gray-200 p-6 print:p-4 print:break-before-page print:break-inside-avoid">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 print:gap-3 print:break-inside-avoid">
             {legendItems.map((item) => {
               const articles = articlesByCountry[item.country] || [];
               const firstArticle = articles[0];
-          const articleId = firstArticle ? 
-  `article-${firstArticle.news_id || 0}` 
-  : null;
+              const articleId = firstArticle ?
+                `article-${firstArticle.news_id || 0}`
+                : null;
 
               return (
                 <div
@@ -841,5 +1151,5 @@ export function WorldMap({
         </div>
       )}
     </div>
-  )
+  );
 }

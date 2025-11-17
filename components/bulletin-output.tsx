@@ -2361,11 +2361,12 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               </div>
             )}
 
-            {/* Article content */}
-            <div className="text-gray-700 mb-2 print:text-sm print:mb-1 print:leading-snug">
+            <div
+              className="text-gray-700 mb-2 print:text-sm print:mb-1 print:leading-snug"
+              style={{ textAlign: "justify" }}
+            >
               {formatBoldText(currentArticle.news_summary)}
             </div>
-
             {/* Source Information */}
             {currentArticle.source && currentArticle.source.length > 0 && (
               <div className="mb-1 print:mb-0.5">
@@ -2468,56 +2469,76 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     if (!hasContent) return null;
 
     return (
-  regionalArticles.length > 0 && (
-    <section className="print:break-after-page">
-      {(sectionContent.title || regionalArticles.length > 0) && renderEditableTitle(
-        sectionContent.title,
-        `${region}-title`,
-        `${region.replace('Section', '').toUpperCase()} Regulatory Developments`
-      )}
-
-      {sectionContent.introduction && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-4 print:p-3 print:mb-3 print:bg-gray-100 print:border">
-          {renderEditableText(
-            sectionContent.introduction,
-            `${region}-introduction`,
-            "Section introduction...",
-            3
+      regionalArticles.length > 0 && (
+        <section className="print:break-after-page">
+          {(sectionContent.title || regionalArticles.length > 0) && renderEditableTitle(
+            sectionContent.title,
+            `${region}-title`,
+            `${region.replace('Section', '').toUpperCase()} Regulatory Developments`
           )}
-        </div>
-      )}
 
-      {sectionContent.trends && (
-        <div className="mb-6 print:mb-4">
-          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden print:shadow-none">
-
-            {/* CARD HEADER */}
-            <div className="border-b border-neutral-200 bg-neutral-50 px-5 py-3 print:px-3 print:py-2">
-              <h3 className="text-base font-semibold text-neutral-800">
-                {region.replace("Section", "").toUpperCase()} • Key Trends
-              </h3>
-            </div>
-
-            {/* CARD BODY */}
-            <div className="p-5 print:p-3">
+          {sectionContent.introduction && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-4 print:p-3 print:mb-3 print:bg-gray-100 print:border">
               {renderEditableText(
-                sectionContent.trends,
-                `${region}-trends`,
-                "Describe the key regional trends...",
-                4
+                sectionContent.introduction,
+                `${region}-introduction`,
+                "Section introduction...",
+                3
               )}
             </div>
+          )}
 
-          </div>
-        </div>
-      )}
+          {sectionContent.trends && (
+            <div className="mb-6 print:mb-4">
+              <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden print:shadow-none">
 
-      <div className="columns-1 lg:columns-2 gap-6 print:gap-3 print:columns-2 space-y-0">
-        {regionalArticles.map((article, index) => renderArticle(article, index))}
-      </div>
-    </section>
-  )
-);
+                {/* CARD HEADER */}
+                <div className="border-b border-neutral-200 bg-neutral-50 px-5 py-3 print:px-3 print:py-2">
+                  <h3 className="text-base font-semibold text-neutral-800">
+                    {region.replace("Section", "").toUpperCase()} • Key Trends
+                  </h3>
+                </div>
+
+                {/* CARD BODY */}
+                <div className="p-5 print:p-3">
+                  {renderEditableText(
+                    sectionContent.trends,
+                    `${region}-trends`,
+                    "Describe the key regional trends...",
+                    4
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
+
+        <div
+  className={
+    `m-4 gap-6 print:gap-3 grid grid-cols-1 ` +
+    (regionalArticles.length > 1 
+      ? "lg:grid-cols-2 print:grid-cols-2" 
+      : "")
+  }
+>
+  {regionalArticles.map((article, index) => (
+    <div
+      key={index}
+      className={
+        regionalArticles.length % 2 === 1 && index === regionalArticles.length - 1
+          ? "lg:col-span-2 print:col-span-2"
+          : ""
+      }
+    >
+      {renderArticle(article, index)}
+    </div>
+  ))}
+</div>
+
+
+        </section>
+      )
+    );
   };
 
   // Custom WorldMap component with interactive legend
