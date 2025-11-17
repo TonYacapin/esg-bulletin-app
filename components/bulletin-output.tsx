@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { WorldMap } from "./world-map"
-import type BulletinData from "./bulletin-generator"
 import "./bulletin-output.css"
 
 // Pexels Types
@@ -591,8 +590,8 @@ function ArticleImageDisplay({
             alt={alt}
             className="w-full max-w-md mx-auto rounded-lg border shadow-sm print:border print:rounded print:object-cover"
             onError={() => setImageError(true)}
-            style={{ 
-              aspectRatio: '4/3', 
+            style={{
+              aspectRatio: '4/3',
               objectFit: 'cover'
             }}
           />
@@ -617,7 +616,7 @@ function ArticleImageDisplay({
   // If no image or image failed to load, and editing is allowed, show upload interface
   if (editable && (onImageUpload || onPexelsImageSelect)) {
     return (
-      <div 
+      <div
         className={`
           border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors mb-2
           ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
@@ -658,7 +657,7 @@ function ArticleImageDisplay({
             </Button>
           </div>
         )}
-        
+
         {onPexelsImageSelect && (
           <div className="mt-3 pt-3 border-t border-gray-200">
             <p className="text-sm text-gray-600 mb-2">Or drag & drop from Stock image search</p>
@@ -1235,7 +1234,7 @@ function ArticleEditModal({
                 )}
               </div>
             </div>
-            
+
             <ArticleImageDisplay
               imageUrl={editedArticle.imageUrl}
               alt={editedArticle.news_title}
@@ -1279,8 +1278,8 @@ interface PexelsImageSearchProps {
   bulletinContent: React.ReactNode;
 }
 
-function PexelsImageSearch({ 
-  onImageSelect, 
+function PexelsImageSearch({
+  onImageSelect,
   currentArticleId,
   onClose,
   isOpen,
@@ -1302,7 +1301,7 @@ function PexelsImageSearch({
       const response = await fetch(
         `/api/pexels/search?query=${encodeURIComponent(searchQuery)}&page=${page}&per_page=15`
       );
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch images');
       }
@@ -1357,7 +1356,7 @@ function PexelsImageSearch({
               </svg>
             </button>
           </div>
-          
+
           <form onSubmit={handleSearch} className="flex gap-3">
             <input
               type="text"
@@ -1366,8 +1365,8 @@ function PexelsImageSearch({
               placeholder="Search for images (e.g., sustainability, renewable energy, ESG...)"
               className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
@@ -1436,7 +1435,7 @@ function PexelsImageSearch({
           )}
         </div>
 
-       
+
       </div>
 
       {/* Bulletin Output Panel - Right Side */}
@@ -1448,7 +1447,7 @@ function PexelsImageSearch({
               Drag and drop images from the left panel to any article image area in the bulletin.
             </p>
           </div>
-          
+
           {/* Render the bulletin content passed from parent */}
           {bulletinContent}
         </div>
@@ -1493,10 +1492,25 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const [editingSource, setEditingSource] = useState<SourceData | null>(null)
   const [sourceModalArticle, setSourceModalArticle] = useState<any>(null)
   const [pexelsTargetArticle, setPexelsTargetArticle] = useState<string | null>(null)
-  const [regeneratingArticle, setRegeneratingArticle] = useState<string | null>(null)
   const [articles, setArticles] = useState(initialArticles)
-  const [loadingSources, setLoadingSources] = useState(false)
   const [dragOverArticle, setDragOverArticle] = useState<string | null>(null)
+
+  // NEW: Unified loading state management
+  const [pendingOperations, setPendingOperations] = useState<Set<string>>(new Set());
+  const isLoading = pendingOperations.size > 0;
+
+  // Helper functions to manage pending operations
+  const addPendingOperation = (operationId: string) => {
+    setPendingOperations(prev => new Set(prev).add(operationId));
+  };
+
+  const removePendingOperation = (operationId: string) => {
+    setPendingOperations(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(operationId);
+      return newSet;
+    });
+  };
 
   const [editableContent, setEditableContent] = useState({
     // Header content
@@ -1531,7 +1545,6 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     }
   })
   const [isEditing, setIsEditing] = useState<string | null>(null)
-  const [isRegenerating, setIsRegenerating] = useState<string | null>(null)
 
   // Add this ref to track if we've already regenerated on load
   const hasRegeneratedOnLoad = useRef(false)
@@ -1567,10 +1580,13 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
       if (articlesNeedingSource.length === 0) return;
 
-      setLoadingSources(true);
+      // Add source loading operations
+      const sourceOperations = articlesNeedingSource.map(article => `source-${article.news_id}`);
+      setPendingOperations(prev => new Set([...prev, ...sourceOperations]));
 
       try {
         for (const article of articlesNeedingSource) {
+          const operationId = `source-${article.news_id}`;
           try {
             const response = await fetch(`/api/internal/news/${article.news_id}/details`);
 
@@ -1590,10 +1606,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             }
           } catch (error) {
             console.error(`Error fetching source for article ${article.news_id}:`, error);
+          } finally {
+            removePendingOperation(operationId);
           }
         }
       } finally {
-        setLoadingSources(false);
+        // Clean up any remaining source operations
+        articlesNeedingSource.forEach(article => {
+          removePendingOperation(`source-${article.news_id}`);
+        });
       }
     };
 
@@ -1607,28 +1628,43 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     const regenerateAllContent = async () => {
       console.log('Starting automatic regeneration of ALL content...');
 
-      // ALWAYS regenerate greeting message
-      console.log('Regenerating greeting message...');
-      await handleRegenerate('greetingMessage');
+      // Create operation IDs for all content
+      const allOperations = new Set<string>();
 
-      // ALWAYS regenerate all articles
-      console.log(`Regenerating ALL ${articles.length} articles...`);
+      // Add greeting message operation
+      allOperations.add('regenerate-greetingMessage');
 
-      for (const article of articles) {
-        console.log(`Regenerating article: ${article.news_title}`);
-        await handleRegenerateArticle(article.news_id);
-        // Add a small delay between requests to avoid overwhelming the API
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Add all articles operations
+      articles.forEach(article => {
+        allOperations.add(`article-${article.news_id}`);
+      });
+
+      setPendingOperations(allOperations);
+
+      try {
+        // Regenerate greeting message
+        console.log('Regenerating greeting message...');
+        await handleRegenerate('greetingMessage');
+
+        // Regenerate all articles sequentially
+        console.log(`Regenerating ALL ${articles.length} articles...`);
+        for (const article of articles) {
+          console.log(`Regenerating article: ${article.news_title}`);
+          await handleRegenerateArticle(article.news_id);
+          // Add a small delay between requests to avoid overwhelming the API
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        console.log('Automatic regeneration of ALL content completed');
+      } catch (error) {
+        console.error('Error during automatic regeneration:', error);
       }
-
-      console.log('Automatic regeneration of ALL content completed');
+      // Note: We don't clear pendingOperations here because each individual
+      // operation will remove itself when completed
     };
 
-    // Only run on initial load when articles are available and we haven't already regenerated
     if (articles.length > 0 && !hasRegeneratedOnLoad.current) {
       hasRegeneratedOnLoad.current = true;
-
-      // Add a small delay to ensure the component is fully mounted
       setTimeout(() => {
         regenerateAllContent();
       }, 1000);
@@ -1691,8 +1727,8 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
   const handlePexelsImageSelect = (image: PexelsPhoto) => {
     if (pexelsTargetArticle) {
-      handleArticleUpdate(pexelsTargetArticle, { 
-        imageUrl: image.src.large2x || image.src.large 
+      handleArticleUpdate(pexelsTargetArticle, {
+        imageUrl: image.src.large2x || image.src.large
       })
     }
     // Keep Pexels search open for multiple image selections
@@ -1717,7 +1753,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const handleArticleDrop = (e: React.DragEvent, articleId: string) => {
     e.preventDefault()
     setDragOverArticle(null)
-    
+
     try {
       const imageData: PexelsPhoto = JSON.parse(e.dataTransfer.getData('text/plain'))
       handleArticleUpdate(articleId, {
@@ -1881,8 +1917,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isEditing])
 
+  // UPDATED: Unified handleRegenerate function
   const handleRegenerate = async (sectionId: string) => {
-    setIsRegenerating(sectionId);
+    const operationId = `regenerate-${sectionId}`;
+    addPendingOperation(operationId);
+
     try {
       const [section, field] = sectionId.split('-');
       const typeMapping: Record<string, string> = {
@@ -1972,12 +2011,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     } catch (error) {
       console.error('Error regenerating content:', error);
     } finally {
-      setIsRegenerating(null);
+      removePendingOperation(operationId);
     }
   };
 
+  // UPDATED: Unified handleRegenerateArticle function
   const handleRegenerateArticle = async (articleId: string) => {
-    setRegeneratingArticle(articleId)
+    const operationId = `article-${articleId}`;
+    addPendingOperation(operationId);
+
     try {
       const article = articles.find(a => a.news_id === articleId)
       if (!article) return
@@ -2009,7 +2051,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     } catch (error) {
       console.error('Error regenerating article summary:', error)
     } finally {
-      setRegeneratingArticle(null)
+      removePendingOperation(operationId);
     }
   }
 
@@ -2173,11 +2215,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           </Button>
           <Button
             onClick={() => handleRegenerate(sectionId)}
-            disabled={isRegenerating === sectionId}
+            disabled={pendingOperations.has(`regenerate-${sectionId}`)}
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {isRegenerating === sectionId ? 'Regenerating...' : 'Regenerate'}
+            {pendingOperations.has(`regenerate-${sectionId}`) ? 'Regenerating...' : 'Regenerate'}
           </Button>
         </div>
       </div>
@@ -2234,11 +2276,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
           </Button>
           <Button
             onClick={() => handleRegenerate(sectionId)}
-            disabled={isRegenerating === sectionId}
+            disabled={pendingOperations.has(`regenerate-${sectionId}`)}
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {isRegenerating === sectionId ? 'Regenerating...' : 'Regenerate'}
+            {pendingOperations.has(`regenerate-${sectionId}`) ? 'Regenerating...' : 'Regenerate'}
           </Button>
         </div>
       </div>
@@ -2275,11 +2317,11 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </Button>
             <Button
               onClick={() => handleRegenerateArticle(currentArticle.news_id)}
-              disabled={regeneratingArticle === currentArticle.news_id}
+              disabled={pendingOperations.has(`article-${currentArticle.news_id}`)}
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
             >
-              {regeneratingArticle === currentArticle.news_id ? 'Regenerating...' : 'Regenerate'}
+              {pendingOperations.has(`article-${currentArticle.news_id}`) ? 'Regenerating...' : 'Regenerate'}
             </Button>
             {/* Updated Pexels button */}
             <Button
@@ -2341,14 +2383,14 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 {currentArticle.source.map((source: SourceData, index: number) => (
                   <div key={source.id || index} className="text-sm text-gray-600 print:text-xs ml-1">
                     {source.source_url ? (
-                        <a
+                      <a
                         href={source.source_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 underline print:text-black print:no-underline print-source-link break-all"
-                        >
+                      >
                         {source.source_url}
-                        </a>
+                      </a>
                     ) : (
                       <span>Original Source</span>
                     )}
@@ -2370,10 +2412,9 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 </Button>
               </div>
             )}
-
-            {/* Publication date */}
-            <div className="text-xs text-gray-500 print:text-2xs print:mt-0.5">
-              Published: {formatDate(currentArticle.published_at)}
+            {/* Publication date card */}
+            <div className="text-xs text-gray-600 bg-gray-100 px-3 py-1 rounded-lg shadow-sm inline-block print:text-2xs">
+              {formatDate(currentArticle.published_at)}
             </div>
 
             {/* Upload interface for articles without images - with drag and drop support */}
@@ -2427,62 +2468,71 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     if (!hasContent) return null;
 
     return (
-      <section className="print:break-after-page">
-        {(sectionContent.title || regionalArticles.length > 0) && renderEditableTitle(
-          sectionContent.title,
-          `${region}-title`,
-          `${region.replace('Section', '').toUpperCase()} Regulatory Developments`
-        )}
+  regionalArticles.length > 0 && (
+    <section className="print:break-after-page">
+      {(sectionContent.title || regionalArticles.length > 0) && renderEditableTitle(
+        sectionContent.title,
+        `${region}-title`,
+        `${region.replace('Section', '').toUpperCase()} Regulatory Developments`
+      )}
 
-        {sectionContent.introduction && (
-          <div className="bg-gray-50 p-4 rounded-lg mb-4 print:p-3 print:mb-3 print:bg-gray-100 print:border">
-            {renderEditableText(
-              sectionContent.introduction,
-              `${region}-introduction`,
-              "Section introduction...",
-              3
-            )}
-          </div>
-        )}
+      {sectionContent.introduction && (
+        <div className="bg-gray-50 p-4 rounded-lg mb-4 print:p-3 print:mb-3 print:bg-gray-100 print:border">
+          {renderEditableText(
+            sectionContent.introduction,
+            `${region}-introduction`,
+            "Section introduction...",
+            3
+          )}
+        </div>
+      )}
 
-        {sectionContent.trends && (
-          <div className="mb-4 print:mb-3">
-            <h3 className="text-xl font-semibold mb-2 text-gray-800 print:text-lg print:mb-1">
-              {region.replace('Section', '').toUpperCase()} Key Trends
-            </h3>
-            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200 print:p-3 print:bg-purple-100 print:border">
+      {sectionContent.trends && (
+        <div className="mb-6 print:mb-4">
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden print:shadow-none">
+
+            {/* CARD HEADER */}
+            <div className="border-b border-neutral-200 bg-neutral-50 px-5 py-3 print:px-3 print:py-2">
+              <h3 className="text-base font-semibold text-neutral-800">
+                {region.replace("Section", "").toUpperCase()} • Key Trends
+              </h3>
+            </div>
+
+            {/* CARD BODY */}
+            <div className="p-5 print:p-3">
               {renderEditableText(
                 sectionContent.trends,
                 `${region}-trends`,
-                "Regional trends...",
+                "Describe the key regional trends...",
                 4
               )}
             </div>
-          </div>
-        )}
 
-        {regionalArticles.length > 0 && (
-          <div className="columns-1 lg:columns-2 gap-6 print:gap-3 print:columns-2 space-y-0">
-            {regionalArticles.map((article, index) => renderArticle(article, index))}
           </div>
-        )}
-      </section>
-    );
+        </div>
+      )}
+
+      <div className="columns-1 lg:columns-2 gap-6 print:gap-3 print:columns-2 space-y-0">
+        {regionalArticles.map((article, index) => renderArticle(article, index))}
+      </div>
+    </section>
+  )
+);
   };
 
   // Custom WorldMap component with interactive legend
-  const InteractiveWorldMap = ({ 
-    countries, 
-    primaryColor, 
-    articlesByCountry, 
-    mappedCountries, 
+  const InteractiveWorldMap = ({
+    countries,
+    primaryColor,
+    articlesByCountry,
+    mappedCountries,
     theme,
     interactive = false,
-    showLegend = true 
+    showLegend = true
   }: any) => {
     // Create a mapping of country names to article IDs
     const countryToArticleMap = useRef(new Map());
-    
+
     // Populate the mapping
     useEffect(() => {
       countries.forEach((country: string) => {
@@ -2759,44 +2809,64 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       {/* Main Bulletin Content - Only show when Pexels is closed */}
       {!isPexelsSearchOpen && (
         <div className="container mx-auto p-8 max-w-7xl bg-white">
-          
-          {/* Action buttons */}
-          <div className="flex justify-center gap-4 mb-6 print:hidden">
+
+          <div className="flex justify-center gap-3 mb-6 print:hidden">
             <Button
               onClick={onStartOver}
-              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg"
+              variant="outline"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2 px-5 rounded"
             >
-              Create New Bulletin
+              Select Other Articles
             </Button>
             <Button
               onClick={() => setShowHeaderEditModal(true)}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg"
+              variant="outline"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2 px-5 rounded"
             >
               Edit Header
             </Button>
-            {/* Global Pexels Search Button */}
             <Button
               onClick={() => handleOpenPexelsSearch()}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg"
+              variant="outline"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2 px-5 rounded"
             >
-              Search Stock Images
+              Search Images
             </Button>
             <Button
               onClick={handleDownloadPDF}
-              className="text-white font-bold py-2 px-6 rounded-lg"
-              style={{ backgroundColor: themeColors[theme] }}
+              className="bg-gray-800 hover:bg-gray-900 text-white font-medium py-2 px-5 rounded"
             >
               Download PDF
             </Button>
           </div>
+          {/* NEW: Unified loading indicator */}
+          {isLoading && (
+            <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex items-center justify-center">
+              <div className="text-center max-w-md mx-4">
+                {/* Animated spinner */}
+                <div className="relative mb-6">
+                  <div className="w-16 h-16 border-4 border-blue-200 rounded-full mx-auto"></div>
+                  <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+                </div>
 
-          {/* Loading indicator for sources and regeneration */}
-          {(loadingSources || isRegenerating || regeneratingArticle) && (
-            <div className="text-center py-3 mb-6 bg-blue-50 rounded-lg">
-              <p className="text-blue-600 text-sm">
-                {loadingSources && "Loading article sources..."}
-                {(isRegenerating || regeneratingArticle) && "Generating AI content..."}
-              </p>
+                {/* Loading text with progress */}
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Generating Your Bulletin
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    Processing {pendingOperations.size} item{pendingOperations.size !== 1 ? 's' : ''}...
+                  </p>
+
+
+                  {/* Progress dots animation */}
+                  <div className="flex justify-center space-x-1 pt-4">
+                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

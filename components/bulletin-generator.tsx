@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { fetchNewsAction } from "@/lib/actions"
 import { BulletinOutput } from "./bulletin-output"
 import { ArticleDetailModal } from "./article-detail-modal"
-import { ImageModal } from "./image-modal"
 import { BulletinConfigModal, type BulletinConfig } from "./bulletin-config-modal"
 import { ConfirmationModal } from "./confirmation-modal"
 import { Button } from "@/components/ui/button"
@@ -14,15 +13,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import {
-  Calendar,
   FileText,
-  Settings,
-  ChevronDown,
-  CheckSquare,
-  Square,
+  RefreshCw,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
+  CheckSquare,
 } from "lucide-react"
 import type React from "react"
 import { validateBulletinForm } from "@/lib/services/validation.service"
@@ -92,8 +87,6 @@ export default function BulletinGenerator() {
 
   // Form state
   const [query, setQuery] = useState("")
-  const [page, setPage] = useState(1)
-  const [limit] = useState(5000)
   const [filters, setFilters] = useState<BulletinFormFilters>({
     type_id: "all",
     jurisdiction_id: "all",
@@ -109,6 +102,7 @@ export default function BulletinGenerator() {
   const [configModalOpen, setConfigModalOpen] = useState(false)
   const [generateConfirmationModalOpen, setGenerateConfirmationModalOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isAutoConfiguring, setIsAutoConfiguring] = useState(false)
 
   const { toast } = useToast()
 
@@ -186,6 +180,364 @@ export default function BulletinGenerator() {
 
     fetchJurisdictions();
   }, [toast]);
+
+  // Auto-configure bulletin when articles are selected
+  useEffect(() => {
+    const autoConfigureBulletin = async () => {
+      if (selectedIds.size > 0 && !isAutoConfiguring) {
+        setIsAutoConfiguring(true);
+        
+        try {
+          // Get selected articles
+          const selectedArticles = allArticles.filter(article => selectedIds.has(article.news_id));
+          
+          if (selectedArticles.length === 0) return;
+
+          toast({
+            title: "Auto-configuring bulletin",
+            description: "Generating content and configuring sections...",
+          });
+
+          // Generate basic configuration based on selected articles
+          await generateAutoConfiguration(selectedArticles);
+          
+          toast({
+            title: "Bulletin auto-configured",
+            description: `Configuration generated for ${selectedArticles.length} articles`,
+          });
+          
+        } catch (error) {
+          console.error("Error auto-configuring bulletin:", error);
+          toast({
+            title: "Auto-configuration failed",
+            description: "Please configure manually",
+            variant: "destructive",
+          });
+        } finally {
+          setIsAutoConfiguring(false);
+        }
+      }
+    };
+
+    autoConfigureBulletin();
+  }, [selectedIds.size, allArticles, toast]);
+
+  const generateAutoConfiguration = async (selectedArticles: Article[]) => {
+    // Analyze articles to determine optimal configuration
+    const articleCount = selectedArticles.length;
+    
+    // Count articles by region with better detection
+    const euArticles = selectedArticles.filter(article => 
+      article.jurisdictions?.some(j => 
+        j.name.toLowerCase().includes('eu') || 
+        j.name.toLowerCase().includes('europe') ||
+        j.name.toLowerCase().includes('european union') ||
+        j.code === 'EU'
+      )
+    );
+    
+    const usArticles = selectedArticles.filter(article => 
+      article.jurisdictions?.some(j => 
+        j.name.toLowerCase().includes('us') || 
+        j.name.toLowerCase().includes('united states') ||
+        j.name.toLowerCase().includes('usa') ||
+        j.code === 'US'
+      )
+    );
+    
+    const globalArticles = selectedArticles.filter(article => 
+      !euArticles.includes(article) && !usArticles.includes(article)
+    );
+
+    console.log(`Article distribution - EU: ${euArticles.length}, US: ${usArticles.length}, Global: ${globalArticles.length}`);
+
+    // Update configuration based on article analysis
+    const updatedConfig: BulletinConfig = {
+      ...bulletinConfig,
+      // Enable sections based on available articles
+      euSection: {
+        ...bulletinConfig.euSection,
+        enabled: euArticles.length > 0,
+        title: euArticles.length > 0 ? "EU Regulatory Developments" : "EU Developments",
+      },
+      usSection: {
+        ...bulletinConfig.usSection,
+        enabled: usArticles.length > 0,
+        title: usArticles.length > 0 ? "US Regulatory Updates" : "US Developments",
+      },
+      globalSection: {
+        ...bulletinConfig.globalSection,
+        enabled: globalArticles.length > 0,
+        title: globalArticles.length > 0 ? "Global ESG Insights" : "Global Developments",
+      },
+      // Set issue number based on current date
+      issueNumber: `Issue #${Math.floor(Math.random() * 100) + 1}`,
+      publicationDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      // Set default images
+      headerImage: "https://picsum.photos/800/400?random=1",
+      publisherLogo: "https://scorealytics.com/uploads/SCORE_logo_white_6c91d9768d.svg",
+      footerImage: "https://picsum.photos/800/200?random=3",
+    };
+
+    setBulletinConfig(updatedConfig);
+
+    // Auto-generate AI content with better error handling
+    await generateAllAIContent(selectedArticles, updatedConfig, euArticles, usArticles, globalArticles);
+  };
+
+  const generateAllAIContent = async (
+    selectedArticles: Article[], 
+    config: BulletinConfig,
+    euArticles: Article[],
+    usArticles: Article[], 
+    globalArticles: Article[]
+  ) => {
+    try {
+      console.log("Starting AI content generation for all sections...");
+
+      // Generate greeting message
+      await generateAIContentWithRetry('greeting', 'greetingMessage', selectedArticles, config);
+      
+      // Generate key trends
+      await generateAIContentWithRetry('key_trends', 'keyTrends', selectedArticles, config);
+      
+      // Generate executive summary
+      await generateAIContentWithRetry('executive_summary', 'executiveSummary', selectedArticles, config);
+      
+      // Generate key takeaways
+      await generateAIContentWithRetry('key_takeaways', 'keyTakeaways', selectedArticles, config);
+
+      // Generate regional content for enabled sections
+      if (config.euSection.enabled && euArticles.length > 0) {
+        console.log("Generating EU section content...");
+        await generateAIContentWithRetry('section_title', 'title', euArticles, config, 'euSection');
+        await generateAIContentWithRetry('section_intro', 'introduction', euArticles, config, 'euSection');
+        await generateAIContentWithRetry('section_trends', 'trends', euArticles, config, 'euSection');
+      }
+
+      if (config.usSection.enabled && usArticles.length > 0) {
+        console.log("Generating US section content...");
+        await generateAIContentWithRetry('section_title', 'title', usArticles, config, 'usSection');
+        await generateAIContentWithRetry('section_intro', 'introduction', usArticles, config, 'usSection');
+        await generateAIContentWithRetry('section_trends', 'trends', usArticles, config, 'usSection');
+      }
+
+      if (config.globalSection.enabled && globalArticles.length > 0) {
+        console.log("Generating Global section content...");
+        await generateAIContentWithRetry('section_title', 'title', globalArticles, config, 'globalSection');
+        await generateAIContentWithRetry('section_intro', 'introduction', globalArticles, config, 'globalSection');
+        await generateAIContentWithRetry('section_trends', 'trends', globalArticles, config, 'globalSection');
+      }
+
+      console.log("AI content generation completed successfully");
+
+    } catch (error) {
+      console.error("Error generating AI content:", error);
+      // Set fallback content if generation fails
+      setFallbackContent(selectedArticles, config, euArticles, usArticles, globalArticles);
+    }
+  };
+
+  const generateAIContentWithRetry = async (
+    type: string, 
+    field: string, 
+    articles: Article[], 
+    config: BulletinConfig, 
+    region?: string,
+    retries = 3
+  ): Promise<string> => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`Generating ${type} for ${region || 'general'} (attempt ${attempt})`);
+        
+        const requestBody: any = {
+          type,
+          articles: articles,
+          region: region?.replace('Section', '').toUpperCase(),
+          currentDate: config.publicationDate,
+          customInstructions: config.customInstructions || "Generate comprehensive, professional content for an ESG regulatory bulletin."
+        };
+
+        // Add context-specific data
+        switch (type) {
+          case 'greeting':
+            requestBody.previousGreeting = config.previousGreeting;
+            break;
+        }
+
+        const response = await fetch('/api/generate-bulletin-content', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        if (!data.content) {
+          throw new Error('No content received from AI');
+        }
+
+        // Update the configuration with the generated content
+        updateConfigWithContent(type, field, data.content, region);
+
+        console.log(`Successfully generated ${type} for ${region || 'general'}`);
+        return data.content;
+
+      } catch (error) {
+        console.warn(`Attempt ${attempt} failed for ${type}:`, error);
+        if (attempt === retries) {
+          throw error;
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+    throw new Error(`All ${retries} attempts failed for ${type}`);
+  };
+
+  const updateConfigWithContent = (type: string, field: string, content: string, region?: string) => {
+    switch (type) {
+      case 'greeting':
+        setBulletinConfig(prev => ({
+          ...prev,
+          greetingMessage: content
+        }));
+        break;
+      case 'key_trends':
+        setBulletinConfig(prev => ({
+          ...prev,
+          generatedContent: {
+            ...prev.generatedContent,
+            keyTrends: content
+          }
+        }));
+        break;
+      case 'executive_summary':
+        setBulletinConfig(prev => ({
+          ...prev,
+          generatedContent: {
+            ...prev.generatedContent,
+            executiveSummary: content
+          }
+        }));
+        break;
+      case 'key_takeaways':
+        setBulletinConfig(prev => ({
+          ...prev,
+          generatedContent: {
+            ...prev.generatedContent,
+            keyTakeaways: content
+          }
+        }));
+        break;
+      case 'section_title':
+        if (region) {
+          setBulletinConfig(prev => ({
+            ...prev,
+            [region]: {
+              ...prev[region as keyof BulletinConfig],
+              title: content
+            }
+          }));
+        }
+        break;
+      case 'section_intro':
+        if (region) {
+          setBulletinConfig(prev => ({
+            ...prev,
+            [region]: {
+              ...prev[region as keyof BulletinConfig],
+              introduction: content
+            }
+          }));
+        }
+        break;
+      case 'section_trends':
+        if (region) {
+          setBulletinConfig(prev => ({
+            ...prev,
+            [region]: {
+              ...prev[region as keyof BulletinConfig],
+              trends: content
+            }
+          }));
+        }
+        break;
+    }
+  };
+
+  const setFallbackContent = (
+    selectedArticles: Article[], 
+    config: BulletinConfig,
+    euArticles: Article[],
+    usArticles: Article[], 
+    globalArticles: Article[]
+  ) => {
+    console.log("Setting fallback content...");
+    
+    // Fallback greeting
+    const fallbackGreeting = `Welcome to this month's ESG Regulatory Bulletin. We've curated ${selectedArticles.length} important developments covering environmental, social, and governance regulations across global jurisdictions.`;
+
+    // Fallback key trends
+    const fallbackTrends = `1. Increased regulatory focus on climate disclosure requirements
+2. Growing emphasis on supply chain due diligence and human rights
+3. Expansion of ESG reporting frameworks and standardization efforts
+4. Enhanced corporate governance and board oversight expectations
+5. Rising importance of biodiversity and nature-related financial disclosures`;
+
+    // Fallback executive summary
+    const fallbackSummary = `This month's bulletin highlights significant regulatory developments across global ESG landscapes. Key themes include enhanced disclosure requirements, strengthened governance frameworks, and evolving sustainability standards. The selected ${selectedArticles.length} articles provide comprehensive coverage of emerging trends and regulatory updates that impact corporate compliance and strategic planning.`;
+
+    // Fallback key takeaways
+    const fallbackTakeaways = `• Regulatory bodies are intensifying ESG disclosure requirements
+• Companies must prepare for enhanced reporting obligations
+• Global alignment on sustainability standards is progressing
+• Stakeholder expectations for transparent ESG reporting are increasing
+• Proactive compliance strategies are essential for regulatory success`;
+
+    setBulletinConfig(prev => ({
+      ...prev,
+      greetingMessage: prev.greetingMessage || fallbackGreeting,
+      generatedContent: {
+        keyTrends: prev.generatedContent.keyTrends || fallbackTrends,
+        executiveSummary: prev.generatedContent.executiveSummary || fallbackSummary,
+        keyTakeaways: prev.generatedContent.keyTakeaways || fallbackTakeaways,
+        euTrends: prev.generatedContent.euTrends || "",
+        usTrends: prev.generatedContent.usTrends || "",
+        globalTrends: prev.generatedContent.globalTrends || "",
+      },
+      euSection: {
+        ...prev.euSection,
+        title: prev.euSection.title || "EU Regulatory Developments",
+        introduction: prev.euSection.introduction || `This section covers ${euArticles.length} key regulatory updates from the European Union, focusing on the latest ESG directives and compliance requirements.`,
+        trends: prev.euSection.trends || "EU continues to lead in sustainable finance regulations with enhanced disclosure requirements and taxonomy alignment."
+      },
+      usSection: {
+        ...prev.usSection,
+        title: prev.usSection.title || "US Regulatory Updates", 
+        introduction: prev.usSection.introduction || `This section highlights ${usArticles.length} significant developments in US ESG regulation, including SEC guidelines and state-level initiatives.`,
+        trends: prev.usSection.trends || "US regulators are increasingly focusing on climate risk disclosure and investor protection in ESG investments."
+      },
+      globalSection: {
+        ...prev.globalSection,
+        title: prev.globalSection.title || "Global ESG Insights",
+        introduction: prev.globalSection.introduction || `This section explores ${globalArticles.length} international ESG developments from jurisdictions worldwide, providing a comprehensive global perspective.`,
+        trends: prev.globalSection.trends || "Global convergence on sustainability standards and cross-border regulatory cooperation are key trends."
+      }
+    }));
+  };
+
+  // ... rest of the component remains the same until the return statement ...
 
   // Group jurisdictions by region for better organization
   const groupedJurisdictions = useMemo(() => {
@@ -298,8 +650,8 @@ export default function BulletinGenerator() {
 
     const formData: BulletinFormData = {
       theme,
-      page,
-      limit,
+      page: 1,
+      limit: 5000,
       type_id: finalTypeId,
       ...(finalQuery && { query: finalQuery }),
       jurisdiction_id: finalJurisdictionId,
@@ -360,7 +712,7 @@ export default function BulletinGenerator() {
     } finally {
       setLoading(false)
     }
-  }, [query, theme, page, limit, filters, toast, selectedIds, allArticles])
+  }, [query, theme, filters, toast, selectedIds])
 
   /**
    * Performs a search with default filter values
@@ -371,7 +723,7 @@ export default function BulletinGenerator() {
     const formData: BulletinFormData = {
       theme: "blue",
       page: 1,
-      limit,
+      limit: 5000,
       type_id: defaultTypeId,
       // No query, jurisdiction_id, or date filters
     }
@@ -419,7 +771,7 @@ export default function BulletinGenerator() {
     } finally {
       setLoading(false)
     }
-  }, [limit, toast, selectedIds])
+  }, [toast, selectedIds])
 
   /**
    * Auto-search when filters change
@@ -540,7 +892,6 @@ export default function BulletinGenerator() {
   const resetAllFilters = () => {
     // Reset form state
     setQuery("")
-    setPage(1)
     setCurrentPage(1)
     
     // Reset filters to default values
@@ -717,6 +1068,9 @@ export default function BulletinGenerator() {
                 <CardTitle className="text-lg">Search Articles</CardTitle>
                 <CardDescription>
                   {loading ? "Searching..." : `Found ${articles.length} articles, ${selectedIds.size} selected`}
+                  {isAutoConfiguring && (
+                    <span className="text-blue-600 font-medium ml-2">• Auto-configuring bulletin...</span>
+                  )}
                 </CardDescription>
               </div>
               <Button
@@ -916,16 +1270,7 @@ export default function BulletinGenerator() {
                       Clear All
                     </Button>
                   )}
-                  <Button
-                    onClick={openConfigModal}
-                    disabled={selectedIds.size === 0}
-                    size="sm"
-                    style={{
-                      backgroundColor: selectedIds.size === 0 ? "#ccc" : THEME_CONFIG[theme].color,
-                    }}
-                  >
-                    Configure Bulletin
-                  </Button>
+                  {/* Removed Configure Bulletin Button - now automatic */}
                 </div>
               )}
             </div>
@@ -1035,7 +1380,7 @@ export default function BulletinGenerator() {
               <div className="flex justify-center mt-6">
                 <Button
                   onClick={openGenerateConfirmationModal}
-                  disabled={selectedIds.size === 0 || isGenerating}
+                  disabled={selectedIds.size === 0 || isGenerating || isAutoConfiguring}
                   className="px-8"
                   style={{
                     backgroundColor: selectedIds.size === 0 ? "#ccc" : THEME_CONFIG[theme].color,
@@ -1045,6 +1390,11 @@ export default function BulletinGenerator() {
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Generating...
+                    </div>
+                  ) : isAutoConfiguring ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Auto-configuring...
                     </div>
                   ) : (
                     `Generate Bulletin (${selectedIds.size})`
