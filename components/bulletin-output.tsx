@@ -698,6 +698,7 @@ function HeaderEditModal({
   currentData
 }: HeaderEditModalProps) {
   const [formData, setFormData] = useState(currentData)
+  const [showPexelsSearch, setShowPexelsSearch] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -712,6 +713,15 @@ function HeaderEditModal({
       setFormData(prev => ({ ...prev, [field]: result }))
     }
     reader.readAsDataURL(file)
+  }
+
+  // NEW: Handle Pexels image selection for header
+  const handlePexelsImageSelect = (image: PexelsPhoto) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      headerImage: image.src.large2x || image.src.large 
+    }))
+    setShowPexelsSearch(false)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -783,11 +793,27 @@ function HeaderEditModal({
             </div>
           </div>
 
-          {/* Header Background Image */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Header Background Image
-            </label>
+          {/* Header Background Image - UPDATED WITH PEXELS */}
+          <div className="bg-black/5 p-4 rounded-lg">
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Header Background Image
+              </label>
+              <div className="flex gap-2">
+               
+                {formData.headerImage && (
+                  <Button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, headerImage: '' }))}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+                  >
+                    Remove Image
+                  </Button>
+                )}
+              </div>
+            </div>
             <DragDropImageUpload
               onImageUpload={(file) => handleImageUpload('headerImage', file)}
               currentImage={formData.headerImage}
@@ -797,7 +823,7 @@ function HeaderEditModal({
           </div>
 
           {/* Publisher Logo */}
-          <div>
+          <div className="bg-black/5 p-4 rounded-lg">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Publisher Logo
             </label>
@@ -827,6 +853,34 @@ function HeaderEditModal({
             </Button>
           </div>
         </form>
+
+        {/* Pexels Search Modal for Header */}
+        {showPexelsSearch && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-lg max-w-6xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="p-4 border-b flex justify-between items-center bg-white">
+                <h3 className="text-lg font-semibold">Search Header Background Images</h3>
+                <button
+                  onClick={() => setShowPexelsSearch(false)}
+                  className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <PexelsImageSearch
+                  onImageSelect={handlePexelsImageSelect}
+                  onClose={() => setShowPexelsSearch(false)}
+                  isOpen={true}
+                  bulletinContent={null}
+                  currentArticleId="header"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1345,7 +1399,7 @@ function PexelsImageSearch({
         <div className="p-4 border-b bg-white flex-shrink-0">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-900">
-              Search Images
+              {currentArticleId === 'header' ? 'Search Header Background Images' : 'Search Article Images'}
             </h2>
             <button
               onClick={onClose}
@@ -1362,7 +1416,11 @@ function PexelsImageSearch({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search for images (e.g., sustainability, renewable energy, ESG...)"
+              placeholder={
+                currentArticleId === 'header' 
+                  ? "Search for header background images (e.g., abstract, gradient, corporate...)"
+                  : "Search for images (e.g., sustainability, renewable energy, ESG...)"
+              }
               className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
@@ -1396,13 +1454,15 @@ function PexelsImageSearch({
                 <img
                   src={image.src.medium}
                   alt={image.alt || 'Pexels image'}
-                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+                  className={`w-full object-cover group-hover:scale-105 transition-transform duration-200 ${
+                    currentArticleId === 'header' ? 'h-32' : 'h-48'
+                  }`}
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-white text-center p-4">
                     <p className="font-medium">Click to select</p>
-                    <p className="text-sm mt-1">or drag to article</p>
+                    <p className="text-sm mt-1">or drag to {currentArticleId === 'header' ? 'header' : 'article'}</p>
                   </div>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
@@ -1434,8 +1494,6 @@ function PexelsImageSearch({
             </div>
           )}
         </div>
-
-
       </div>
 
       {/* Bulletin Output Panel - Right Side */}
@@ -1444,7 +1502,10 @@ function PexelsImageSearch({
           <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
             <h3 className="text-lg font-semibold mb-4">Bulletin Preview</h3>
             <p className="text-gray-600 text-sm">
-              Drag and drop images from the left panel to any article image area in the bulletin.
+              {currentArticleId === 'header' 
+                ? "Drag and drop images from the left panel to the header background area."
+                : "Drag and drop images from the left panel to any article image area in the bulletin."
+              }
             </p>
           </div>
 
@@ -1494,6 +1555,9 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   const [pexelsTargetArticle, setPexelsTargetArticle] = useState<string | null>(null)
   const [articles, setArticles] = useState(initialArticles)
   const [dragOverArticle, setDragOverArticle] = useState<string | null>(null)
+
+  // NEW: Drag and drop state for header
+  const [isHeaderDragOver, setIsHeaderDragOver] = useState(false)
 
   // NEW: Unified loading state management
   const [pendingOperations, setPendingOperations] = useState<Set<string>>(new Set());
@@ -1569,6 +1633,32 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     blue: "#1976D2",
     green: "#388E3C",
     red: "#D32F2F",
+  }
+
+  // NEW: Drag and drop handlers for header background
+  const handleHeaderDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsHeaderDragOver(true)
+  }
+
+  const handleHeaderDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsHeaderDragOver(false)
+  }
+
+  const handleHeaderDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsHeaderDragOver(false)
+
+    try {
+      const imageData: PexelsPhoto = JSON.parse(e.dataTransfer.getData('text/plain'))
+      setEditableContent(prev => ({
+        ...prev,
+        headerImage: imageData.src.large2x || imageData.src.large
+      }))
+    } catch (error) {
+      console.error('Error parsing dropped Pexels image for header:', error)
+    }
   }
 
   // Automatically fetch source data for all articles on initial load
@@ -1726,7 +1816,14 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   }
 
   const handlePexelsImageSelect = (image: PexelsPhoto) => {
-    if (pexelsTargetArticle) {
+    if (pexelsTargetArticle === 'header') {
+      // Handle header image selection
+      setEditableContent(prev => ({
+        ...prev,
+        headerImage: image.src.large2x || image.src.large
+      }))
+    } else if (pexelsTargetArticle) {
+      // Handle article image selection
       handleArticleUpdate(pexelsTargetArticle, {
         imageUrl: image.src.large2x || image.src.large
       })
@@ -2596,8 +2693,15 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
   // Main bulletin content renderer - used in both normal view and split-screen
   const renderBulletinContent = () => (
     <div className="print:block print:bg-white print:p-0 print:max-w-none">
-      {/* HEADER SECTION */}
-      <div className="relative mb-6 border-b pb-4 overflow-hidden print:mb-3 print:pb-2">
+      {/* HEADER SECTION - UPDATED WITH DRAG AND DROP */}
+      <div 
+        className={`relative mb-6 border-b pb-4 overflow-hidden print:mb-3 print:pb-2 ${
+          isHeaderDragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+        }`}
+        onDragOver={handleHeaderDragOver}
+        onDragLeave={handleHeaderDragLeave}
+        onDrop={handleHeaderDrop}
+      >
         {/* Header Background Image Container */}
         <div className="absolute inset-0 z-0 print:absolute print:inset-0 print:z-0 h-40">
           {/* Dark overlay */}
@@ -2616,10 +2720,24 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               />
             ) : (
               <div className="w-full h-full bg-gray-200 flex items-center justify-center print:bg-gray-300 h-40">
-                <span className="text-gray-500 print:text-gray-700">No header image</span>
+                <span className="text-gray-500 print:text-gray-700">
+                  {isHeaderDragOver ? 'Drop image here' : 'No header image'}
+                </span>
               </div>
             )}
           </div>
+          
+          {/* Drag overlay hint */}
+          {isHeaderDragOver && (
+            <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center z-20">
+              <div className="text-white text-center bg-blue-600/90 p-4 rounded-lg">
+                <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="font-medium">Drop to set as header background</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Header Content Container */}

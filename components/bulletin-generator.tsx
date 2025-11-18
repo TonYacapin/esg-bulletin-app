@@ -1069,7 +1069,7 @@ export default function BulletinGenerator() {
                 <CardDescription>
                   {loading ? "Searching..." : `Found ${articles.length} articles, ${selectedIds.size} selected`}
                   {isAutoConfiguring && (
-                    <span className="text-blue-600 font-medium ml-2">• Auto-configuring bulletin...</span>
+                    <span className="text-blue-600 font-medium ml-2">• Generating Automated AI Text</span>
                   )}
                 </CardDescription>
               </div>
@@ -1394,7 +1394,7 @@ export default function BulletinGenerator() {
                   ) : isAutoConfiguring ? (
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Auto-configuring...
+                      Generating..
                     </div>
                   ) : (
                     `Generate Bulletin (${selectedIds.size})`
