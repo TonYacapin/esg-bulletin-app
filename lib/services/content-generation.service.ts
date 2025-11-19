@@ -197,9 +197,9 @@ This is a new bulletin, so establish a warm, professional yet playful tone. Refl
       }
       break
 
- case ContentGenerationType.KEY_TRENDS:
-  systemPrompt =
-    `You are an ESG analyst generating exactly 5 key trends for the SCORE Regulatory Bulletin.
+    case ContentGenerationType.KEY_TRENDS:
+      systemPrompt =
+        `You are an ESG analyst generating exactly 5 key trends for the SCORE Regulatory Bulletin.
 
 Return the output ONLY in this strict machine-readable format:
 
@@ -215,8 +215,8 @@ Rules:
 - Each trend must be concise (~70 characters).
 - Focus on the most important ESG regulatory patterns and developments.`;
 
-  if (processedArticles.length > 0) {
-    userPrompt = `
+      if (processedArticles.length > 0) {
+        userPrompt = `
 Based on these recent ESG developments, generate exactly 5 key trends.
 
 Return them ONLY using this format:
@@ -230,8 +230,8 @@ Return them ONLY using this format:
 Here are the article details:
 ${getDetailedArticleContext(processedArticles, 8)}
     `;
-  } else {
-    userPrompt = `
+      } else {
+        userPrompt = `
 Based on the current ESG regulatory landscape, generate exactly 5 key trends.
 
 Return them ONLY using this format:
@@ -245,8 +245,8 @@ Return them ONLY using this format:
 Focus on sustainability reporting, climate regulations,
 corporate governance, and emerging ESG standards.
     `;
-  }
-  break;
+      }
+      break;
 
 
     case ContentGenerationType.EXECUTIVE_SUMMARY:
@@ -296,13 +296,48 @@ corporate governance, and emerging ESG standards.
 
     case ContentGenerationType.SECTION_TRENDS:
       systemPrompt =
-        "You are an ESG analyst identifying regional key trends for SCORE Regulatory Bulletin. Identify exactly 3 key trends as concise bullet points."
+        `You are an ESG analyst generating exactly 3 key trends for the ${region} section of SCORE Regulatory Bulletin.
+
+Return the output ONLY in this strict machine-readable format:
+
+<trend>First concise trend...</trend>
+<trend>Second concise trend...</trend>
+<trend>Third concise trend...</trend>
+
+Rules:
+- Use ONLY <trend>...</trend> tags.
+- No bullet points, no hyphens, no numbering.
+- Each trend must be concise (~70 characters).
+- Focus on ${region}-specific ESG regulatory patterns and developments.`;
+
       if (processedArticles.length > 0) {
-        userPrompt = `Identify exactly 3 key trends from these ${region} ESG developments as concise bullet points:\n\n${getDetailedArticleContext(processedArticles, 6)}`
+        userPrompt = `
+Based on these ${region} ESG developments, generate exactly 3 key trends specific to this region.
+
+Return them ONLY using this format:
+
+<trend>...</trend>
+<trend>...</trend>
+<trend>...</trend>
+
+Here are the article details from ${region}:
+${getDetailedArticleContext(processedArticles, 6)}
+    `;
       } else {
-        userPrompt = `Based on current ${region} ESG regulatory landscape, identify exactly 3 key trends as concise bullet points. Focus on region-specific developments, regulatory changes, and market impacts.`
+        userPrompt = `
+Based on the current ${region} ESG regulatory landscape, generate exactly 3 key trends specific to this region.
+
+Return them ONLY using this format:
+
+<trend>...</trend>
+<trend>...</trend>
+<trend>...</trend>
+
+Focus on ${region}-specific sustainability reporting, climate regulations,
+corporate governance, and emerging ESG standards in this region.
+    `;
       }
-      break
+      break;
 
     case ContentGenerationType.NEWS_SUMMARY:
       systemPrompt =
