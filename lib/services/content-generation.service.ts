@@ -197,16 +197,57 @@ This is a new bulletin, so establish a warm, professional yet playful tone. Refl
       }
       break
 
-    case ContentGenerationType.KEY_TRENDS:
-      systemPrompt =
-        "You are an ESG analyst identifying key trends for SCORE Regulatory Bulletin. Focus on the most important patterns and developments. Return exactly 5 concise bullet points."
-      if (processedArticles.length > 0) {
-        userPrompt = `Based on these recent ESG developments, identify exactly 5 key trends as concise bullet points (about 70 characters each):\n\n${getDetailedArticleContext(processedArticles, 8)}`
-      } else {
-        userPrompt =
-          "Based on current ESG regulatory landscape, identify exactly 5 key trends as concise bullet points (about 70 characters each). Focus on sustainability reporting, climate regulations, corporate governance, and emerging ESG standards."
-      }
-      break
+ case ContentGenerationType.KEY_TRENDS:
+  systemPrompt =
+    `You are an ESG analyst generating exactly 5 key trends for the SCORE Regulatory Bulletin.
+
+Return the output ONLY in this strict machine-readable format:
+
+<trend>First concise trend...</trend>
+<trend>Second concise trend...</trend>
+<trend>Third concise trend...</trend>
+<trend>Fourth concise trend...</trend>
+<trend>Fifth concise trend...</trend>
+
+Rules:
+- Use ONLY <trend>...</trend> tags.
+- No bullet points, no hyphens, no numbering.
+- Each trend must be concise (~70 characters).
+- Focus on the most important ESG regulatory patterns and developments.`;
+
+  if (processedArticles.length > 0) {
+    userPrompt = `
+Based on these recent ESG developments, generate exactly 5 key trends.
+
+Return them ONLY using this format:
+
+<trend>...</trend>
+<trend>...</trend>
+<trend>...</trend>
+<trend>...</trend>
+<trend>...</trend>
+
+Here are the article details:
+${getDetailedArticleContext(processedArticles, 8)}
+    `;
+  } else {
+    userPrompt = `
+Based on the current ESG regulatory landscape, generate exactly 5 key trends.
+
+Return them ONLY using this format:
+
+<trend>...</trend>
+<trend>...</trend>
+<trend>...</trend>
+<trend>...</trend>
+<trend>...</trend>
+
+Focus on sustainability reporting, climate regulations,
+corporate governance, and emerging ESG standards.
+    `;
+  }
+  break;
+
 
     case ContentGenerationType.EXECUTIVE_SUMMARY:
       systemPrompt =

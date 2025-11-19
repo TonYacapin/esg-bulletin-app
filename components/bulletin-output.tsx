@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { WorldMap } from "./world-map"
+import { LineChart } from "lucide-react"
 import "./bulletin-output.css"
 
 // Pexels Types
@@ -717,9 +718,9 @@ function HeaderEditModal({
 
   // NEW: Handle Pexels image selection for header
   const handlePexelsImageSelect = (image: PexelsPhoto) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      headerImage: image.src.large2x || image.src.large 
+    setFormData(prev => ({
+      ...prev,
+      headerImage: image.src.large2x || image.src.large
     }))
     setShowPexelsSearch(false)
   }
@@ -800,7 +801,7 @@ function HeaderEditModal({
                 Header Background Image
               </label>
               <div className="flex gap-2">
-               
+
                 {formData.headerImage && (
                   <Button
                     type="button"
@@ -1417,7 +1418,7 @@ function PexelsImageSearch({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={
-                currentArticleId === 'header' 
+                currentArticleId === 'header'
                   ? "Search for header background images (e.g., abstract, gradient, corporate...)"
                   : "Search for images (e.g., sustainability, renewable energy, ESG...)"
               }
@@ -1454,9 +1455,8 @@ function PexelsImageSearch({
                 <img
                   src={image.src.medium}
                   alt={image.alt || 'Pexels image'}
-                  className={`w-full object-cover group-hover:scale-105 transition-transform duration-200 ${
-                    currentArticleId === 'header' ? 'h-32' : 'h-48'
-                  }`}
+                  className={`w-full object-cover group-hover:scale-105 transition-transform duration-200 ${currentArticleId === 'header' ? 'h-32' : 'h-48'
+                    }`}
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
@@ -1502,7 +1502,7 @@ function PexelsImageSearch({
           <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
             <h3 className="text-lg font-semibold mb-4">Bulletin Preview</h3>
             <p className="text-gray-600 text-sm">
-              {currentArticleId === 'header' 
+              {currentArticleId === 'header'
                 ? "Drag and drop images from the left panel to the header background area."
                 : "Drag and drop images from the left panel to any article image area in the bulletin."
               }
@@ -1900,32 +1900,51 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     )
   }
 
+  // FIXED: Updated handleContentChange to properly handle Key Trends
   const handleContentChange = (section: string, field: string, value: string) => {
     setEditableContent(prev => {
+      // Handle key trends editing - when editing individual trends
+      if (section === 'keyTrends' && field) {
+        const index = parseInt(field);
+        const trends = prev.keyTrends.match(/<trend>(.*?)<\/trend>/gs) || [];
+        const newTrends = [...trends];
+
+        // Ensure we have enough trend slots
+        while (newTrends.length <= index) {
+          newTrends.push('<trend></trend>');
+        }
+
+        newTrends[index] = `<trend>${value}</trend>`;
+        return {
+          ...prev,
+          keyTrends: newTrends.join('')
+        };
+      }
+
       if (!field) {
         return {
           ...prev,
           [section]: value
-        }
+        };
       }
 
       if (section.includes('Section')) {
-        const sectionKey = section as 'euSection' | 'usSection' | 'globalSection'
+        const sectionKey = section as 'euSection' | 'usSection' | 'globalSection';
         return {
           ...prev,
           [sectionKey]: {
             ...prev[sectionKey],
             [field]: value
           }
-        }
+        };
       } else {
         return {
           ...prev,
           [section]: value
-        }
+        };
       }
-    })
-  }
+    });
+  };
 
   const handleEditToggle = (sectionId: string) => {
     setIsEditing(isEditing === sectionId ? null : sectionId)
@@ -1965,10 +1984,33 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     return newText
   }
 
+  // FIXED: Updated handleBold and handleItalic to work with Key Trends
   const handleBold = () => {
     if (!isEditing) return
 
     const [section, field] = isEditing.split('-')
+
+    // Handle key trends specially
+    if (section === 'keyTrends' && field) {
+      const index = parseInt(field);
+      const trends = editableContent.keyTrends.match(/<trend>(.*?)<\/trend>/gs) || [];
+      const currentTrend = trends[index] || '<trend></trend>';
+      const trendContent = currentTrend.replace(/<\/?trend>/g, "").trim();
+
+      const newTrendContent = applyFormatting(trendContent, 'bold');
+      const newTrend = `<trend>${newTrendContent}</trend>`;
+
+      const newTrends = [...trends];
+      newTrends[index] = newTrend;
+
+      setEditableContent(prev => ({
+        ...prev,
+        keyTrends: newTrends.join('')
+      }));
+      return;
+    }
+
+    // Handle other sections normally
     const currentContent = field
       ? editableContent[section as keyof typeof editableContent]?.[field as keyof typeof editableContent[keyof typeof editableContent]]
       : editableContent[section as keyof typeof editableContent]
@@ -1983,6 +2025,28 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     if (!isEditing) return
 
     const [section, field] = isEditing.split('-')
+
+    // Handle key trends specially
+    if (section === 'keyTrends' && field) {
+      const index = parseInt(field);
+      const trends = editableContent.keyTrends.match(/<trend>(.*?)<\/trend>/gs) || [];
+      const currentTrend = trends[index] || '<trend></trend>';
+      const trendContent = currentTrend.replace(/<\/?trend>/g, "").trim();
+
+      const newTrendContent = applyFormatting(trendContent, 'italic');
+      const newTrend = `<trend>${newTrendContent}</trend>`;
+
+      const newTrends = [...trends];
+      newTrends[index] = newTrend;
+
+      setEditableContent(prev => ({
+        ...prev,
+        keyTrends: newTrends.join('')
+      }));
+      return;
+    }
+
+    // Handle other sections normally
     const currentContent = field
       ? editableContent[section as keyof typeof editableContent]?.[field as keyof typeof editableContent[keyof typeof editableContent]]
       : editableContent[section as keyof typeof editableContent]
@@ -2020,20 +2084,40 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     addPendingOperation(operationId);
 
     try {
-      const [section, field] = sectionId.split('-');
+      const [section, field, index] = sectionId.split('-');
+
+      // If clicking regenerate on an INDIVIDUAL trend, regenerate ALL
+      if (section === 'keyTrends' && index !== undefined) {
+        await handleRegenerateAllKeyTrends();
+        return;
+      }
+
       const typeMapping: Record<string, string> = {
-        'headerText': 'header_text',
-        'issueNumber': 'issue_number',
-        'greetingMessage': 'greeting',
-        'keyTrends': 'key_trends',
-        'executiveSummary': 'executive_summary',
-        'keyTakeaways': 'key_takeaways',
+        headerText: 'header_text',
+        issueNumber: 'issue_number',
+        greetingMessage: 'greeting',
+
+        // Entire Key Trends block
+        keyTrends: 'key_trends',
+
+        // Any specific trend item should still regenerate the whole block
+        'keyTrends-0': 'key_trends',
+        'keyTrends-1': 'key_trends',
+        'keyTrends-2': 'key_trends',
+        'keyTrends-3': 'key_trends',
+        'keyTrends-4': 'key_trends',
+
+        executiveSummary: 'executive_summary',
+        keyTakeaways: 'key_takeaways',
+
         'euSection-title': 'section_title',
         'euSection-introduction': 'section_intro',
         'euSection-trends': 'section_trends',
+
         'usSection-title': 'section_title',
         'usSection-introduction': 'section_intro',
         'usSection-trends': 'section_trends',
+
         'globalSection-title': 'section_title',
         'globalSection-introduction': 'section_intro',
         'globalSection-trends': 'section_trends'
@@ -2062,30 +2146,19 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         customInstructions: safeBulletinConfig.customInstructions || ''
       };
 
-      if (region) {
-        requestBody.region = region;
-      }
-
-      if (apiType === 'greeting') {
-        requestBody.previousGreeting = safeBulletinConfig.previousGreeting || '';
-      }
+      if (region) requestBody.region = region;
+      if (apiType === 'greeting') requestBody.previousGreeting = safeBulletinConfig.previousGreeting || '';
 
       const response = await fetch('/api/generate-bulletin-content', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to regenerate content');
-      }
+      if (!response.ok) throw new Error('Failed to regenerate content');
 
       const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
+      if (data.error) throw new Error(data.error);
 
       setEditableContent(prev => {
         if (section.includes('Section')) {
@@ -2107,6 +2180,40 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
 
     } catch (error) {
       console.error('Error regenerating content:', error);
+    } finally {
+      removePendingOperation(operationId);
+    }
+  };
+
+  // Regenerate full 5-item Key Trends block
+  const handleRegenerateAllKeyTrends = async () => {
+    const operationId = 'regenerate-keyTrends';
+    addPendingOperation(operationId);
+
+    try {
+      const response = await fetch('/api/generate-bulletin-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'key_trends',
+          articles: articles,
+          currentDate: safeBulletinConfig.publicationDate || new Date().toISOString().split('T')[0],
+          customInstructions: safeBulletinConfig.customInstructions || ''
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to regenerate key trends');
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      setEditableContent(prev => ({
+        ...prev,
+        keyTrends: data.content // <trend>...</trend> format stored
+      }));
+
+    } catch (error) {
+      console.error('Error regenerating key trends:', error);
     } finally {
       removePendingOperation(operationId);
     }
@@ -2259,6 +2366,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     return `article-${index}`
   }
 
+  // FIXED: Updated renderEditableText to properly handle Key Trends
   const renderEditableText = (content: string, sectionId: string, placeholder: string, rows: number = 4) => {
     if (isEditing === sectionId) {
       return (
@@ -2610,27 +2718,27 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           )}
 
-        <div
-  className={
-    `m-4 gap-6 print:gap-3 grid grid-cols-1 ` +
-    (regionalArticles.length > 1 
-      ? "lg:grid-cols-2 print:grid-cols-2" 
-      : "")
-  }
->
-  {regionalArticles.map((article, index) => (
-    <div
-      key={index}
-      className={
-        regionalArticles.length % 2 === 1 && index === regionalArticles.length - 1
-          ? "lg:col-span-2 print:col-span-2"
-          : ""
-      }
-    >
-      {renderArticle(article, index)}
-    </div>
-  ))}
-</div>
+          <div
+            className={
+              `m-4 gap-6 print:gap-3 grid grid-cols-1 ` +
+              (regionalArticles.length > 1
+                ? "lg:grid-cols-2 print:grid-cols-2"
+                : "")
+            }
+          >
+            {regionalArticles.map((article, index) => (
+              <div
+                key={index}
+                className={
+                  regionalArticles.length % 2 === 1 && index === regionalArticles.length - 1
+                    ? "lg:col-span-2 print:col-span-2"
+                    : ""
+                }
+              >
+                {renderArticle(article, index)}
+              </div>
+            ))}
+          </div>
 
 
         </section>
@@ -2690,14 +2798,118 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     );
   };
 
+  // FIXED: Updated Key Trends rendering to properly handle individual trend editing
+
+const renderKeyTrends = () => {
+  if (!editableContent.keyTrends) return null;
+
+  console.log('Raw keyTrends content:', editableContent.keyTrends);
+
+  // Parse the trends from the XML-like format
+  let trends: string[] = [];
+  
+  // Method 1: Try regex parsing with more robust pattern
+  const regexMatches = editableContent.keyTrends.match(/<trend>([\s\S]*?)<\/trend>/g);
+  if (regexMatches && regexMatches.length > 0) {
+    console.log('Found XML trends:', regexMatches);
+    trends = regexMatches.map(t => {
+      // Remove the <trend> and </trend> tags
+      const content = t.replace(/<trend>|<\/trend>/g, '').trim();
+      return content;
+    }).filter(t => t.length > 0);
+  } else {
+    // Method 2: If no XML tags found, try to split by newlines
+    console.log('No XML tags found, trying line splitting');
+    const lines = editableContent.keyTrends.split('\n').filter(line => line.trim().length > 0);
+    if (lines.length > 0) {
+      trends = lines.map(line => line.trim());
+    } else {
+      // Method 3: Fallback - use the entire content as one trend
+      trends = [editableContent.keyTrends.trim()];
+    }
+  }
+
+  console.log('Parsed trends:', trends);
+
+  // If we still have empty trends but there's content, try manual parsing
+  if (trends.length === 0 && editableContent.keyTrends.trim()) {
+    console.log('Manual parsing fallback');
+    // Try to extract content between trend tags manually
+    const content = editableContent.keyTrends;
+    const startTag = '<trend>';
+    const endTag = '</trend>';
+    let startIndex = content.indexOf(startTag);
+    
+    while (startIndex !== -1) {
+      const endIndex = content.indexOf(endTag, startIndex);
+      if (endIndex !== -1) {
+        const trendContent = content.substring(startIndex + startTag.length, endIndex).trim();
+        if (trendContent) {
+          trends.push(trendContent);
+        }
+        startIndex = content.indexOf(startTag, endIndex + endTag.length);
+      } else {
+        break;
+      }
+    }
+  }
+
+  console.log('Final parsed trends:', trends);
+
+  // Get theme colors
+  const themeColor = themeColors[theme];
+  const themeShades = {
+    blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', printBg: 'print:bg-blue-100' },
+    green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', printBg: 'print:bg-green-100' },
+    red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', printBg: 'print:bg-red-100' }
+  };
+
+  const currentTheme = themeShades[theme] || themeShades.blue;
+
+  return (
+    <div className="mb-8 print:mb-6">
+      <h2 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-1 print:text-xl print:mb-3">
+        5 Key Trends
+      </h2>
+
+      {/* Two-column grid layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {trends.map((trend, index) => (
+          <div 
+            key={index} 
+            className={`${currentTheme.bg} p-4 rounded-lg border ${currentTheme.border} flex items-start gap-3 print:p-3 ${currentTheme.printBg} print:border`}
+            style={{
+              // Fallback inline styles for more consistent theming
+              backgroundColor: themeColor + '10', // Add opacity
+              borderColor: themeColor + '30',
+            }}
+          >
+            <LineChart 
+              className={`w-6 h-6 ${currentTheme.text} shrink-0`} 
+              style={{ color: themeColor }}
+            />
+            <div className="flex-1">
+              {renderEditableText(
+                trend,
+                `keyTrends-${index}`,
+                "Key trend...",
+                6
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
   // Main bulletin content renderer - used in both normal view and split-screen
   const renderBulletinContent = () => (
     <div className="print:block print:bg-white print:p-0 print:max-w-none">
       {/* HEADER SECTION - UPDATED WITH DRAG AND DROP */}
-      <div 
-        className={`relative mb-6 border-b pb-4 overflow-hidden print:mb-3 print:pb-2 ${
-          isHeaderDragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-        }`}
+      <div
+        className={`relative mb-6 border-b pb-4 overflow-hidden print:mb-3 print:pb-2 ${isHeaderDragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+          }`}
         onDragOver={handleHeaderDragOver}
         onDragLeave={handleHeaderDragLeave}
         onDrop={handleHeaderDrop}
@@ -2726,7 +2938,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
               </div>
             )}
           </div>
-          
+
           {/* Drag overlay hint */}
           {isHeaderDragOver && (
             <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center z-20">
@@ -2830,20 +3042,8 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       {/* KEY TRENDS & EXECUTIVE SUMMARY CONTAINER */}
       {(editableContent.keyTrends || editableContent.executiveSummary) && (
         <div className="print:break-after-page">
-          {/* KEY TRENDS */}
-          {editableContent.keyTrends && (
-            <div className="mb-8 print:mb-6">
-              <h2 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-1 print:text-xl print:mb-3">5 Key Trends</h2>
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 print:p-3 print:bg-blue-100 print:border">
-                {renderEditableText(
-                  editableContent.keyTrends,
-                  "keyTrends",
-                  "Key trends will appear here...",
-                  6
-                )}
-              </div>
-            </div>
-          )}
+          {/* KEY TRENDS - FIXED VERSION */}
+          {renderKeyTrends()}
 
           {/* EXECUTIVE SUMMARY */}
           {editableContent.executiveSummary && (
@@ -2991,7 +3191,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
                 {/* Loading text with progress */}
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold text-gray-800">
-                      Summarizing Bulletin Articles
+                    Summarizing Bulletin Articles
                   </h3>
                   <p className="text-gray-600 text-sm">
                     Summarizing {pendingOperations.size} item{pendingOperations.size !== 1 ? 's' : ''}...
