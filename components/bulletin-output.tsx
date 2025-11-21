@@ -2458,9 +2458,27 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       });
     });
   }
-
   const handleDownloadPDF = () => {
+    // Apply print-specific styles temporarily
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        @page {
+          margin: 0;
+        }
+        body {
+          margin: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
     window.print();
+    
+    // Remove the style after printing
+    setTimeout(() => {
+      document.head.removeChild(style);
+    }, 1000);
   }
 
   const getMapCountries = () => {

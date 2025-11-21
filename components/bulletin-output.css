@@ -1,15 +1,25 @@
 /* bulletin-output.css */
+@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700&display=swap');
+
+/* Apply Lato font to the entire bulletin */
+.bulletin-output, 
+.bulletin-output * {
+  font-family: 'Lato', sans-serif !important;
+}
 
 /* Print Styles */
 @media print {
-  .print-hidden {
-    display: none !important;
-  }
+  @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700&display=swap');
   
   * {
+    font-family: 'Lato', sans-serif !important;
     -webkit-print-color-adjust: exact !important;
     color-adjust: exact !important;
     box-sizing: border-box;
+  }
+  
+  .print-hidden {
+    display: none !important;
   }
   
   body {
@@ -18,6 +28,7 @@
     background: white !important;
     line-height: 1.3;
     font-size: 11pt;
+    font-family: 'Lato', sans-serif !important;
   }
   
   /* Only hide specific buttons, not all buttons */
@@ -39,6 +50,7 @@
     border-radius: 3px !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+    font-family: 'Lato', sans-serif !important;
   }
   
   .container {
@@ -46,6 +58,7 @@
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
+    font-family: 'Lato', sans-serif !important;
   }
   
   @page {
@@ -73,6 +86,7 @@
     margin-bottom: 1rem !important;
     break-after: avoid !important;
     page-break-after: avoid !important;
+    font-family: 'Lato', sans-serif !important;
   }
   
   /* Two-column layout with better spacing */
@@ -90,6 +104,7 @@
     width: 100% !important;
     margin-bottom: 0.4rem !important;
     min-height: 0 !important;
+    font-family: 'Lato', sans-serif !important;
   }
   
   .break-inside-avoid-page {
@@ -122,6 +137,7 @@
     color: white !important;
     position: relative !important;
     z-index: 101 !important;
+    font-family: 'Lato', sans-serif !important;
   }
   
   /* Remove all margins and frames from publisher logo in print */
@@ -346,6 +362,7 @@
     gap: 8px;
     justify-content: center;
     margin-bottom: 2rem;
+    font-family: 'Lato', sans-serif;
   }
   
   .table-of-contents button {
@@ -358,6 +375,7 @@
     cursor: pointer;
     transition: all 0.2s;
     font-size: 0.875rem;
+    font-family: 'Lato', sans-serif;
   }
   
   .table-of-contents button:hover {
@@ -378,6 +396,7 @@
     margin-bottom: 1rem;
     display: inline-block;
     width: 100%;
+    font-family: 'Lato', sans-serif;
   }
   
   .screen-columns-2 {
@@ -399,6 +418,7 @@
   .legend-item {
     cursor: pointer;
     transition: background-color 0.2s;
+    font-family: 'Lato', sans-serif;
   }
   
   .legend-item:hover {
@@ -409,6 +429,7 @@
   .legend-item .screen-link {
     text-decoration: none;
     color: inherit;
+    font-family: 'Lato', sans-serif;
   }
   
   .legend-item .screen-link:hover {
@@ -420,6 +441,7 @@
   .article-container h3 .screen-link {
     text-decoration: none;
     color: inherit;
+    font-family: 'Lato', sans-serif;
   }
   
   .article-container h3 .screen-link:hover {
