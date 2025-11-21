@@ -1900,77 +1900,77 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     )
   }
 
-  
- // FIXED: Enhanced handleContentChange to properly handle section trends
-const handleContentChange = (section: string, field: string, value: string) => {
-  setEditableContent(prev => {
-    // Handle main key trends editing - when editing individual trends (5 trends)
-    if (section === 'keyTrends' && field) {
-      const index = parseInt(field);
-      const trends = prev.keyTrends.match(/<trend>(.*?)<\/trend>/gs) || [];
-      const newTrends = [...trends];
 
-      // Ensure we have enough trend slots - MAIN KEY TRENDS = 5
-      while (newTrends.length <= index) {
-        newTrends.push('<trend></trend>');
+  // FIXED: Enhanced handleContentChange to properly handle section trends
+  const handleContentChange = (section: string, field: string, value: string) => {
+    setEditableContent(prev => {
+      // Handle main key trends editing - when editing individual trends (5 trends)
+      if (section === 'keyTrends' && field) {
+        const index = parseInt(field);
+        const trends = prev.keyTrends.match(/<trend>(.*?)<\/trend>/gs) || [];
+        const newTrends = [...trends];
+
+        // Ensure we have enough trend slots - MAIN KEY TRENDS = 5
+        while (newTrends.length <= index) {
+          newTrends.push('<trend></trend>');
+        }
+
+        // Update only the specific trend, preserving others
+        newTrends[index] = `<trend>${value}</trend>`;
+        return {
+          ...prev,
+          keyTrends: newTrends.join('')
+        };
       }
 
-      // Update only the specific trend, preserving others
-      newTrends[index] = `<trend>${value}</trend>`;
-      return {
-        ...prev,
-        keyTrends: newTrends.join('')
-      };
-    }
+      // Handle section trends editing - when editing individual section trends (3 trends)
+      if (field && field.startsWith('trends-')) {
+        const sectionKey = section as 'euSection' | 'usSection' | 'globalSection';
+        const index = parseInt(field.split('-')[1]);
+        const trends = prev[sectionKey].trends.match(/<trend>(.*?)<\/trend>/gs) || [];
+        const newTrends = [...trends];
 
-    // Handle section trends editing - when editing individual section trends (3 trends)
-    if (field && field.startsWith('trends-')) {
-      const sectionKey = section as 'euSection' | 'usSection' | 'globalSection';
-      const index = parseInt(field.split('-')[1]);
-      const trends = prev[sectionKey].trends.match(/<trend>(.*?)<\/trend>/gs) || [];
-      const newTrends = [...trends];
-      
-      // Ensure we have enough trend slots - SECTION TRENDS = 3
-      while (newTrends.length <= index) {
-        newTrends.push('<trend></trend>');
+        // Ensure we have enough trend slots - SECTION TRENDS = 3
+        while (newTrends.length <= index) {
+          newTrends.push('<trend></trend>');
+        }
+
+        // Update only the specific trend, preserving others
+        newTrends[index] = `<trend>${value}</trend>`;
+        return {
+          ...prev,
+          [sectionKey]: {
+            ...prev[sectionKey],
+            trends: newTrends.join('')
+          }
+        };
       }
-      
-      // Update only the specific trend, preserving others
-      newTrends[index] = `<trend>${value}</trend>`;
-      return {
-        ...prev,
-        [sectionKey]: {
-          ...prev[sectionKey],
-          trends: newTrends.join('')
-        }
-      };
-    }
 
-    // Handle regular section fields (title, introduction)
-    if (!field) {
-      return {
-        ...prev,
-        [section]: value
-      };
-    }
+      // Handle regular section fields (title, introduction)
+      if (!field) {
+        return {
+          ...prev,
+          [section]: value
+        };
+      }
 
-    if (section.includes('Section')) {
-      const sectionKey = section as 'euSection' | 'usSection' | 'globalSection';
-      return {
-        ...prev,
-        [sectionKey]: {
-          ...prev[sectionKey],
-          [field]: value
-        }
-      };
-    } else {
-      return {
-        ...prev,
-        [section]: value
-      };
-    }
-  });
-};
+      if (section.includes('Section')) {
+        const sectionKey = section as 'euSection' | 'usSection' | 'globalSection';
+        return {
+          ...prev,
+          [sectionKey]: {
+            ...prev[sectionKey],
+            [field]: value
+          }
+        };
+      } else {
+        return {
+          ...prev,
+          [section]: value
+        };
+      }
+    });
+  };
 
   const handleEditToggle = (sectionId: string) => {
     setIsEditing(isEditing === sectionId ? null : sectionId)
@@ -2209,13 +2209,13 @@ const handleContentChange = (section: string, field: string, value: string) => {
         'euSection-trends-2': 'section_trends',
         'euSection-trends-3': 'section_trends',
         'euSection-trends-4': 'section_trends',
-        
+
         'usSection-trends-0': 'section_trends',
         'usSection-trends-1': 'section_trends',
         'usSection-trends-2': 'section_trends',
         'usSection-trends-3': 'section_trends',
         'usSection-trends-4': 'section_trends',
-        
+
         'globalSection-trends-0': 'section_trends',
         'globalSection-trends-1': 'section_trends',
         'globalSection-trends-2': 'section_trends',
@@ -2632,113 +2632,113 @@ const handleContentChange = (section: string, field: string, value: string) => {
     );
   };
 
-// FIXED: Function to render section trends in the same format as main key trends
-const renderSectionTrends = (trendsContent: string, sectionId: string, region: string) => {
-  if (!trendsContent) return null;
+  // FIXED: Function to render section trends in the same format as main key trends
+  const renderSectionTrends = (trendsContent: string, sectionId: string, region: string) => {
+    if (!trendsContent) return null;
 
-  // Parse the trends from the XML-like format
-  let trends: string[] = [];
-  
-  // Method 1: Try regex parsing
-  const regexMatches = trendsContent.match(/<trend>(.*?)<\/trend>/g);
-  if (regexMatches && regexMatches.length > 0) {
-    trends = regexMatches.map(t => {
-      const content = t.replace(/<trend>|<\/trend>/g, '').trim();
-      return content;
-    }).filter(t => t.length > 0);
-  } else {
-    // Method 2: If no XML tags found, try to split by newlines
-    const lines = trendsContent.split('\n').filter(line => line.trim().length > 0);
-    if (lines.length > 0) {
-      trends = lines.map(line => line.trim());
+    // Parse the trends from the XML-like format
+    let trends: string[] = [];
+
+    // Method 1: Try regex parsing
+    const regexMatches = trendsContent.match(/<trend>(.*?)<\/trend>/g);
+    if (regexMatches && regexMatches.length > 0) {
+      trends = regexMatches.map(t => {
+        const content = t.replace(/<trend>|<\/trend>/g, '').trim();
+        return content;
+      }).filter(t => t.length > 0);
     } else {
-      // Method 3: Fallback - use the entire content as one trend
-      trends = [trendsContent.trim()];
-    }
-  }
-
-  // Manual parsing fallback
-  if (trends.length === 0 && trendsContent.trim()) {
-    const content = trendsContent;
-    const startTag = '<trend>';
-    const endTag = '</trend>';
-    let startIndex = content.indexOf(startTag);
-    
-    while (startIndex !== -1) {
-      const endIndex = content.indexOf(endTag, startIndex);
-      if (endIndex !== -1) {
-        const trendContent = content.substring(startIndex + startTag.length, endIndex).trim();
-        if (trendContent) {
-          trends.push(trendContent);
-        }
-        startIndex = content.indexOf(startTag, endIndex + endTag.length);
+      // Method 2: If no XML tags found, try to split by newlines
+      const lines = trendsContent.split('\n').filter(line => line.trim().length > 0);
+      if (lines.length > 0) {
+        trends = lines.map(line => line.trim());
       } else {
-        break;
+        // Method 3: Fallback - use the entire content as one trend
+        trends = [trendsContent.trim()];
       }
     }
-  }
 
-  // SECTION TRENDS: Ensure we have exactly 3 trend slots for consistent display
-  const trendSlots = 3;
-  while (trends.length < trendSlots) {
-    trends.push('');
-  }
-  
-  // Only show the first 3 trends for sections
-  const displayTrends = trends.slice(0, trendSlots);
+    // Manual parsing fallback
+    if (trends.length === 0 && trendsContent.trim()) {
+      const content = trendsContent;
+      const startTag = '<trend>';
+      const endTag = '</trend>';
+      let startIndex = content.indexOf(startTag);
 
-  const themeColor = themeColors[theme];
-  const themeShades = {
-    blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', printBg: 'print:bg-blue-100' },
-    green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', printBg: 'print:bg-green-100' },
-    red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', printBg: 'print:bg-red-100' }
-  };
+      while (startIndex !== -1) {
+        const endIndex = content.indexOf(endTag, startIndex);
+        if (endIndex !== -1) {
+          const trendContent = content.substring(startIndex + startTag.length, endIndex).trim();
+          if (trendContent) {
+            trends.push(trendContent);
+          }
+          startIndex = content.indexOf(startTag, endIndex + endTag.length);
+        } else {
+          break;
+        }
+      }
+    }
 
-  const currentTheme = themeShades[theme] || themeShades.blue;
+    // SECTION TRENDS: Ensure we have exactly 3 trend slots for consistent display
+    const trendSlots = 3;
+    while (trends.length < trendSlots) {
+      trends.push('');
+    }
 
-  return (
-    <div className="mb-6 print:mb-4">
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden print:shadow-none">
-        {/* CARD HEADER */}
-        <div className="border-b border-neutral-200 bg-neutral-50 px-5 py-3 print:px-3 print:py-2">
-          <h3 className="text-base font-semibold text-neutral-800">
-            {region.toUpperCase()} • Key Trends
-          </h3>
-        </div>
+    // Only show the first 3 trends for sections
+    const displayTrends = trends.slice(0, trendSlots);
 
-        {/* CARD BODY */}
-        <div className="p-5 print:p-3">
-          {/* Two-column grid layout for trends */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {displayTrends.map((trend, index) => (
-              <div 
-                key={index} 
-                className={`${currentTheme.bg} p-4 rounded-lg border ${currentTheme.border} flex items-start gap-3 print:p-3 ${currentTheme.printBg} print:border`}
-                style={{
-                  backgroundColor: themeColor + '10',
-                  borderColor: themeColor + '30',
-                }}
-              >
-                <LineChart 
-                  className={`w-6 h-6 ${currentTheme.text} shrink-0`} 
-                  style={{ color: themeColor }}
-                />
-                <div className="flex-1">
-                  {renderEditableText(
-                    trend,
-                    `${sectionId}-trends-${index}`,
-                    `${region} trend...`,
-                    4
-                  )}
+    const themeColor = themeColors[theme];
+    const themeShades = {
+      blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', printBg: 'print:bg-blue-100' },
+      green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', printBg: 'print:bg-green-100' },
+      red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', printBg: 'print:bg-red-100' }
+    };
+
+    const currentTheme = themeShades[theme] || themeShades.blue;
+
+    return (
+      <div className="mb-6 print:mb-4">
+        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden print:shadow-none">
+          {/* CARD HEADER */}
+          <div className="border-b border-neutral-200 bg-neutral-50 px-5 py-3 print:px-3 print:py-2">
+            <h3 className="text-base font-semibold text-neutral-800">
+              {region.toUpperCase()} • Key Trends
+            </h3>
+          </div>
+
+          {/* CARD BODY */}
+          <div className="p-5 print:p-3">
+            {/* Two-column grid layout for trends */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {displayTrends.map((trend, index) => (
+                <div
+                  key={index}
+                  className={`${currentTheme.bg} p-4 rounded-lg border ${currentTheme.border} flex items-start gap-3 print:p-3 ${currentTheme.printBg} print:border`}
+                  style={{
+                    backgroundColor: themeColor + '10',
+                    borderColor: themeColor + '30',
+                  }}
+                >
+                  <LineChart
+                    className={`w-6 h-6 ${currentTheme.text} shrink-0`}
+                    style={{ color: themeColor }}
+                  />
+                  <div className="flex-1">
+                    {renderEditableText(
+                      trend,
+                      `${sectionId}-trends-${index}`,
+                      `${region} trend...`,
+                      4
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   const renderArticle = (article: any, index: number) => {
     const currentArticle = articles.find(a => a.news_id === article.news_id) || article;
@@ -3027,93 +3027,93 @@ const renderSectionTrends = (trendsContent: string, sectionId: string, region: s
     );
   };
 
-// FIXED: Key Trends rendering to properly handle individual trend editing
-const renderKeyTrends = () => {
-  if (!editableContent.keyTrends) return null;
+  // FIXED: Key Trends rendering to properly handle individual trend editing
+  const renderKeyTrends = () => {
+    if (!editableContent.keyTrends) return null;
 
-  console.log('Raw keyTrends content:', editableContent.keyTrends);
+    console.log('Raw keyTrends content:', editableContent.keyTrends);
 
-  // Parse the trends from the XML-like format
-  let trends: string[] = [];
-  
-  // Method 1: Try regex parsing with more robust pattern
-  const regexMatches = editableContent.keyTrends.match(/<trend>(.*?)<\/trend>/g);
-  if (regexMatches && regexMatches.length > 0) {
-    console.log('Found XML trends:', regexMatches);
-    trends = regexMatches.map(t => {
-      // Remove the <trend> and </trend> tags but preserve the content
-      const content = t.replace(/<trend>|<\/trend>/g, '').trim();
-      return content;
-    });
-  } else {
-    // Method 2: If no XML tags found, try to split by newlines
-    console.log('No XML tags found, trying line splitting');
-    const lines = editableContent.keyTrends.split('\n').filter(line => line.trim().length > 0);
-    if (lines.length > 0) {
-      trends = lines.map(line => line.trim());
+    // Parse the trends from the XML-like format
+    let trends: string[] = [];
+
+    // Method 1: Try regex parsing with more robust pattern
+    const regexMatches = editableContent.keyTrends.match(/<trend>(.*?)<\/trend>/g);
+    if (regexMatches && regexMatches.length > 0) {
+      console.log('Found XML trends:', regexMatches);
+      trends = regexMatches.map(t => {
+        // Remove the <trend> and </trend> tags but preserve the content
+        const content = t.replace(/<trend>|<\/trend>/g, '').trim();
+        return content;
+      });
     } else {
-      // Method 3: Fallback - use the entire content as one trend
-      trends = [editableContent.keyTrends.trim()];
+      // Method 2: If no XML tags found, try to split by newlines
+      console.log('No XML tags found, trying line splitting');
+      const lines = editableContent.keyTrends.split('\n').filter(line => line.trim().length > 0);
+      if (lines.length > 0) {
+        trends = lines.map(line => line.trim());
+      } else {
+        // Method 3: Fallback - use the entire content as one trend
+        trends = [editableContent.keyTrends.trim()];
+      }
     }
-  }
 
-  console.log('Parsed trends:', trends);
+    console.log('Parsed trends:', trends);
 
-  // MAIN KEY TRENDS: Ensure we have exactly 5 trend slots for consistent display
-  const trendSlots = 5;
-  while (trends.length < trendSlots) {
-    trends.push('');
-  }
-  
-  // Only show the first 5 trends for main key trends
-  const displayTrends = trends.slice(0, trendSlots);
+    // MAIN KEY TRENDS: Ensure we have exactly 5 trend slots for consistent display
+    const trendSlots = 5;
+    while (trends.length < trendSlots) {
+      trends.push('');
+    }
 
-  // Get theme colors
-  const themeColor = themeColors[theme];
-  const themeShades = {
-    blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', printBg: 'print:bg-blue-100' },
-    green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', printBg: 'print:bg-green-100' },
-    red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', printBg: 'print:bg-red-100' }
-  };
+    // Only show the first 5 trends for main key trends
+    const displayTrends = trends.slice(0, trendSlots);
 
-  const currentTheme = themeShades[theme] || themeShades.blue;
+    // Get theme colors
+    const themeColor = themeColors[theme];
+    const themeShades = {
+      blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', printBg: 'print:bg-blue-100' },
+      green: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', printBg: 'print:bg-green-100' },
+      red: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', printBg: 'print:bg-red-100' }
+    };
 
-  return (
-    <div className="mb-8 print:mb-6">
-      <h2 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-1 print:text-xl print:mb-3">
-        5 Key Trends
-      </h2>
+    const currentTheme = themeShades[theme] || themeShades.blue;
 
-      {/* Two-column grid layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {displayTrends.map((trend, index) => (
-          <div 
-            key={index} 
-            className={`${currentTheme.bg} p-4 rounded-lg border ${currentTheme.border} flex items-start gap-3 print:p-3 ${currentTheme.printBg} print:border`}
-            style={{
-              // Fallback inline styles for more consistent theming
-              backgroundColor: themeColor + '10', // Add opacity
-              borderColor: themeColor + '30',
-            }}
-          >
-            <LineChart 
-              className={`w-6 h-6 ${currentTheme.text} shrink-0`} 
-              style={{ color: themeColor }}
-            />
-            <div className="flex-1">
-              {renderEditableText(
-                trend,
-                `keyTrends-${index}`,
-                "Key trend...",
-                6
-              )}
+    return (
+      <div id="key-trends-section" className="mb-8 print:mb-6">
+        <h2 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-1 print:text-xl print:mb-3">
+          5 Key Trends
+        </h2>
+
+        {/* Two-column grid layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {displayTrends.map((trend, index) => (
+            <div
+              key={index}
+              className={`${currentTheme.bg} p-4 rounded-lg border ${currentTheme.border} flex items-start gap-3 print:p-3 ${currentTheme.printBg} print:border`}
+              style={{
+                // Fallback inline styles for more consistent theming
+                backgroundColor: themeColor + '10', // Add opacity
+                borderColor: themeColor + '30',
+              }}
+            >
+              <LineChart
+                className={`w-6 h-6 ${currentTheme.text} shrink-0`}
+                style={{ color: themeColor }}
+              />
+              <div className="flex-1">
+                {renderEditableText(
+                  trend,
+                  `keyTrends-${index}`,
+                  "Key trend...",
+                  6
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   // Main bulletin content renderer - used in both normal view and split-screen
   const renderBulletinContent = () => (
@@ -3222,6 +3222,69 @@ const renderKeyTrends = () => {
         </div>
       </div>
 
+
+     
+{/* TABLE OF CONTENTS */}
+<div className="table-of-contents mb-8 print:mb-6">
+  <div className="flex flex-wrap items-center gap-0 divide-x divide-gray-200 border border-gray-300 rounded-lg overflow-hidden print:border print:divide-gray-400">
+    
+    {/* 5 Key Trends */}
+    <a
+      href="#key-trends-section"
+      className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
+    >
+      5 Key Trends
+    </a>
+
+    {/* Executive Summary */}
+    <a
+      href="#executive-summary-section"
+      className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
+    >
+      Executive Summary
+    </a>
+
+    {/* EU */}
+    {safeBulletinConfig.euSection?.enabled && (
+      <a
+        href="#eu-regulatory-section"
+        className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
+      >
+        EU Regulatory Developments
+      </a>
+    )}
+
+    {/* US */}
+    {safeBulletinConfig.usSection?.enabled && (
+      <a
+        href="#us-regulatory-section"
+        className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
+      >
+        US Regulatory Developments
+      </a>
+    )}
+
+    {/* Global */}
+    {safeBulletinConfig.globalSection?.enabled && (
+      <a
+        href="#global-regulatory-section"
+        className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
+      >
+        Global Regulatory Developments
+      </a>
+    )}
+
+    {/* Conclusion */}
+    <a
+      href="#conclusion-section"
+      className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
+    >
+      Conclusion & Key Takeaways
+    </a>
+  </div>
+</div>
+
+
       {/* GREETING MESSAGE */}
       {editableContent.greetingMessage && (
         <div className="mb-6 bg-gradient-to-r from-blue-50 to-gray-50 p-4 rounded-lg border print:p-3 print:mb-4 print:bg-gray-100 print:border">
@@ -3259,7 +3322,7 @@ const renderKeyTrends = () => {
 
           {/* EXECUTIVE SUMMARY */}
           {editableContent.executiveSummary && (
-            <div className="mb-8 bg-gradient-to-r from-blue-50 to-gray-50 p-6 rounded-lg border print:p-4 print:mb-6 print:bg-gray-100 print:border">
+            <div id="executive-summary-section" className="mb-8 bg-gradient-to-r from-blue-50 to-gray-50 p-6 rounded-lg border print:p-4 print:mb-6 print:bg-gray-100 print:border">
               <h2 className="text-xl font-bold mb-3 text-gray-900 print:text-lg">Executive Summary</h2>
               <div className="text-gray-700 print:text-sm">
                 {renderEditableText(
@@ -3274,13 +3337,20 @@ const renderKeyTrends = () => {
         </div>
       )}
 
-      {/* REGIONAL SECTIONS */}
-      {renderRegionalSection('euSection')}
-      {renderRegionalSection('usSection')}
-      {renderRegionalSection('globalSection')}
+        <>
+      <div id="eu-regulatory-section">
+        {renderRegionalSection('euSection')}
+      </div>
+      <div id="us-regulatory-section">
+        {renderRegionalSection('usSection')}
+      </div>
+      <div id="global-regulatory-section">
+        {renderRegionalSection('globalSection')}
+      </div>
+      </>
 
       {/* KEY TAKEAWAYS & FOOTER CONTAINER */}
-      <div className="print:break-before-page">
+      <div  id="conclusion-section"  className="print:break-before-page">
         {/* KEY TAKEAWAYS */}
         {editableContent.keyTakeaways && (
           <div className="mb-8 bg-gradient-to-r from-gray-50 to-blue-50 p-6 rounded-lg border print:p-4 print:bg-gray-100 print:border print:mb-6">

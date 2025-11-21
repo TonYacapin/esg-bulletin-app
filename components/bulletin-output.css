@@ -20,8 +20,25 @@
     font-size: 11pt;
   }
   
-  button, .print-hidden {
+  /* Only hide specific buttons, not all buttons */
+  button.print-hidden {
     display: none !important;
+  }
+  
+  /* Ensure Table of Contents buttons are visible */
+  .table-of-contents button {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: white !important;
+    color: black !important;
+    border: 1px solid #ccc !important;
+    padding: 6px 10px !important;
+    margin: 2px !important;
+    font-size: 9pt !important;
+    border-radius: 3px !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
   
   .container {
@@ -45,6 +62,17 @@
   .print-break-before-page {
     page-break-before: always !important;
     break-before: page !important;
+  }
+  
+  /* Table of Contents container */
+  .table-of-contents {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    margin-bottom: 1rem !important;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
   
   /* Two-column layout with better spacing */
@@ -309,6 +337,32 @@
   
   .screen-columns-1 {
     columns: 1;
+  }
+  
+  /* Table of Contents styles for screen */
+  .table-of-contents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 2rem;
+  }
+  
+  .table-of-contents button {
+    padding: 8px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    color: #374151;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+  }
+  
+  .table-of-contents button:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
   }
   
   @media (min-width: 1024px) {
