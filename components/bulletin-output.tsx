@@ -1518,7 +1518,7 @@ function PexelsImageSearch({
 };
 
 export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
-  const { theme, articles: initialArticles, articlesByCountry, bulletinConfig } = data
+  const { theme, articles: initialArticles, articlesByCountry, bulletinConfig } = data as { theme: 'blue' | 'green' | 'red'; articles: any[]; articlesByCountry: any; bulletinConfig: any }
 
   // Create a safe bulletin config with fallbacks
   const safeBulletinConfig = bulletinConfig || {
@@ -3081,7 +3081,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
     return (
       <div id="key-trends-section" className="mb-8 print:mb-6">
         <h2 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-1 print:text-xl print:mb-3">
-          5 Key Trends
+          Key Trends
         </h2>
 
         {/* Two-column grid layout */}
@@ -3233,7 +3233,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
       href="#key-trends-section"
       className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
     >
-      5 Key Trends
+      Key Trends
     </a>
 
     {/* Executive Summary */}
@@ -3250,7 +3250,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         href="#eu-regulatory-section"
         className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
       >
-        EU Regulatory Developments
+        EU
       </a>
     )}
 
@@ -3260,7 +3260,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         href="#us-regulatory-section"
         className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
       >
-        US Regulatory Developments
+        US
       </a>
     )}
 
@@ -3270,7 +3270,7 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
         href="#global-regulatory-section"
         className="px-5 py-2 font-medium hover:bg-gray-50 transition-colors print:px-3 print:py-1.5 print:text-sm print:bg-white print:text-black print:no-underline"
       >
-        Global Regulatory Developments
+        Across The Globe
       </a>
     )}
 
@@ -3365,6 +3365,66 @@ export function BulletinOutput({ data, onStartOver }: BulletinOutputProps) {
             </div>
           </div>
         )}
+
+        {/* FOOTER SECTION */}
+<footer 
+  className="mt-8 py-6 border-t print:mt-6 print:py-4"
+  style={{ borderTopColor: themeColors[theme] }}
+>
+  <div className="flex items-center gap-4 text-sm text-gray-600 print:text-xs flex-wrap">
+    
+    {/* Email */}
+    <div className="flex items-center gap-2">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+      <a 
+        href="mailto:info@scorealytics.com" 
+        className="hover:underline"
+        style={{ color: themeColors[theme] }}
+      >
+        info@scorealytics.com
+      </a>
+    </div>
+
+    <span className="text-gray-400">|</span>
+
+    {/* Links */}
+    <a 
+      href="https://scorealytics.com/#subscribe"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="hover:underline transition-colors"
+      style={{ color: themeColors[theme] }}
+    >
+      Subscribe
+    </a>
+    <span className="text-gray-400">|</span>
+
+    <a 
+      href="https://scorealytics.com/#our-story"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="hover:underline transition-colors"
+      style={{ color: themeColors[theme] }}
+    >
+      About
+    </a>
+    <span className="text-gray-400">|</span>
+
+    <a 
+      href="https://scorealytics.com/#solutions"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="hover:underline transition-colors"
+      style={{ color: themeColors[theme] }}
+    >
+      Visit Website
+    </a>
+  </div>
+</footer>
+
+
       </div>
     </div>
   );
